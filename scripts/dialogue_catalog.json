@@ -1,0 +1,1361 @@
+{
+  "schema_version": 1,
+  "language": "German",
+  "voices": {
+    "elira": {
+      "instruct": "Woman, 64. Low alto, weathered and slightly rough with a dry breath edge. Restrained authority and concealed shame. Slow conversational pace; short pauses before admissions, never mystical or maternal by default. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "bryn": {
+      "instruct": "Man, 43. Deep chest baritone, coarse grain, substantial resonance without booming. Distrustful, practical and exhausted. Moderate pace with clipped endings; anger lowers his volume, grief interrupts ordinary work. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "soren": {
+      "instruct": "Man, 34. Low middle register, close and slightly breathy, clear soft consonants. Alert, precise, carrying guilt without self-pity. Measured conversational pace; brief hesitation before personal facts. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "bandit_captain": {
+      "instruct": "Man, 48. Dry bass-baritone with a worn rasp and little vibrato. Transactional, watchful, unsentimental. Even medium pace and economical stress; threats are quiet calculations, never a theatrical villain growl. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "innkeeper": {
+      "instruct": "Woman, 51. Dark rounded alto, faint fatigue in the upper register, crisp consonants. Practical hospitality giving way to shock and shame. Medium-slow speech; painful facts are stated plainly, no continuous sobbing. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "guard_captain": {
+      "instruct": "Man, 39. Clear light baritone with controlled breath and a narrow pitch range. Educated courtesy, defensive composure, reluctant accountability. Medium pace; careful sentence endings, never a parade-ground bark. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "priest": {
+      "instruct": "Woman, 57. Clear centered alto, dry intimate presence, very little breathiness. Patient, morally exacting and quietly ashamed. Moderate-slow pace with particular care on names. No sermon cadence or sacred reverberation. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "steward": {
+      "instruct": "Man, 56. Smooth cultured baritone, restrained chest resonance and exceptionally clean articulation. Courteous administrative menace, emotionally contained. Unhurried medium pace, small pauses at contractual terms; no sneering or shouting. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "hanne": {
+      "instruct": "Woman, 32. Plain middle register, slightly husky, practical and direct. Begins with tired dry humor; later short phrases on dwindling breath. Uneven natural pace under injury, restrained urgency, no melodramatic death rattle. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "farmer": {
+      "instruct": "Woman, 46. Low middle register with earthy roughness and tired breath. Protective, stubborn and matter-of-fact. Moderate-slow pace, firm stress on food and family, no comic rustic inflection. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "miller": {
+      "instruct": "Man, 61. Thin tenor with a soft worn edge and careful diction. Defensive calculation softening into regret. Medium pace with small counting pauses; no caricature or habitual coughing. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_smith": {
+      "instruct": "Man, 45. Solid rough baritone, dry chest resonance. Practical tired patience, contained grief. Medium pace with short firm endings. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_elder": {
+      "instruct": "Woman, 64. Low alto, weathered and slightly rough with a dry breath edge. Restrained authority and concealed shame. Slow conversational pace; short pauses before admissions, never mystical or maternal by default. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_ranger": {
+      "instruct": "Man, 36. Quiet low tenor, light breath edge, clean precise consonants. Alert and observant, subdued warmth when remembering a colleague. Measured medium pace. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_innkeeper": {
+      "instruct": "Woman, 49. Warm low alto with a dry edge. Busy, wary hospitality and private fatigue. Medium conversational pace, small practical emphases. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_merchant": {
+      "instruct": "Man, 41. Light baritone, slightly nasal forward resonance but clear vowels. Courteous defensiveness, calculation beneath ordinary manners. Brisk but intelligible pace, no street-vendor shouting. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_farmer": {
+      "instruct": "Woman, 46. Low middle register with earthy roughness and tired breath. Protective, stubborn and matter-of-fact. Moderate-slow pace, firm stress on food and family, no comic rustic inflection. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_guard": {
+      "instruct": "Woman, 31. Firm low middle register, focused resonance, lightly rough consonants. Vigilant fatigue with occasional quiet compassion. Medium clipped pace, never shouting by default. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_woodcutter": {
+      "instruct": "Man, 52. Dry bass-baritone with modest rasp and relaxed breath. Physical fatigue, blunt practicality, understated grief. Slow-medium pace with plain sentence stress. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_child": {
+      "instruct": "Child, about 10, youthful light mid-high register without squeakiness. Natural curious directness and occasional uncertainty, not adult wisdom. Medium pace with simple unforced phrasing, no baby talk. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_priest": {
+      "instruct": "Man, 54. Soft mid baritone, clear vowels and low breath noise. Attentive humility and sorrow held in check. Moderate-slow pace, names distinctly articulated; no sermon rhythm. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "ambient_townsfolk": {
+      "instruct": "Woman, 38. Ordinary middle register, soft grain and a tired but steady breath. Guarded neighborly warmth, worry without melodrama. Natural medium pace and conversational pitch range. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_guard": {
+      "instruct": "Woman, 31. Firm low middle register, focused resonance, lightly rough consonants. Vigilant fatigue with occasional quiet compassion. Medium clipped pace, never shouting by default. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_merchant": {
+      "instruct": "Man, 41. Light baritone, slightly nasal forward resonance but clear vowels. Courteous defensiveness, calculation beneath ordinary manners. Brisk but intelligible pace, no street-vendor shouting. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_innkeeper": {
+      "instruct": "Woman, 49. Warm low alto with a dry edge. Busy, wary hospitality and private fatigue. Medium conversational pace, small practical emphases. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_priest": {
+      "instruct": "Man, 54. Soft mid baritone, clear vowels and low breath noise. Attentive humility and sorrow held in check. Moderate-slow pace, names distinctly articulated; no sermon rhythm. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_smith": {
+      "instruct": "Man, 45. Solid rough baritone, dry chest resonance. Practical tired patience, contained grief. Medium pace with short firm endings. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_townsfolk": {
+      "instruct": "Woman, 38. Ordinary middle register, soft grain and a tired but steady breath. Guarded neighborly warmth, worry without melodrama. Natural medium pace and conversational pitch range. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    },
+    "city_child": {
+      "instruct": "Child, about 10, youthful light mid-high register without squeakiness. Natural curious directness and occasional uncertainty, not adult wisdom. Medium pace with simple unforced phrasing, no baby talk. Speak natural, accent-free Standard German with native German pronunciation. Intimate grounded dramatic dialogue, emotionally specific, no fantasy declamation. Voice only; no music, effects, singing or added words."
+    }
+  },
+  "lines": [
+    {
+      "id": "intro_wheel",
+      "speaker": "hanne",
+      "scene": "intro",
+      "text": "Wenn das Rad abspringt, lass es rollen. Nicht hinterher."
+    },
+    {
+      "id": "intro_stop",
+      "speaker": "hanne",
+      "scene": "intro",
+      "text": "Es ist nichts mehr drauf. Ihr habt nachgesehen."
+    },
+    {
+      "id": "intro_soren",
+      "speaker": "soren",
+      "scene": "intro",
+      "text": "Bryn. Nicht hinterher. Hilf mir mit ihr."
+    },
+    {
+      "id": "intro_carry",
+      "speaker": "elira",
+      "scene": "intro",
+      "text": "Hierher. Auf den Mantel. Nicht auf die Steine."
+    },
+    {
+      "id": "intro_pressure",
+      "speaker": "hanne",
+      "scene": "intro",
+      "text": "Die Säcke gehören Grete. Bring sie zurück."
+    },
+    {
+      "id": "intro_death",
+      "speaker": "soren",
+      "scene": "intro",
+      "text": "Hanne. Hörst du mich?"
+    },
+    {
+      "id": "intro_blood",
+      "speaker": "elira",
+      "scene": "intro",
+      "text": "Das ist nicht alles dein Blut. Lass die Hände jetzt still."
+    },
+    {
+      "id": "intro_door",
+      "speaker": "elira",
+      "scene": "intro",
+      "text": "Sie kam heute schon einmal. Ich habe sie fortgeschickt."
+    },
+    {
+      "id": "intro_handoff",
+      "speaker": "elira",
+      "scene": "intro",
+      "text": "Bleib noch sitzen, {name}. Ich muss dir etwas sagen."
+    },
+    {
+      "id": "elira_public_end",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Ada hat mir geschrieben. Die Namen werden verlesen. Meiner auch. Ich gehe mit der Wache. Aber die Kinder hier haben nichts unterschrieben."
+    },
+    {
+      "id": "elira_public_last",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Nein. Die auch nicht. Bryn hat den Schlüssel zum Kornhaus. Gib ihn Grete. Sie soll diesmal selbst zählen."
+    },
+    {
+      "id": "elira_sealed_end",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Unsere Wagen dürfen wieder durch. Am Brückenhof haben sie heute zwei Männer mitgenommen. Sag mir nicht, dass du es für mich getan hast."
+    },
+    {
+      "id": "elira_sealed_last",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "So habe ich damals auch angefangen. Setz dich, wenn du willst. Sorens Platz ist frei."
+    },
+    {
+      "id": "elira_open",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Nicht aufstehen, {name}. Die Wunde geht wieder auf. Hanne ist tot. Bryn holt eine Tür aus den Angeln. Wir haben keine Bahre."
+    },
+    {
+      "id": "elira_cart",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Kein Korn. Nur leere Säcke. Sie wollte wissen, wo ihr Anteil geblieben ist. Ich habe ihr gesagt, sie solle morgen wiederkommen."
+    },
+    {
+      "id": "elira_guilt",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Ja. Ich hatte Suppe auf dem Feuer. Das wirst du gegen mich verwenden können. Frag vorher Bryn nach dem Bolzen im Wagen."
+    },
+    {
+      "id": "elira_bolt",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Nimm ihn mit. Bryn erkennt seine Arbeit. Und wenn er fragt, ob ich dich schicke: Sag ja. Er schuldet mir keine Schonung."
+    },
+    {
+      "id": "elira_after_public",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Ich warte auf die Wache. Die Suppe darf trotzdem nicht anbrennen."
+    },
+    {
+      "id": "elira_after_sealed",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Heute ist Korn gekommen. Ich habe jeden Sack zählen lassen. Es hilft beim Schlafen nicht."
+    },
+    {
+      "id": "elira_wait",
+      "speaker": "elira",
+      "scene": "dialogue_elira",
+      "text": "Du willst wissen, wer hier lügt. Fang damit an, wer noch etwas zu verlieren hat."
+    },
+    {
+      "id": "bryn_bolt",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Leg den Bolzen hin. Ja, der ist von mir. Zwanzig Stück. Der Mann hat nicht gehandelt. So kaufen nur Leute mit fremdem Geld."
+    },
+    {
+      "id": "bryn_blame",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Ich weiß. Sie liegt auf meiner Tür. Du musst es nicht lauter sagen."
+    },
+    {
+      "id": "bryn_silver",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Königliches Silber. Roter Mantel. Soren kennt ihn. Er sah den Mann und ging zur Hintertür hinaus."
+    },
+    {
+      "id": "bryn_burial_end",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Die Bretter reichen. Hanne hat sich immer über Splitter beschwert. Ich gehe noch einmal mit dem Messer darüber."
+    },
+    {
+      "id": "bryn_tower_end",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Olts Marke. Ich habe ihm das Messer für die Kerben gegeben. Hast du ihn gesehen?"
+    },
+    {
+      "id": "bryn_tower_last",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Gut, dass du nicht mehr daraus machst. Ich halte seinen Platz an der Esse frei. Das ist meine Sache."
+    },
+    {
+      "id": "bryn_soren_dead",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Soren wollte einen neuen Beschlag für seinen Bogen. Ich habe gesagt: nächste Woche. Der alte täte es noch."
+    },
+    {
+      "id": "bryn_work",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Wenn du helfen willst, habe ich Arbeit. Bezahlen kann ich erst, wenn wieder jemand seine Rechnung bezahlt."
+    },
+    {
+      "id": "bryn_burial_offer",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Trockene Bretter vom Holzstapel. Keine grünen. Sie soll nicht noch einmal in nassem Holz liegen."
+    },
+    {
+      "id": "bryn_tower_offer",
+      "speaker": "bryn",
+      "scene": "dialogue_bryn",
+      "text": "Mein Lehrling Olt sollte längst vom Turm im Nordwesten zurück sein. Sieh nach ihm. Bring mir keine Vermutung als Nachricht."
+    },
+    {
+      "id": "soren_first",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Rauk. Hauptmann, als Titel noch Sold bedeuteten. Drei Männer halten sein Lager im Westen. Geh mit sichtbaren Händen hin. Er rechnet, bevor er schießt."
+    },
+    {
+      "id": "soren_hanne",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Sie konnte ein Rad allein aufziehen. Hat mich dabei ausgelacht, weil ich helfen wollte. Heute habe ich ihre Hand gehalten. Mehr ist mir nicht eingefallen."
+    },
+    {
+      "id": "soren_shame",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Rauk würde mich töten, bevor ich nah genug wäre. Hol seinen Zahlungsbefehl. Ich warte am Schrein im Osten. Dort zeige ich dir meinen Teil."
+    },
+    {
+      "id": "soren_confession",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Die Platte neben dem Kristall. Darunter. Ich habe die Säcke gezählt, die Männer zurückgedrängt und abends die Listen abgeschrieben. Alles mit denselben Händen."
+    },
+    {
+      "id": "soren_admission",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Einer hat nach einem gerissenen Sack gegriffen. Ich schlug ihn mit dem Schaft. Ich weiß seinen Namen nicht. Das ist keine Entschuldigung."
+    },
+    {
+      "id": "soren_names",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Severin ließ Korn verschwinden. Elira bestätigte den Empfang. Dafür bekam ihr Dorf sechs Wagen. Lies die Mengen. Am Brückenhof blieb nicht einmal Saatgut."
+    },
+    {
+      "id": "soren_future",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Bryn schuldet mir einen Beschlag. Danach wollte ich den Bogen eine Weile hängen lassen. Es gibt einen Zaun am Brückenhof, der gemacht werden muss."
+    },
+    {
+      "id": "soren_depart",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Nimm die Abschriften, {name}. Ich gehe voraus zu Marta an der Königsstraße. Sie schreibt meine Aussage auf. Falls ich vor Iven wieder ein feiger Hund werde."
+    },
+    {
+      "id": "soren_wait",
+      "speaker": "soren",
+      "scene": "dialogue_soren",
+      "text": "Ich habe lange genug auf den richtigen Augenblick gewartet. Er wird nicht besser."
+    },
+    {
+      "id": "rauk_after",
+      "speaker": "bandit_captain",
+      "scene": "dialogue_bandit_captain",
+      "text": "Du hast das Papier. Geh. Wenn du mich länger ansiehst, wird daraus auch keine Beichte."
+    },
+    {
+      "id": "rauk_open",
+      "speaker": "bandit_captain",
+      "scene": "dialogue_bandit_captain",
+      "text": "Du blutest durch den Verband. Wer dich geschickt hat, spart sogar am Leinen. Elira oder Soren?"
+    },
+    {
+      "id": "rauk_price",
+      "speaker": "bandit_captain",
+      "scene": "dialogue_bandit_captain",
+      "text": "Severins Siegel. Für jeden Namen Silber. Hanne stand darauf. Jetzt stehe vermutlich ich auf einer zweiten Liste. Deshalb habe ich das Papier behalten."
+    },
+    {
+      "id": "rauk_bargain",
+      "speaker": "bandit_captain",
+      "scene": "dialogue_bandit_captain",
+      "text": "Du wirst meinen Namen trotzdem nennen. Gut. Zwischen einem Richter und dir liegt wenigstens noch ein Weg. Hier. Meine Leute bleiben sitzen."
+    },
+    {
+      "id": "rauk_fight",
+      "speaker": "bandit_captain",
+      "scene": "dialogue_bandit_captain",
+      "text": "In Kronwacht hängt man Männer wie mich, bevor sie Namen sagen. Nein. Den Befehl wirst du aus der Platte ziehen müssen."
+    },
+    {
+      "id": "rauk_wait",
+      "speaker": "bandit_captain",
+      "scene": "dialogue_bandit_captain",
+      "text": "Das ist kein Lager für Reisende. Zurück auf die Straße."
+    },
+    {
+      "id": "marta_death",
+      "speaker": "innkeeper",
+      "scene": "dialogue_innkeeper",
+      "text": "Soren liegt drinnen. Er kam allein. Dann ein Mann von der Wache. Ich habe ihm die Tür gezeigt. Soren sagte, niemand müsse sich mehr verstecken."
+    },
+    {
+      "id": "marta_last_breath",
+      "speaker": "innkeeper",
+      "scene": "dialogue_innkeeper",
+      "text": "Nein. Ich hielt das Tuch fest. Er wollte noch etwas sagen. Es kam nur Luft. Dann musste ich seine Finger einzeln vom Ärmel lösen."
+    },
+    {
+      "id": "marta_door",
+      "speaker": "innkeeper",
+      "scene": "dialogue_innkeeper",
+      "text": "Er trug die Farben des Königs. Ich dachte an meine Schanklizenz. Das ist die ganze Antwort. Eine bessere habe ich nicht."
+    },
+    {
+      "id": "marta_testimony",
+      "speaker": "innkeeper",
+      "scene": "dialogue_innkeeper",
+      "text": "Hier. Er ließ mich auch seinen eigenen Namen aufschreiben. Geh zu Iven am Tor von Kronwacht. Und lass nicht zu, dass aus Soren nur ein Zeuge wird."
+    },
+    {
+      "id": "marta_after",
+      "speaker": "innkeeper",
+      "scene": "dialogue_innkeeper",
+      "text": "Ich habe den Ärmel gewaschen. Zweimal. Seine Aussage habe ich behalten, noch eine Abschrift. Diesmal öffne ich nicht."
+    },
+    {
+      "id": "marta_wait",
+      "speaker": "innkeeper",
+      "scene": "dialogue_innkeeper",
+      "text": "Ein Bett kostet. Ein Platz am Feuer nicht. Wer etwas anderes behauptet, arbeitet nicht für mich."
+    },
+    {
+      "id": "iven_open",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Soren sollte sich bei mir melden. Du trägst seinen Bogen nicht. Also lebt er noch, oder jemand hat dir gesagt, nichts anzufassen."
+    },
+    {
+      "id": "iven_seal",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Das Siegel kenne ich. Ja, schon länger. Ich habe meine Männer von den Höfen abgezogen. Ich wollte keinen von ihnen mit so einem Befehl losschicken."
+    },
+    {
+      "id": "iven_admit",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Ich habe Platz gelassen. Für Männer ohne Uniform. Wenn du es so ins Protokoll gibst, werde ich nicht widersprechen."
+    },
+    {
+      "id": "iven_temple",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Ada im Kronentempel hat die Sterberegister. Ihr Siegel erzwingt eine Anhörung auf der Burg. Nimm meinen Passierschein. Mein Name steht darauf. Endlich einmal."
+    },
+    {
+      "id": "iven_public",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Die bezahlten Streifen sind abberufen. Meine Männer sichern die Höfe. Eliras Haftbefehl liegt daneben. Ich habe beide Befehle unterschrieben."
+    },
+    {
+      "id": "iven_sealed",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Dämmerwald ist von den Durchsuchungen ausgenommen. Nur Dämmerwald. Du weißt, wie groß dieses Wort auf einer Karte ist."
+    },
+    {
+      "id": "iven_wait",
+      "speaker": "guard_captain",
+      "scene": "dialogue_guard_captain",
+      "text": "Nenne mir einen Namen und einen Vorgang. Mit Gerüchten kann ich Menschen einsperren. Herausbekommen kann ich sie damit nicht."
+    },
+    {
+      "id": "ada_open",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Leg die Listen neben das Register. Nicht auf die feuchte Tinte. Ich habe heute drei Namen berichtigt. Fieber stand dort. Hunger hätte dort stehen müssen."
+    },
+    {
+      "id": "ada_guilt",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Ich. Der Vogt sagte, Hunger sei keine Krankheit. Ich fand damals, das klang vernünftig. Gib mir Sorens Aussage."
+    },
+    {
+      "id": "ada_warning",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Die Zahlen stimmen überein. Elira hat die falschen Mengen bestätigt. Wenn ich das versiegle, kann ihr Name nicht herausgenommen werden. Auch deiner nicht, wenn du es einreichst."
+    },
+    {
+      "id": "ada_seal",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Es gibt zwei Wege: öffentliche Verlesung oder versiegelte Eingabe. Der Vogt wird dir den zweiten schmackhaft machen. Lass ihn die Gegenleistung laut aussprechen."
+    },
+    {
+      "id": "ada_public",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Heute wurden die Namen auf dem Markt verlesen. Einige haben zugehört. Eine Frau hat ihren Korb abgestellt und ist nicht wiedergekommen."
+    },
+    {
+      "id": "ada_sealed",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Die Eingabe bleibt verschlossen. Das Register nicht. Ich werde Hunger schreiben, solange ich die Feder halten darf."
+    },
+    {
+      "id": "ada_wait",
+      "speaker": "priest",
+      "scene": "dialogue_priest",
+      "text": "Wenn du einen Namen suchst, frage. Wenn du Vergebung suchst, erzähle zuerst, wem du etwas getan hast."
+    },
+    {
+      "id": "severin_open",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "{name}. Ada hat sauber gearbeitet. Sie hat sogar die Zahlendreher berichtigt. Setz dich. Stehend treffen Menschen gern Entscheidungen, die andere tragen müssen."
+    },
+    {
+      "id": "severin_murder",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Rauks Auftrag war von mir. Wer in Martas Haus ging, wird eine Untersuchung klären. Eine solche Untersuchung kann Jahre dauern. Der Winter wartet nicht."
+    },
+    {
+      "id": "severin_terms",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Bei Verlesung enden die verdeckten Streifen. Elira kommt in Haft. Dämmerwald verliert die Winterzuteilung als Ersatz für das gestohlene Korn. Der König nennt das Ausgleich."
+    },
+    {
+      "id": "severin_offer",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Elira bleibt. Dämmerwald erhält Korn und wird von Durchsuchungen ausgenommen. Auf den Höfen bleiben meine Männer. Du kannst ein Dorf schützen. Das biete ich dir schriftlich."
+    },
+    {
+      "id": "severin_guarantee",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Weil Iven und Ada eine Abschrift erhalten. Meine Unterschrift ist nur dann etwas wert, wenn sie jemand gegen mich verwenden kann. Das hast du heute gut vorgeführt."
+    },
+    {
+      "id": "severin_decision",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Die ganze Liste, öffentlich. Oder der Schutzbrief für Dämmerwald, gegen Schweigen. Nimm dir Zeit. Danach nehme ich keine Seite zurück."
+    },
+    {
+      "id": "severin_public",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Dann wird verlesen. Du wirst meinen Namen hören. Auch Eliras. Geh nach Hause, bevor der Befehl dort eintrifft. So viel Anstand kannst du dir noch leisten."
+    },
+    {
+      "id": "severin_sealed",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Der Schutzbrief wird heute ausgefertigt. Sag Elira, dass die Wagen kommen. Den Rest wird sie verstehen, ohne dass du ihn aussprichst."
+    },
+    {
+      "id": "severin_done",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Der Beschluss gilt. Wenn du ihn bereust, musst du damit außerhalb dieses Zimmers anfangen."
+    },
+    {
+      "id": "severin_wait",
+      "speaker": "steward",
+      "scene": "dialogue_steward",
+      "text": "Unbeglaubigte Beschwerden nimmt die Wache entgegen. Ich wünsche dir einen sicheren Rückweg."
+    },
+    {
+      "id": "grete_seed_end",
+      "speaker": "farmer",
+      "scene": "dialogue_farmer",
+      "text": "Nicht aufmachen. Wenn ich das Korn sehe, denke ich an Brot. Es muss bis zum Frühjahr Korn bleiben."
+    },
+    {
+      "id": "grete_wolves_end",
+      "speaker": "farmer",
+      "scene": "dialogue_farmer",
+      "text": "Der Weg ist frei? Dann gehe ich morgen zum Nordhof. Ich habe versprochen, nach dem Zaun zu sehen. Es ist lange her."
+    },
+    {
+      "id": "grete_work",
+      "speaker": "farmer",
+      "scene": "dialogue_farmer",
+      "text": "Hanne fuhr für uns. Ihr Wagen steht noch im Dorf. Wenn ihr ihn nicht mehr braucht, bringe ich ihn heim. Die Räder sind gut."
+    },
+    {
+      "id": "grete_seed_offer",
+      "speaker": "farmer",
+      "scene": "dialogue_farmer",
+      "text": "Saatgut. Tamme hält unseren letzten Sack in der Mühle zurück. Steuerschuld, sagt er. Frag ihn, was er nächstes Jahr mahlen will."
+    },
+    {
+      "id": "grete_wolves_offer",
+      "speaker": "farmer",
+      "scene": "dialogue_farmer",
+      "text": "Zwischen hier und dem Nordhof jagen Wölfe. Die Wache ließ die toten Zugtiere liegen. Jetzt brauche ich für einen Besuch ein Schwert."
+    },
+    {
+      "id": "tamme_seed",
+      "speaker": "miller",
+      "scene": "dialogue_miller",
+      "text": "Gretes Sack steht da hinten. Ich sollte ihn abliefern. Wenn ich ihn dir gebe, fehlt er in meiner Liste."
+    },
+    {
+      "id": "tamme_release",
+      "speaker": "miller",
+      "scene": "dialogue_miller",
+      "text": "Nimm ihn. Ich habe lang genug ausgerechnet, wie wenig ein Mensch essen kann. Ich lag jedes Mal zu niedrig."
+    },
+    {
+      "id": "tamme_wait",
+      "speaker": "miller",
+      "scene": "dialogue_miller",
+      "text": "Wenn die Flügel stillstehen, fehlt meist kein Wind. Meist fehlt etwas zum Mahlen."
+    },
+    {
+      "id": "city_guard_public",
+      "speaker": "city_guard",
+      "scene": "dialogue_city_guard",
+      "text": "Heute begleiten wir Kornwagen zu den Höfen. Dämmerwald steht nicht auf der Liste. Frag den Schreiber, weshalb. Ich kenne die Antwort."
+    },
+    {
+      "id": "city_guard_sealed",
+      "speaker": "city_guard",
+      "scene": "dialogue_city_guard",
+      "text": "Für Dämmerwald gilt ein Schutzbrief. Wenn du von einem Hof kommst, gilt er für dich nicht. Auch dann nicht, wenn du dort Verwandte hast."
+    },
+    {
+      "id": "city_guard_late",
+      "speaker": "city_guard",
+      "scene": "dialogue_city_guard",
+      "text": "Iven hat deinen Namen genannt. Du darfst durch. Die Leute hinter dir warten seit gestern."
+    },
+    {
+      "id": "city_guard_papers",
+      "speaker": "city_guard",
+      "scene": "dialogue_city_guard",
+      "text": "Ein Name, den mein Hauptmann kennt."
+    },
+    {
+      "id": "city_guard_early",
+      "speaker": "city_guard",
+      "scene": "dialogue_city_guard",
+      "text": "Keine Wagen ohne Abgabenmarke. Zu Fuß kannst du passieren. Lass die Klinge stecken."
+    },
+    {
+      "id": "city_merchant_public",
+      "speaker": "city_merchant",
+      "scene": "dialogue_city_merchant",
+      "text": "Die Kornsäcke wurden beschlagnahmt. Ich hatte Quittungen. Jetzt sagen alle, ich hätte wissen müssen, weshalb sie so billig waren."
+    },
+    {
+      "id": "city_merchant_sealed",
+      "speaker": "city_merchant",
+      "scene": "dialogue_city_merchant",
+      "text": "Die Preise bleiben. Der Vogt hat die Lieferungen bestätigt. Du siehst aus, als hättest du mehr dafür bezahlt als ich."
+    },
+    {
+      "id": "city_merchant_late",
+      "speaker": "city_merchant",
+      "scene": "dialogue_city_merchant",
+      "text": "Du trägst versiegelte Papiere. Versteck sie. Hier kauft man schneller einen Namen als einen Sack Mehl."
+    },
+    {
+      "id": "city_merchant_early",
+      "speaker": "city_merchant",
+      "scene": "dialogue_city_merchant",
+      "text": "Der Preis steht da. Ich schreibe ihn groß, damit niemand vor seinen Kindern fragen muss."
+    },
+    {
+      "id": "city_innkeeper_public",
+      "speaker": "city_innkeeper",
+      "scene": "dialogue_city_innkeeper",
+      "text": "Seit der Verlesung bleibt der Tisch der Kornhändler leer. Ihre offenen Rechnungen sind noch hier. Die werde ich nicht verbrennen."
+    },
+    {
+      "id": "city_innkeeper_sealed",
+      "speaker": "city_innkeeper",
+      "scene": "dialogue_city_innkeeper",
+      "text": "Zur Krone wird heute voll. Der Vogt bezahlt eine Runde. Ich schenke aus. Frag mich morgen, ob ich mich darüber freue."
+    },
+    {
+      "id": "city_innkeeper_late",
+      "speaker": "city_innkeeper",
+      "scene": "dialogue_city_innkeeper",
+      "text": "Marta hat geschrieben. Ich kannte Soren nicht. Aber ich kenne das Geräusch, wenn jemand nachts gegen eine Tür fällt."
+    },
+    {
+      "id": "city_innkeeper_early",
+      "speaker": "city_innkeeper",
+      "scene": "dialogue_city_innkeeper",
+      "text": "Willkommen in der Krone. Schlafen oben, trinken unten. Wer nachts weint, bekommt das Zimmer am Ende des Flurs."
+    },
+    {
+      "id": "city_priest_public",
+      "speaker": "city_priest",
+      "scene": "dialogue_city_priest",
+      "text": "Ada lässt das Register offen liegen. Manche Menschen kommen nur, um mit einem Finger über einen Namen zu fahren."
+    },
+    {
+      "id": "city_priest_sealed",
+      "speaker": "city_priest",
+      "scene": "dialogue_city_priest",
+      "text": "Wir haben heute für Ruhe gedankt. Danach kam eine Frau vom Nordhof. Ich konnte ihr nicht erklären, welche Ruhe gemeint war."
+    },
+    {
+      "id": "city_priest_late",
+      "speaker": "city_priest",
+      "scene": "dialogue_city_priest",
+      "text": "Ada zählt die Toten noch einmal. Wenn du sie suchst, setz dich. Lass sie den Namen zu Ende schreiben."
+    },
+    {
+      "id": "city_priest_early",
+      "speaker": "city_priest",
+      "scene": "dialogue_city_priest",
+      "text": "Die Kerze kostet nichts. Nur wenn du eine mitnimmst, muss ich fragen, für wen."
+    },
+    {
+      "id": "city_smith_public",
+      "speaker": "city_smith",
+      "scene": "dialogue_city_smith",
+      "text": "Die Wache bestellt neue Schlösser für das Kornhaus. Ich soll die alten aufheben. Sie sind jetzt Beweisstücke."
+    },
+    {
+      "id": "city_smith_sealed",
+      "speaker": "city_smith",
+      "scene": "dialogue_city_smith",
+      "text": "Mehr Beschläge für die Streifenwagen. Immer dieselbe Bestellung. Ich dachte, nach deinem Besuch würde sie ausbleiben."
+    },
+    {
+      "id": "city_smith_late",
+      "speaker": "city_smith",
+      "scene": "dialogue_city_smith",
+      "text": "Bryn hat früher die guten Nägel gemacht. Jetzt schickt er nur noch Bolzen. Sag ihm, ich hätte nach ihm gefragt."
+    },
+    {
+      "id": "city_smith_early",
+      "speaker": "city_smith",
+      "scene": "dialogue_city_smith",
+      "text": "Eine neue Klinge kostet mehr als eine Reparatur. Die meisten hören nur das Wort neu."
+    },
+    {
+      "id": "city_townsfolk_public",
+      "speaker": "city_townsfolk",
+      "scene": "dialogue_city_townsfolk",
+      "text": "Der Name meines Bruders stand auf der Liste. Ich hatte ihm vorgeworfen, er wolle nicht mehr nach Hause kommen."
+    },
+    {
+      "id": "city_townsfolk_sealed",
+      "speaker": "city_townsfolk",
+      "scene": "dialogue_city_townsfolk",
+      "text": "Dämmerwald bekommt Korn. Meine Schwester am Osthof nicht. Sie fragt, was sie falsch gemacht hat."
+    },
+    {
+      "id": "city_townsfolk_late",
+      "speaker": "city_townsfolk",
+      "scene": "dialogue_city_townsfolk",
+      "text": "Im Tempel werden Namen verglichen. Ich habe den meines Bruders aufgeschrieben. Die Schrift sieht seiner ähnlich."
+    },
+    {
+      "id": "city_townsfolk_early",
+      "speaker": "city_townsfolk",
+      "scene": "dialogue_city_townsfolk",
+      "text": "Oben an der Burg werden die Fenster geputzt. Hier unten fehlt Wasser. Man sieht von dort wohl schlecht genug."
+    },
+    {
+      "id": "city_child_public",
+      "speaker": "city_child",
+      "scene": "dialogue_city_child",
+      "text": "Mama hat beim Vorlesen geweint. Ich habe sie gefragt, ob sie den Mann kennt. Sie hat gesagt: jetzt schon."
+    },
+    {
+      "id": "city_child_sealed",
+      "speaker": "city_child",
+      "scene": "dialogue_city_child",
+      "text": "Dämmerwald darf die Wagen behalten. Wohnen da mehr Kinder als hier?"
+    },
+    {
+      "id": "city_child_late",
+      "speaker": "city_child",
+      "scene": "dialogue_city_child",
+      "text": "Du gehst zur Burg? Sag denen, dass am Brunnen ein Brett fehlt. Mein kleiner Bruder passt da durch."
+    },
+    {
+      "id": "city_child_early",
+      "speaker": "city_child",
+      "scene": "dialogue_city_child",
+      "text": "Ich soll beim Stand bleiben. Bis die Glocke schlägt. Sie hat schon zweimal geschlagen."
+    },
+    {
+      "id": "bark_smith_01",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Halt das Werkstück. Nicht meine Hand."
+    },
+    {
+      "id": "bark_smith_02",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Der Riss war schon vorher drin. Ich habe ihn übersehen."
+    },
+    {
+      "id": "bark_smith_03",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Heute nur Nägel. Wenigstens weiß ich, wofür."
+    },
+    {
+      "id": "bark_smith_04",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Bring das Eisen zurück, wenn du wiederkommst."
+    },
+    {
+      "id": "bark_smith_05",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Kohle lässt sich nicht anschreiben."
+    },
+    {
+      "id": "bark_smith_06",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Nein. Einen Kindersarg beschlage ich nicht gegen Geld."
+    },
+    {
+      "id": "bark_smith_07",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Warte, bis es kalt ist. Ich habe es dir gesagt."
+    },
+    {
+      "id": "bark_smith_08",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Die Zange gehörte meinem Vater. Sonst ist wenig geblieben."
+    },
+    {
+      "id": "bark_smith_09",
+      "speaker": "ambient_smith",
+      "scene": "bark_smith",
+      "text": "Sorens Beschlag liegt noch hier. Ich räume ihn morgen weg."
+    },
+    {
+      "id": "bark_elder_01",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Stell einen Teller mehr hin. Vielleicht kommt noch jemand."
+    },
+    {
+      "id": "bark_elder_02",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Ich habe die Säcke selbst gezählt. Das ist ja das Schlimme."
+    },
+    {
+      "id": "bark_elder_03",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Nicht jedes Schweigen schützt jemanden."
+    },
+    {
+      "id": "bark_elder_04",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Der Schlüssel bleibt am Haken. Jeder soll ihn sehen."
+    },
+    {
+      "id": "bark_elder_05",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Früher wusste ich, wer anklopft, bevor es klopfte."
+    },
+    {
+      "id": "bark_elder_06",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Nimm die Schüssel. Wir reden später über Schulden."
+    },
+    {
+      "id": "bark_elder_07",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Ich habe nichts vergessen. Frag etwas anderes."
+    },
+    {
+      "id": "bark_elder_08",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Die Kinder sollen essen, bevor die Männer zählen kommen."
+    },
+    {
+      "id": "bark_elder_09",
+      "speaker": "ambient_elder",
+      "scene": "bark_elder",
+      "text": "Mein Mantel liegt bereit. Die Wache soll nicht warten müssen."
+    },
+    {
+      "id": "bark_ranger_01",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Zwei Pferde. Eines lahmt. Sie werden nicht weit sein."
+    },
+    {
+      "id": "bark_ranger_02",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Nicht auf die Spur treten. Lass mir wenigstens die."
+    },
+    {
+      "id": "bark_ranger_03",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Der Riemen hält noch bis zum Dorf."
+    },
+    {
+      "id": "bark_ranger_04",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Wenn der Wald still wird, bleib selbst still."
+    },
+    {
+      "id": "bark_ranger_05",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Ich kenne den Weg. Das heißt nicht, dass er sicher ist."
+    },
+    {
+      "id": "bark_ranger_06",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Hier hat jemand gewartet. Lange genug, um zu essen."
+    },
+    {
+      "id": "bark_ranger_07",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Zähl die Leute, bevor wir aufbrechen."
+    },
+    {
+      "id": "bark_ranger_08",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Der Zaun am Brückenhof muss vor dem Frost fertig werden."
+    },
+    {
+      "id": "bark_ranger_09",
+      "speaker": "ambient_ranger",
+      "scene": "bark_ranger",
+      "text": "Soren ging hier immer zu Fuß. Auch als er ein Pferd hatte."
+    },
+    {
+      "id": "bark_innkeeper_01",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Die Suppe ist dünn. Dafür bleibt der Preis."
+    },
+    {
+      "id": "bark_innkeeper_02",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Wisch die Stiefel ab. Ich habe gerade gewischt."
+    },
+    {
+      "id": "bark_innkeeper_03",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Ein Zimmer, ein Name. Mehr frage ich nicht."
+    },
+    {
+      "id": "bark_innkeeper_04",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Den Stuhl nicht nehmen. Das Bein ist lose."
+    },
+    {
+      "id": "bark_innkeeper_05",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Wer anschreiben lässt, muss wiederkommen."
+    },
+    {
+      "id": "bark_innkeeper_06",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Stell den Krug ab, bevor du mir schlechte Nachrichten bringst."
+    },
+    {
+      "id": "bark_innkeeper_07",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Heute bleibt der Riegel drin."
+    },
+    {
+      "id": "bark_innkeeper_08",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Die Decke kannst du behalten. Sie wärmt noch."
+    },
+    {
+      "id": "bark_innkeeper_09",
+      "speaker": "ambient_innkeeper",
+      "scene": "bark_innkeeper",
+      "text": "Das Zimmer am Ende bleibt leer. Für heute."
+    },
+    {
+      "id": "bark_merchant_01",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Du darfst die Waage prüfen."
+    },
+    {
+      "id": "bark_merchant_02",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Gestern war es billiger. Gestern hatte ich mehr."
+    },
+    {
+      "id": "bark_merchant_03",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Eine Quittung schützt nur, solange jemand lesen will."
+    },
+    {
+      "id": "bark_merchant_04",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Ich kaufe keine blutigen Mäntel."
+    },
+    {
+      "id": "bark_merchant_05",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Die kleinen Münzen gehen auch."
+    },
+    {
+      "id": "bark_merchant_06",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Nimm die Druckstelle weg. Darunter ist der Apfel gut."
+    },
+    {
+      "id": "bark_merchant_07",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Nein, ich kenne den Vorbesitzer nicht."
+    },
+    {
+      "id": "bark_merchant_08",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Am Abend packe ich ein. Auch wenn nichts verkauft ist."
+    },
+    {
+      "id": "bark_merchant_09",
+      "speaker": "ambient_merchant",
+      "scene": "bark_merchant",
+      "text": "Seit der Verlesung wollen alle wissen, woher mein Korn stammt."
+    },
+    {
+      "id": "bark_farmer_01",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Die Saat wird nicht gegessen. Auch heute nicht."
+    },
+    {
+      "id": "bark_farmer_02",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Mach das Tor zu. Mehr Vieh kann ich nicht verlieren."
+    },
+    {
+      "id": "bark_farmer_03",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Der Regen kommt zu spät. Aber er kommt."
+    },
+    {
+      "id": "bark_farmer_04",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Wir hatten zwei Ochsen. Jetzt haben wir Rücken."
+    },
+    {
+      "id": "bark_farmer_05",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Die Abgabe wird vor der Ernte festgelegt. Stell dir das vor."
+    },
+    {
+      "id": "bark_farmer_06",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Lass die Halme liegen. Das wird Einstreu."
+    },
+    {
+      "id": "bark_farmer_07",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Ein leeres Feld sieht für Fremde friedlich aus."
+    },
+    {
+      "id": "bark_farmer_08",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Hanne konnte den Wagen wenden, ohne ein Rad ins Feld zu setzen."
+    },
+    {
+      "id": "bark_farmer_09",
+      "speaker": "ambient_farmer",
+      "scene": "bark_farmer",
+      "text": "Dämmerwald bekommt sein Korn. Wir sollen noch warten."
+    },
+    {
+      "id": "bark_guard_01",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Hände aus dem Mantel. Langsam."
+    },
+    {
+      "id": "bark_guard_02",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Die Ablösung ist überfällig."
+    },
+    {
+      "id": "bark_guard_03",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Zeig den Schein. Das Siegel reicht nicht."
+    },
+    {
+      "id": "bark_guard_04",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Ich habe den Befehl nicht geschrieben."
+    },
+    {
+      "id": "bark_guard_05",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Geh am Wagen vorbei. Nicht darunter."
+    },
+    {
+      "id": "bark_guard_06",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Das Kind bleibt bei seiner Mutter."
+    },
+    {
+      "id": "bark_guard_07",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Nachts erkenne ich die Uniform vor dem Gesicht."
+    },
+    {
+      "id": "bark_guard_08",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Mein Sold kommt. Der Brief von zu Hause nicht."
+    },
+    {
+      "id": "bark_guard_09",
+      "speaker": "ambient_guard",
+      "scene": "bark_guard",
+      "text": "Die Höfe stehen jetzt unter unserem Schutz. Schreib meinen Namen auf."
+    },
+    {
+      "id": "bark_woodcutter_01",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Zur Seite. Der Stamm fällt nicht nach Wunsch."
+    },
+    {
+      "id": "bark_woodcutter_02",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Das trockene Holz liegt unten."
+    },
+    {
+      "id": "bark_woodcutter_03",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Ich zähle die Finger noch jeden Abend."
+    },
+    {
+      "id": "bark_woodcutter_04",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Für den Ofen oder für einen Sarg? Ich muss die Länge wissen."
+    },
+    {
+      "id": "bark_woodcutter_05",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Nimm die Rinde mit. Sie brennt schnell."
+    },
+    {
+      "id": "bark_woodcutter_06",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Zu zweit geht es leichter. Frag mich nicht, wo der andere ist."
+    },
+    {
+      "id": "bark_woodcutter_07",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Die Axt ist stumpf. Ich bin es auch."
+    },
+    {
+      "id": "bark_woodcutter_08",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Vom Turm kommt kein Rauch mehr."
+    },
+    {
+      "id": "bark_woodcutter_09",
+      "speaker": "ambient_woodcutter",
+      "scene": "bark_woodcutter",
+      "text": "Bryn hat für Hanne die guten Bretter genommen. Richtig so."
+    },
+    {
+      "id": "bark_child_01",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Ich passe auf den Eimer auf."
+    },
+    {
+      "id": "bark_child_02",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Wenn ich langsam esse, ist länger etwas da."
+    },
+    {
+      "id": "bark_child_03",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Mein Vater kommt nach der Arbeit. Das sagt er immer."
+    },
+    {
+      "id": "bark_child_04",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Darf ich das Stück Schnur haben?"
+    },
+    {
+      "id": "bark_child_05",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Wir spielen heute ohne Verstecken."
+    },
+    {
+      "id": "bark_child_06",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Warum machen die Großen die Tür zu, wenn sie reden?"
+    },
+    {
+      "id": "bark_child_07",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Ich kenne schon alle Stufen zum Tempel."
+    },
+    {
+      "id": "bark_child_08",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Das kleinere Stück ist für mich. Ich habe es ausgesucht."
+    },
+    {
+      "id": "bark_child_09",
+      "speaker": "ambient_child",
+      "scene": "bark_child",
+      "text": "Soren wollte mir zeigen, wie der Knoten geht. Wer macht das jetzt?"
+    },
+    {
+      "id": "bark_priest_01",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Sag den Namen noch einmal. Ich will ihn richtig schreiben."
+    },
+    {
+      "id": "bark_priest_02",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Du musst hier nichts sagen."
+    },
+    {
+      "id": "bark_priest_03",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Die Tür bleibt bis zum Abend offen."
+    },
+    {
+      "id": "bark_priest_04",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Stell die Kerze weiter vom Ärmel weg."
+    },
+    {
+      "id": "bark_priest_05",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Ich weiß nicht, ob er Angst hatte. Ich war nicht dort."
+    },
+    {
+      "id": "bark_priest_06",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Für ein Grab gibt es keine Schuldnerliste."
+    },
+    {
+      "id": "bark_priest_07",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Die Angehörigen zuerst. Die Schreiber können warten."
+    },
+    {
+      "id": "bark_priest_08",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Wir haben Platz. Rück ein wenig zur Seite."
+    },
+    {
+      "id": "bark_priest_09",
+      "speaker": "ambient_priest",
+      "scene": "bark_priest",
+      "text": "Die berichtigten Namen stehen am Rand. Ich radiere die alten Einträge nicht aus."
+    },
+    {
+      "id": "bark_townsfolk_01",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Oben an der Burg brennt noch Licht."
+    },
+    {
+      "id": "bark_townsfolk_02",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Ich halte deinen Platz, wenn du Wasser holen musst."
+    },
+    {
+      "id": "bark_townsfolk_03",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Früher haben wir uns beim Namen begrüßt."
+    },
+    {
+      "id": "bark_townsfolk_04",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Den Brief habe ich noch. Die Adresse stimmt nicht mehr."
+    },
+    {
+      "id": "bark_townsfolk_05",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Nicht hier. Die Wand ist dünn."
+    },
+    {
+      "id": "bark_townsfolk_06",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Die Miete wartet nicht auf gute Nachrichten."
+    },
+    {
+      "id": "bark_townsfolk_07",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Lass die Schuhe an. Der Boden ist kalt."
+    },
+    {
+      "id": "bark_townsfolk_08",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Wir teilen durch vier. Wie gestern."
+    },
+    {
+      "id": "bark_townsfolk_09",
+      "speaker": "ambient_townsfolk",
+      "scene": "bark_townsfolk",
+      "text": "Man kennt jetzt die Namen. Satt wird davon noch niemand."
+    }
+  ]
+}

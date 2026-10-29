@@ -1,0 +1,148 @@
+import { INTRO } from './story.js';
+
+// Staging of the opening (story.js INTRO is the shot list in words; this is where everyone stands).
+// Dämmerwald's well is at (-3, 9); Hanne comes up the west road from the camp side at dusk.
+// Positions are [x, z]; camera points are [x, y, z] with y above the terrain at that spot.
+// Actors: wanderer (player), hanne, raider (knife), shooter (crossbow), soren, bryn, elira.
+const line = id => INTRO.find(shot => shot.id === id);
+const say = (id, at = .6) => { const shot = line(id); return shot?.subtitle ? [{ at, do: 'say', speaker: shot.speaker, text: shot.subtitle }] : []; };
+
+export const INTRO_SCRIPT = {
+  hour: 19.1,
+  cast: {
+    hanne: { name: 'Hanne', appearance: { body: 'female', build: 'strong', skin: 2, hair: 'braid', hairColor: 1, eyes: 2, face: 'weathered' },
+      equipment: { armor: 'bauernkleidung', feet: 'wanderstiefel', cloak: 'reiseumhang' }, tints: { shirt: '#6a5a44', pants: '#3d3129' } },
+    raider: { bandit: 0 }, shooter: { bandit: 1 },
+  },
+  start: { wanderer: [-49.6, 27.6], hanne: [-46.4, 26], raider: [-25.5, 13.2], shooter: [-27, 20.8], soren: [-9, 13.6], bryn: [13.5, 10.5], elira: [-1, 7.5] },
+  shots: [
+    { id: 'intro_wheel', duration: 8, camera: { from: [-45.8, 1.3, 30.7], to: [-35.3, 1.3, 25.3], lookFrom: [-47.5, .7, 26.6], lookTo: [-37, .8, 21.6], ease: 'linear', fov: 50 },
+      events: [
+        { at: 0, do: 'fade', to: 0, duration: 2.5 },
+        { at: 0, do: 'pose', actor: 'hanne', pose: 'pull' },
+        { at: 0, do: 'walk', actor: 'hanne', path: [[-46.4, 26], [-35, 20.6]], duration: 8 },
+        { at: 0, do: 'walk', actor: 'wanderer', path: [[-49.6, 27.6], [-38.3, 22.2]], duration: 8 },
+        { at: 4.6, do: 'pose', actor: 'hanne', pose: 'point', for: 1.6 },
+        { at: 0, do: 'sound', name: 'cart' },
+        ...say('intro_wheel', 2.2),
+      ] },
+    { id: 'intro_stop', duration: 7, camera: { from: [-17.5, 2.3, 13.2], to: [-19, 2.4, 13.8], lookFrom: [-30, 1.4, 18.5], lookTo: [-31.5, 1.3, 19], fov: 46 },
+      events: [
+        { at: 0, do: 'walk', actor: 'hanne', path: [[-35, 20.6], [-31, 18.7]], duration: 3.2, ease: 'out' },
+        { at: 0, do: 'walk', actor: 'wanderer', path: [[-38.3, 22.2], [-33.6, 20.6]], duration: 3.4, ease: 'out' },
+        { at: .8, do: 'walk', actor: 'raider', path: [[-25.5, 13.2], [-28.9, 17.4]], duration: 3 },
+        { at: 1.4, do: 'pose', actor: 'shooter', pose: 'aim_low' },
+        ...say('intro_stop', 4),
+      ] },
+    { id: 'intro_bolt', duration: 6, camera: { from: [-27.6, 1.5, 22.4], to: [-28.2, 1.4, 21.9], lookFrom: [-31, 1, 18.8], lookTo: [-31, .8, 18.8], fov: 42, shake: .6 },
+      events: [
+        { at: .4, do: 'cart', turn: 1.2 },
+        { at: 1.4, do: 'pose', actor: 'shooter', pose: 'aim' },
+        { at: 2.5, do: 'sound', name: 'string' },
+        { at: 2.6, do: 'blood', actor: 'hanne', count: 22 },
+        { at: 2.6, do: 'pose', actor: 'hanne', pose: 'slump' },
+        { at: 3.8, do: 'sound', name: 'string' },
+        { at: 3.9, do: 'bolt' },
+      ] },
+    { id: 'intro_intervene', duration: 8, camera: { from: [-35.2, 2.2, 21.6], to: [-34.2, 2.3, 20.6], lookFrom: [-28, 1.5, 16.5], lookTo: [-28.5, 1.4, 17], fov: 50, shake: 1.2 },
+      events: [
+        { at: 0, do: 'run', actor: 'wanderer', path: [[-33.6, 20.6], [-30.4, 17.6]], duration: 1.2 },
+        { at: 1.1, do: 'cart', shift: [.8, -1.2] },
+        { at: 1.6, do: 'walk', actor: 'raider', path: [[-28.9, 17.4], [-29.7, 16.9]], duration: .5 },
+        { at: 2.1, do: 'blood', actor: 'wanderer', count: 8 },
+        { at: 2.2, do: 'pose', actor: 'wanderer', pose: 'flinch', for: .5 },
+        { at: 2.9, do: 'swing', actor: 'wanderer' },
+        { at: 3.3, do: 'blood', actor: 'raider', count: 10 },
+        { at: 3.4, do: 'pose', actor: 'raider', pose: 'flinch' },
+        { at: 4.6, do: 'swing', actor: 'wanderer' },
+        { at: 5, do: 'pose', actor: 'shooter', pose: 'flinch' },
+        { at: 6, do: 'walk', actor: 'hanne', path: [[-31, 18.7], [-31.9, 19.6]], duration: 1.6, face: 2.2 },
+        { at: 0, do: 'walk', actor: 'soren', path: [[-9, 13.6], [-18, 15.4]], duration: 7 },
+      ] },
+    { id: 'intro_soren', duration: 7, camera: { from: [-26.5, 2.1, 17.6], to: [-26.3, 2.1, 17.5], lookFrom: [-19, 1.8, 15.4], lookTo: [-19, 1.8, 15.4], fov: 44 },
+      events: [
+        { at: 0, do: 'place', actor: 'soren', pos: [-19, 15.4], yaw: 1.6 },
+        { at: 0, do: 'pose', actor: 'soren', pose: 'draw_bow' },
+        { at: .6, do: 'sound', name: 'bow' },
+        { at: 0, do: 'run', actor: 'bryn', path: [[13.5, 10.5], [-2, 12], [-15, 15.6]], duration: 6 },
+        { at: 1.5, do: 'pose', actor: 'raider', pose: null },
+        { at: 1.6, do: 'run', actor: 'raider', path: [[-29.7, 16.9], [-55, 30], [-80, 41]], duration: 7 },
+        { at: 1.9, do: 'run', actor: 'shooter', path: [[-27, 20.8], [-55, 31], [-82, 43]], duration: 7 },
+        { at: 2.2, do: 'pose', actor: 'shooter', pose: null },
+        ...say('intro_soren', 3.6),
+        { at: 6.4, do: 'pose', actor: 'soren', pose: null },
+      ] },
+    // Following Bryn from behind, clear of the house at (-15, 22) that the old track ran through.
+    { id: 'intro_carry', duration: 8, camera: { from: [-33, 2.6, 21], to: [-14.5, 2.4, 14.2], lookFrom: [-28, 1.2, 18.4], lookTo: [-6, 1, 11.8], ease: 'inOut', fov: 48 },
+      events: [
+        { at: 0, do: 'hide', actor: 'raider' }, { at: 0, do: 'hide', actor: 'shooter' },
+        { at: 0, do: 'place', actor: 'bryn', pos: [-29.6, 18.9], yaw: -1.9 },
+        { at: 0, do: 'carry', carrier: 'bryn', carried: 'hanne' },
+        { at: 0, do: 'pose', actor: 'bryn', pose: 'carry' },
+        { at: .2, do: 'walk', actor: 'bryn', path: [[-29.6, 18.9], [-18, 15.8], [-5.8, 11.6]], duration: 7.4 },
+        // The others walk on the far side of Bryn so the camera keeps him and Hanne in view.
+        { at: 0, do: 'place', actor: 'wanderer', pos: [-31, 18], yaw: -2 },
+        { at: .5, do: 'walk', actor: 'wanderer', path: [[-31, 18], [-19.4, 14.3], [-8.2, 11.6]], duration: 7.5 },
+        { at: .4, do: 'walk', actor: 'soren', path: [[-19, 15.4], [-29.8, 16.4]], duration: 2.5 },
+        { at: 3, do: 'walk', actor: 'soren', path: [[-29.8, 16.4], [-18.6, 13.2], [-7.4, 10.4]], duration: 5 },
+        { at: 2, do: 'walk', actor: 'elira', path: [[-1, 7.5], [-3.6, 10.6]], duration: 3 },
+        { at: 6.8, do: 'lay', carried: 'hanne', pos: [-4.6, 11.1], yaw: .4 },
+        { at: 6.9, do: 'pose', actor: 'elira', pose: 'press' },
+        { at: 7, do: 'pose', actor: 'bryn', pose: 'kneel' },
+        { at: 5.6, do: 'sound', name: 'bucket' },
+        ...say('intro_carry', 6.2),
+      ] },
+    { id: 'intro_pressure', duration: 9, camera: { from: [-1.9, 1.15, 14.6], to: [-2.2, 1.05, 14.3], lookFrom: [-4.7, .5, 11.4], lookTo: [-4.8, .45, 11.3], fov: 40 },
+      events: [
+        { at: 0, do: 'place', actor: 'bryn', pos: [-5.6, 12.3], yaw: 2.4 },
+        { at: 0, do: 'place', actor: 'elira', pos: [-3.5, 10.7], yaw: -.9 },
+        { at: 0, do: 'place', actor: 'soren', pos: [-5.4, 9.9], yaw: -.6 },
+        { at: 0, do: 'pose', actor: 'soren', pose: 'kneel' },
+        { at: 0, do: 'place', actor: 'wanderer', pos: [-.9, 11.3], yaw: 1.7 },
+        { at: 0, do: 'pose', actor: 'wanderer', pose: 'kneel' },
+        { at: 4.8, do: 'sound', name: 'thud' },
+        ...say('intro_pressure', 2.4),
+      ] },
+    { id: 'intro_death', duration: 8, camera: { from: [-7.6, 1.45, 7.3], to: [-7.65, 1.45, 7.25], lookFrom: [-5.3, 1, 10], lookTo: [-5.3, 1, 10], fov: 42 },
+      events: [
+        ...say('intro_death', 3.2),
+        { at: 6.2, do: 'pose', actor: 'elira', pose: 'kneel' },
+        { at: 6, do: 'sound', name: 'wind' },
+      ] },
+    { id: 'intro_blood', duration: 7, camera: { from: [-.3, 1.2, 10.1], to: [-.2, 1.8, 9.8], lookFrom: [-2, .55, 11.6], lookTo: [-3.2, 1.6, 11.3], fov: 44 },
+      events: [
+        { at: 0, do: 'place', actor: 'wanderer', pos: [-2, 11.6], yaw: 2.7 },
+        { at: 0, do: 'pose', actor: 'wanderer', pose: 'wash' },
+        { at: 0, do: 'place', actor: 'elira', pos: [-3.1, 11.3], yaw: -1.4 },
+        { at: 0, do: 'pose', actor: 'elira', pose: 'kneel' },
+        { at: .4, do: 'sound', name: 'water' },
+        { at: 4.2, do: 'well_bolt' },
+        ...say('intro_blood', 2.2),
+      ] },
+    { id: 'intro_door', duration: 8, camera: { from: [-16, 3.6, 2.5], to: [-15.2, 3.8, 3.3], lookFrom: [-3.5, 1.4, 10], lookTo: [-3, 1.5, 10.5], fov: 50 },
+      events: [
+        { at: 0, do: 'pose', actor: 'bryn', pose: null },
+        { at: .3, do: 'walk', actor: 'bryn', path: [[-5.6, 12.3], [6, 12.5], [11.6, 12.4]], duration: 6.5 },
+        { at: 0, do: 'pose', actor: 'elira', pose: null },
+        { at: .2, do: 'place', actor: 'elira', pos: [-3.4, 11.2], yaw: -.6 },
+        { at: 1.4, do: 'cloak' },
+        { at: 1.4, do: 'pose', actor: 'soren', pose: null },
+        { at: 2, do: 'title', show: true },
+        { at: 6.4, do: 'title', show: false },
+        { at: 3, do: 'sound', name: 'hinge' },
+        ...say('intro_door', 4.4),
+      ] },
+    { id: 'intro_handoff', duration: 7, camera: { from: [-4.9, 1.9, 13.6], to: [-.6, 3.1, 16.4], lookFrom: [-3.4, 1.85, 11.2], lookTo: [-2.4, 1.4, 11.6], fov: 50 },
+      events: [
+        { at: 0, do: 'place', actor: 'elira', pos: [-3.6, 10.6], yaw: -.75 },
+        { at: 0, do: 'place', actor: 'wanderer', pos: [-2.3, 11.8], yaw: 2.4 },
+        { at: 0, do: 'pose', actor: 'wanderer', pose: 'slump' },
+        { at: 0, do: 'place', actor: 'soren', pos: [-6.8, 13.6], yaw: 2.2 },
+        ...say('intro_handoff', 1.6),
+        { at: 5.4, do: 'fade', to: 1, duration: 1.4 },
+      ] },
+  ],
+  // Where the game picks up: the wanderer sits by the well, Elira close enough to talk to.
+  // yaw 1.3 keeps Elira, the well and the lit house in frame (2.5 put the well roof in front of the camera).
+  end: { wanderer: [-2.3, 12.4], yaw: 1.3, hanne: [-4.6, 11.1] },
+};

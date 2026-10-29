@@ -1,0 +1,55 @@
+﻿<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#0d1215" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>A Journey through Hemland — Die letzte Glut</title>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="scene-vignette" aria-hidden="true"></div>
+    <div id="performance" class="hidden" role="status"></div>
+    <div id="reticle" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div id="cinematic"><div class="letterbox top"></div><div id="cinematic-caption"></div><div class="letterbox bottom"></div></div>
+    <header id="hud" class="hidden">
+      <div class="top-left"><div class="hud-logo" aria-label="A Journey through Hemland"><small>A Journey through</small>Hemland</div><div class="region" id="region">DIE ASCHMARK · DÄMMERWALD</div><div id="world-time">08:00 · Morgen</div><div id="level">STUFE 1 · WANDERER</div></div>
+      <div class="top-right"><div id="objective">Finde die Dorfälteste Elira</div></div>
+      <div class="resource-bars">
+        <div class="resource magicka" aria-label="Magicka"><label>MAGICKA</label><div class="track"><div id="magicka-fill"></div></div><span id="magicka-text">100 / 100</span></div>
+        <div class="resource hp" aria-label="Leben"><label>LEBEN</label><div class="track"><div id="health-fill"></div></div><span id="health-text">100 / 100</span></div>
+        <div class="resource stamina" aria-label="Ausdauer"><label>AUSDAUER</label><div class="track"><div id="stamina-fill"></div></div><span id="stamina-text">100 / 100</span></div>
+      </div>
+      <div class="bottom-center"><div class="quickbar"><div class="slot selected"><strong>1</strong><span aria-hidden="true">⚔</span><small>Eisenschwert</small></div><div class="slot"><strong>2</strong><span aria-hidden="true">✦</span><small>Funken</small></div><div class="slot"><strong>3</strong><span aria-hidden="true">✚</span><small>Heiltrank</small></div><div class="slot"><strong>4</strong><span aria-hidden="true">➶</span><small>Jagdbogen</small></div></div><div id="hints">WASD Bewegen · Maus Blick · Shift Sprinten · Feststelltaste Gehen · C Schleichen · Leertaste Springen · F Perspektive · E Interagieren · J Journal · I Inventar · Rechtsklick / R Blocken · 4 Bogen: halten und loslassen</div></div>
+      <div id="interact" class="hidden"><b aria-label="Taste E">[E]</b><span id="interact-text">Sprechen</span></div>
+      <div id="enemy-hud" class="hidden"><div id="enemy-name">Aschenwolf</div><div class="enemy-track"><div id="enemy-fill"></div></div><div id="enemy-intent"></div></div>
+      <div id="toast-container" role="status" aria-live="polite"></div>
+      <div id="world-compass"></div>
+    </header>
+    <div id="damage-flash"></div>
+    <div id="hit-marker" class="hidden" aria-hidden="true">╳</div>
+    <div id="combat-feedback" aria-hidden="true"></div>
+    <section id="start-screen" class="screen" aria-label="Hauptmenü">
+      <div class="start-art" aria-hidden="true"></div>
+      <div class="start-content">
+        <div class="kicker">A Journey through</div><h1>Hemland</h1><div class="subtitle">Die letzte Glut</div>
+        <div class="ornament" aria-hidden="true">▪ ━━━━━ ◆ ━━━━━ ▪</div>
+        <nav class="start-menu" aria-label="Abenteuer beginnen">
+          <button id="new-game">Neues Abenteuer</button><button id="continue" class="hidden">Fortsetzen</button>
+          <button id="menu-settings" data-open-settings>Einstellungen</button><button id="menu-credits" aria-controls="credits" aria-expanded="false">Mitwirkende</button>
+        </nav>
+        <div class="footnote">DIE ASCHMARK · KAPITEL I<br><span>↑ ↓ Auswählen · Enter Bestätigen</span></div>
+      </div>
+      <aside id="credits" class="panel hidden" role="dialog" aria-modal="true" aria-labelledby="credits-title" tabindex="-1"><div class="panel-header"><span>A Journey through Hemland</span><button id="credits-close" aria-label="Mitwirkende schließen">×</button></div><h2 id="credits-title">Mitwirkende</h2><p>Entwicklung & Art Direction: Claude</p><p>Entwicklung: Codex</p><p>Schriften: Pixelify Sans · Jacquarda Bastarda 9</p><p>Technik: Three.js · Rapier · Vite</p><p class="panel-hint">Die letzte Glut · Ein Abenteuer in der Aschmark<br>ESC · Zurück</p></aside>
+    </section>
+    <section id="dialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dialog-name"><div class="dialog-card"><div class="dialog-top"><span id="dialog-role">DORFÄLTESTE</span><button id="dialog-close" aria-label="Gespräch beenden">×</button></div><h2 id="dialog-name">Elira</h2><p id="dialog-line"></p><div id="dialog-options" aria-label="Deine Antwort"></div><div class="dialog-footer">↑ ↓ Auswählen · Enter Antworten · 1–9 Direktwahl · ESC Beenden</div></div></section>
+    <section id="inventory" class="modal hidden"></section>
+    <section id="journal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="journal-title"><div class="panel"><div class="panel-header"><span>CHRONIK DER ASCHMARK</span><button data-close="journal" aria-label="Journal schließen">×</button></div><h2 id="journal-title">Questjournal</h2><div id="quest-list"></div><p class="panel-hint">J / ESC · Schließen</p></div></section>
+    <section id="pause" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title"><div class="panel pause-panel"><div class="panel-header"><span>A Journey through Hemland</span></div><h2 id="pause-title">Rast am Wegesrand</h2><button id="resume" class="primary">Weiterspielen</button><button id="save" class="secondary">Spiel speichern</button><button id="pause-settings" class="secondary" data-open-settings>Einstellungen</button><div class="graphics-settings"><label for="graphics-quality">GRAFIKQUALITÄT</label><select id="graphics-quality" aria-describedby="graphics-hint"><option value="low">Leistung</option><option value="medium" selected>Ausgewogen</option><option value="high">Qualität</option></select><p id="graphics-hint"></p></div><button id="restart" class="secondary">Neues Abenteuer</button><p class="panel-hint">Die letzte Glut<br>ESC · Zurück zum Spiel &nbsp; F3 · Leistungsanzeige</p></div></section>
+    <section id="settings" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1"></section>
+    <section id="character-creator" class="modal hidden"></section>
+    <div id="subtitle" class="hidden"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

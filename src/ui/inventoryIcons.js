@@ -1,0 +1,25 @@
+﻿const paths={
+  all:'M1 1h4v4H1zM7 1h4v4H7zM1 7h4v4H1zM7 7h4v4H7z',
+  sword:'M7 0h4v4H9v2H7v2H5v2H3v2H1v-2h2V8H1V6h2v2h2V6h2V4h2V2H7z',
+  bow:'M6 0h4v1H6zM4 1h2v1H4zM3 2h2v1H3zM2 3h2v2H2zM1 5h3v2H1zM2 7h2v2H2zM3 9h2v1H3zM4 10h2v1H4zM6 11h4v1H6zM9 1h1v10H9zM4 6h5v1H4zM10 5h1v3h-1zM11 6h1v1h-1z',
+  arrow:'M8 1h3v3h-1V2H8zM8 3h1v1H8zM7 4h1v1H7zM6 5h1v1H6zM5 6h1v1H5zM4 7h1v1H4zM3 8h1v1H3zM2 9h1v1H2zM0 9h2v1H0zM2 10h1v2H2zM1 10h1v1H1z',
+  armor:'M3 1h2v2h2V1h2v1h1v1h1v3H9v5H3V6H1V3h1V2h1zM5 5v4h2V5z',
+  helmet:'M3 1h6v1h1v2h1v6H8V7H7V5H5v2H4v3H1V4h1V2h1zM3 3v1h6V3z',
+  hands:'M2 1h3v4h2V2h3v3h1v5h-1v1H2v-1H1V5h1zM4 6v3h1V6zM7 6v3h1V6z',
+  boots:'M2 1h3v6h1v1h1v3H1V8h1zM7 1h3v6h1v1h1v3H8V8H7z',
+  cloak:'M4 1h4v1h1v2h1v3h1v4H1V7h1V4h1V2h1zM5 3v7h1V3z',
+  amulet:'M1 1h2v4h1v1h4V5h1V1h2v4h-1v2H8v1h1v3H3V8h1V7H2V5H1zM5 8v2h2V8z',
+  potion:'M4 0h4v2H7v2h1v1h2v2h1v4h-1v1H2v-1H1V7h1V5h2V4h1V2H4zM3 7v3h1V7z',
+  food:'M6 0h3v1H7v2h3v1h1v2h1v3h-1v2H9v1H7v-1H5v1H3v-1H1V9H0V6h1V4h2V3h3zM3 5v2h1V5z',
+  material:'M4 1h5v1h1v2h1v4h-1v2H8v1H3v-1H1V7H0V5h1V3h3zM4 3v2H2v2h3V5h2V3z',
+  book:'M2 0h9v10H3v1h8v1H1v-1H0V2h1V1h1zM3 2v6h1V2zM6 3v1h3V3zM6 5v1h3V5z',
+  quest:'M5 0h2v2h2v2h2v4H9v2H7v2H5v-2H3V8H1V4h2V2h2zM5 3v4h2V3zM5 8v1h2V8z',
+  misc:'M3 1h6v1h2v2h1v5h-1v2H1V9H0V4h1V2h2zM3 4v5h6V4z',
+  star:'M5 0h2v3h2v1h3v2h-2v2H9v3H7V9H5v2H3V8H2V6H0V4h3V3h2z',
+  search:'M2 0h5v1h2v1h1v5H9v1H8v1h1v1h2v1h1v1h-2v-1H9v-1H7V9H2V8H1V7H0V2h1V1h1zM3 2v1H2v3h1v1h3V6h1V3H6V2z',
+  coin:'M3 0h6v1h2v2h1v6h-1v2H9v1H3v-1H1V9H0V3h1V1h2zM5 2v1H3v3h4v1H3v1h2v2h2V8h2V5H5V4h4V3H7V2z',
+  bag:'M3 0h6v2H8v2h1v1h1v2h1v4h-1v1H2v-1H1V7h1V5h1V4h1V2H3zM4 5v1h4V5zM3 8v2h1V8z',
+  close:'M1 0h2v1h1v1h1v1h2V2h1V1h1V0h2v2h-1v1H9v1H8v2h1v1h1v1h1v2H9V9H8V8H7V7H5v1H4v1H3v1H1V8h1V7h1V6h1V4H3V3H2V2H1z',
+};
+export const icon=name=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true" focusable="false"><path fill-rule="evenodd" d="${paths[name]||paths.misc}"/></svg>`;
+export const typeIcon=type=>({weapon:'sword',ranged:'bow',ammo:'arrow',armor:'armor',head:'helmet',hands:'hands',feet:'boots',cloak:'cloak',accessory:'amulet',consumable:'potion',quest:'quest',material:'material',food:'food',book:'book'}[type]||'misc');

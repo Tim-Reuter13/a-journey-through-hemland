@@ -1,0 +1,9 @@
+node_modules/
+dist/
+work/
+outputs/
+.playwright-mcp/
+.claude/settings.local.json
+*.log
+.env
+.env.*
