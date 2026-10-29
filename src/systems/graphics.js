@@ -14,7 +14,7 @@ const profiles = {
 const postShader = {
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`,
   fragmentShader: `uniform sampler2D tScene; uniform vec2 uSize; uniform float uDither, uQuant; varying vec2 vUv;
-    uniform vec2 uSun; uniform float uSunOn, uAspect; uniform vec3 uSunColor;
+    uniform vec2 uSun; uniform float uSunOn, uAspect, uGrade, uTime; uniform vec3 uSunColor;
     float lum(vec3 c){ return dot(c, vec3(.3, .59, .11)); }
     float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(.5, a.y * .75))); }
     float bayer4(vec2 a){ return bayer2(.5 * a) * .25 + bayer2(a); }
@@ -55,9 +55,22 @@ const postShader = {
       }
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
-      // Grading: richer colour and a touch of contrast, so meadows and roofs read warm and alive.
       vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(.299, .587, .114));
-      c = mix(vec3(l), c, 1.2); c = (c - .5) * 1.05 + .5; c *= vec3(1.02, 1., .97);
+      if (uGrade < .5) {
+        // Standard: richer colour and a touch of contrast, so meadows and roofs read warm and alive.
+        c = mix(vec3(l), c, 1.2); c = (c - .5) * 1.05 + .5; c *= vec3(1.02, 1., .97);
+      } else {
+        // Dark fantasy: muted colour, heavy mid tones, cool grey-green shadows and a tired amber light,
+        // crushed blacks, a deep vignette and a fine grain at pixel size.
+        c = mix(vec3(l), c, .55);
+        c = pow(max(c, 0.), vec3(1.12)) * .95;
+        c *= mix(vec3(.8, .9, .87), vec3(1.07, 1., .84), smoothstep(.12, .72, l));
+        c = (c - .5) * 1.14 + .5;
+        c = max(c - .03, 0.) / .97;
+        vec2 vg = uv - .5; vg.x *= uAspect * .8;
+        c *= 1. - smoothstep(.32, 1.05, length(vg)) * .5;
+        c += (fract(sin(dot(pixel + floor(uTime * 24.) * 7.31, vec2(12.9898, 78.233))) * 43758.5453) - .5) * .028;
+      }
       gl_FragColor.rgb = clamp(c, 0., 1.);
       float threshold = (bayer4(pixel) - .5) / 31. * uDither;
       gl_FragColor.rgb = mix(gl_FragColor.rgb, floor(clamp(gl_FragColor.rgb + threshold, 0., 1.) * 31. + .5) / 31., uQuant);
@@ -73,7 +86,7 @@ export function createGraphics(renderer, world) {
   const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
   target.texture.name = 'Low resolution scene';
   const uniforms = { tScene: { value: target.texture }, uSize: { value: new THREE.Vector2(4, 4) }, uDither: { value: 1 }, uQuant: { value: 1 },
-    uSun: { value: new THREE.Vector2(.5, .5) }, uSunOn: { value: 0 }, uAspect: { value: 1 }, uSunColor: { value: new THREE.Color(1, .85, .6) } };
+    uSun: { value: new THREE.Vector2(.5, .5) }, uSunOn: { value: 0 }, uGrade: { value: 0 }, uTime: { value: 0 }, uAspect: { value: 1 }, uSunColor: { value: new THREE.Color(1, .85, .6) } };
   const sunDir = new THREE.Vector3(), sunAt = new THREE.Vector3(), view = new THREE.Vector3();
   /** Where the sun stands on screen and how strongly its light should show. */
   function sunlight(camera) {
@@ -118,7 +131,7 @@ export function createGraphics(renderer, world) {
   }
   /** Renders the world (and an optional overlay such as first-person hands) through the retro pass. */
   function render(scene, camera, overlay = null) {
-    sunlight(camera);
+    sunlight(camera); uniforms.uTime.value = performance.now() / 1000;
     renderer.setRenderTarget(target);
     renderer.render(scene, camera);
     overlay?.(renderer);
@@ -135,6 +148,7 @@ export function createGraphics(renderer, world) {
   apply(quality);
   return {
     resize, apply, render, compile,
+    setGrade(mode) { uniforms.uGrade.value = mode === 'dark' ? 1 : 0; },
     setPixelFilter(on) { pixelFilter = !!on; uniforms.uQuant.value = uniforms.uDither.value = on ? 1 : 0; target.texture.minFilter = target.texture.magFilter = on ? THREE.NearestFilter : THREE.LinearFilter; target.texture.needsUpdate = true; resize(); },
     state: () => ({ quality, pixelFilter, fps, hitch, pixelRatio: renderer.getPixelRatio(), resolution: uniforms.uSize.value.toArray() }),
     toggleDebug() { debug = !debug; output.classList.toggle('hidden', !debug); },

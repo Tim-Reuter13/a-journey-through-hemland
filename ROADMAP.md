@@ -199,6 +199,11 @@ Open: "brown things at the oven" not reproduced — needs a screenshot; chimney 
   first-person motion layer: look lag, figure-eight walk bob (the stride counter never ran before), sprint drop,
   strafe tilt, jump/fall/landing bounce, sneak, tool swap, reach on E, jolt on hits and blocks (ideas from Punchy
   and Hold My Items, own code).
+- [x] Souls-like swords (2026-10-29): rusty, warden and ash blades rebuilt in Blockbench with real proportions, thin
+  tapering blades, fuller, ricasso, crossguard with block and bent quillons, wrapped grips, wheel or teardrop pommels
+  (the ash blade with a glowing fuller and an ember gem); first person now holds the same Blockbench model, flat
+  toward you at rest. Settings: "Farbstil" Standard / Dunkle Fantasy (muted, heavy, cool shadows, amber light,
+  vignette, grain).
 Open (motion): townsfolk grips, surface footsteps, catching/supporting people, drawn IK debug, wolves.
 Open (AI): NPC potions, wounded posture, voiced callouts, shield bash, mage wards, an off-screen camp economy, drawn
 debug overlays (cones, cover points).

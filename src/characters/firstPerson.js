@@ -4,6 +4,7 @@ import { pixelMaterial } from '../art/pixelTextures.js';
 import { createSlosh } from '../systems/slosh.js';
 import { APPEARANCE_OPTIONS } from './appearance.js';
 import { createHeldBow, aimObject } from './bow.js';
+import { heldItem, WEAPON_MODELS } from './models.js';
 
 const T = 1 / 16;
 const clamp = THREE.MathUtils.clamp;
@@ -44,52 +45,21 @@ function arm(parent, skin, sleeve, bracer, glove) {
   return g;
 }
 
-const swordPalettes = new Map();
-function swordPalette(weapon, trim) {
-  if (swordPalettes.has(weapon)) return swordPalettes.get(weapon);
-  const ash = weapon === 'aschenklinge', rusty = weapon === 'rostiges_schwert';
-  const steel = painted(`steel:${weapon}`, ash ? ['#2b3034', '#373d42'] : ['#5d676d', '#78848a', '#94a0a5', '#b3bec2', '#6b4430', '#4a3426'], (x, y) => {
-    // These flecks fall inside the UVs actually sampled by the narrow blade.
-    if (rusty && x < 3 && (y === 8 || (x === 0 && y === 12))) return (x + y) % 2 ? 4 : 5;
-    return ash ? (x + y) % 2 : y % 7 === 0 ? 0 : y % 5 === 0 ? 3 : (x + y) % 3 === 0 ? 2 : 1;
-  });
-  const edge = painted(`edge:${weapon}`, [ash ? '#78848a' : '#d6dee0'], () => 0);
-  const fuller = painted(`fuller:${weapon}`, [ash ? '#ff9a3f' : '#4a5258'], () => 0);
-  // The viewmodel's strong fill light should not wash out the steel ramp.
-  for (const material of [steel, edge, fuller]) material.color.setScalar(.6);
-  if (ash) { fuller.emissive.set('#ff9a3f'); fuller.emissiveIntensity = .8; }
-  const palette = { steel, edge, fuller, guard: weapon === 'waechterklinge' ? trim : steel };
-  swordPalettes.set(weapon, palette);
-  return palette;
-}
 
-function makeSword(parent, trim) {
-  const sword = new THREE.Group(); parent.add(sword); sword.name = 'Ash steel sword';
-  const wrap = painted('grip', ['#211e1c', '#45382e', '#66503b'], (x, y) => (y + Math.floor(x / 2)) % 4 === 0 ? 2 : (x + y) % 3 === 0 ? 0 : 1);
-  let equipped = 'rostiges_schwert';
-  const { steel, edge, fuller, guard } = swordPalette(equipped, trim);
-  block(sword, T, 3 * T, T, wrap, 0, .025, -.045);
-  block(sword, 2 * T, T, 2 * T, guard, 0, -.1, -.045);
-  block(sword, 6 * T, T, 2 * T, guard, 0, .15, -.045);
-  for (const side of [-1, 1]) block(sword, T, T, 2 * T, guard, side * 3 * T, .12, -.045);
-  const guards = sword.children.slice(1);
-  // Steel shoulders surround the recessed fuller; only one thin edge shines.
-  block(sword, 3 * T, T, T, steel, 0, .2125, -.045);
-  block(sword, T, 10 * T, T / 2, fuller, 0, .55625, -.045);
-  block(sword, T, 10 * T, T, steel, -T, .55625, -.045);
-  block(sword, T / 2, 10 * T, T, steel, .75 * T, .55625, -.045);
-  block(sword, T / 2, 10 * T, T, edge, 1.25 * T, .55625, -.045, 0, 0, 0, { tile: .5 });
-  block(sword, 2 * T, T, T, steel, 0, .9, -.045);
-  block(sword, T, T, T / 2, steel, 0, .9625, -.045);
-  const blade = sword.children.slice(5).map(mesh => [mesh, mesh.material === fuller ? 'fuller' : mesh.material === edge ? 'edge' : 'steel']);
+// The sword in hand is the Blockbench model the world uses (art/blockbench/models.js weapons), so first and
+// third person show the same blade; until the models have loaded nothing is shown.
+function makeSword(parent) {
+  const sword = new THREE.Group(); parent.add(sword); sword.name = 'Held sword';
+  let equipped = null, model = null;
   return {
     sword,
     equip(weapon = 'rostiges_schwert') {
-      if (weapon === equipped) return;
-      equipped = weapon;
-      const palette = swordPalette(weapon, trim);
-      for (const mesh of guards) mesh.material = palette.guard;
-      for (const [mesh, role] of blade) mesh.material = palette[role];
+      const key = WEAPON_MODELS[weapon] || 'sword_rusty';
+      if (key === equipped && model) return;
+      const item = heldItem(key); if (!item) return;
+      model?.removeFromParent(); model = item; equipped = key;
+      item.scale.setScalar(.78); item.rotation.set(0, 0, 0); item.position.set(0, -.05, -.045);
+      sword.add(item);
     },
   };
 }
@@ -196,7 +166,7 @@ export function createFirstPerson() {
   const bracer = painted('bracer', ['#b8b8b8', '#d0d0d0', '#a4a4a4'], (x, y) => y % 4 === 0 ? 2 : (x + y) % 5 === 0 ? 0 : 1);
   const glove = painted('glove', ['#c4c4c4', '#d8d8d8', '#b0b0b0'], (x, y) => (x * 3 + y) % 6 === 0 ? 2 : 1);
   const arms = [arm(right, skin, sleeve, bracer, glove), arm(left, skin, sleeve, bracer, glove)];
-  const weapon = makeSword(right, trim), sword = weapon.sword, flask = potion(right, trim);
+  const weapon = makeSword(right), sword = weapon.sword, flask = potion(right, trim);
   flask.bottle.position.set(0, .16, -.15);
   flask.bottle.scale.setScalar(.64);
   const spell = new THREE.Group(); left.add(spell); spell.position.set(0, .11, -.1);
@@ -251,8 +221,8 @@ export function createFirstPerson() {
   function rollBlade(dt, swinging) {
     right.updateWorldMatrix(true, false);
     tip.set(0, .9, -.045).applyMatrix4(right.matrixWorld);
-    // At rest the edge faces forward and a little down, the way a chop would leave.
-    if (swinging && tipReady) lead.subVectors(tip, lastTip); else lead.set(0, -.35, -1);
+    // At rest the flat of the (thin) blade turns toward you, the edge to the side, so you see the steel.
+    if (swinging && tipReady) lead.subVectors(tip, lastTip); else lead.set(-1, -.15, -.25);
     lastTip.copy(tip); tipReady = true;
     if (lead.lengthSq() < 1e-7) return;
     right.getWorldQuaternion(turn).invert(); lead.applyQuaternion(turn);

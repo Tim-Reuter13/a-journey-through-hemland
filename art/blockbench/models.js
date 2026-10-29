@@ -716,26 +716,46 @@ function AshenModels() {
 
   // ── Held items. Each top-level bone is one item whose pivot is the grip point.
   function weapons() {
-    const items = [['sword_rusty', 'rust', 'iron', 'leatherDark'], ['sword_guard', 'steel', 'brass', 'leather'], ['sword_ash', 'darkSteel', 'darkSteel', 'leatherDark']];
+    // Swords, souls-like: real proportions (an arming/longsword, about 0.8 m of blade on a 1.1 m sword), a thin
+    // blade (1.4 px wide, 0.36 px thick) that tapers in steps to a point, a fuller running two thirds of the way
+    // up, a ricasso above the guard, a crossguard with its own block, a wrapped grip with risers, a pommel.
+    // Pivot (0, 0, 0) is where the hand closes; the blade runs up +Y, its edges face ±X.
     const bones = [], cubes = [];
-    items.forEach(([name, blade, guard, grip], i) => {
-      const x = i * 10;
+    const sword = (name, x, o) => {
       bones.push([name, null, [x, 0, 0]]);
-      const fuller = name === 'sword_ash' ? '#ff9a3f' : blade === 'rust' ? '#4a3426' : '#4a5258';
-      const edge = blade === 'rust' ? '#9a8d84' : '#e3eaec';
-      const bladeDecal = [{ face: 'north', palette: { f: fuller, e: edge }, map: Array.from({ length: 13 }, (_, y) => y < 11 ? 'efe' : 'e.e') }, { face: 'south', palette: { f: fuller, e: edge }, map: Array.from({ length: 13 }, (_, y) => y < 11 ? 'efe' : 'e.e') }];
-      if (blade === 'rust') bladeDecal.push({ face: 'north', palette: { r: '#6b4430' }, x: 0, y: 3, map: ['r..', '...', '..r', '.r.', '...', '...', 'r..'] });
-      cubes.push(
-        box(`${name}_pommel`, name, [x - 1, -4, -1], [x + 1, -2, 1], guard),
-        box(`${name}_grip`, name, [x - .5, -2, -.5], [x + .5, 3, .5], grip, { inflate: .2, decals: [{ face: 'north', palette: { w: '#8d6a4a' }, map: ['.', 'w', '.', 'w', '.'] }] }),
-        box(`${name}_guard`, name, [x - 3, 3, -1], [x + 3, 4, 1], guard),
-        box(`${name}_quillon_r`, name, [x + 3, 3.5, -.5], [x + 4, 5, .5], guard),
-        box(`${name}_quillon_l`, name, [x - 4, 3.5, -.5], [x - 3, 5, .5], guard),
-        box(`${name}_blade`, name, [x - 1.5, 4, -.5], [x + 1.5, 17, .5], blade, { decals: bladeDecal }),
-        box(`${name}_tip`, name, [x - 1, 17, -.5], [x + 1, 19, .5], blade),
-        box(`${name}_point`, name, [x - .5, 19, -.5], [x + .5, 20.5, .5], blade),
-      );
-    });
+      const b = (part, from, to, mat, opts) => cubes.push(box(`${name}_${part}`, name, from, to, mat, opts));
+      // Pommel: a wheel (two squares turned 45°) or a teardrop, and the peen of the tang.
+      if (o.pommel === 'wheel') {
+        b('pommel', [x - .9, -3.6, -.45], [x + .9, -1.8, .45], o.guard);
+        b('pommel_45', [x - .9, -3.6, -.45], [x + .9, -1.8, .45], o.guard, { origin: [x, -2.7, 0], rotation: [0, 0, 45] });
+        b('pommel_face', [x - .45, -3.15, -.55], [x + .45, -2.25, .55], o.gem || o.guard);
+      } else {
+        b('pommel', [x - .7, -3.3, -.6], [x + .7, -1.8, .6], o.guard);
+        b('pommel_drop', [x - .5, -4.1, -.45], [x + .5, -3.3, .45], o.guard);
+        if (o.gem) b('pommel_gem', [x - .35, -2.9, -.7], [x + .35, -2.2, .7], o.gem);
+      }
+      b('peen', [x - .3, -4.4, -.25], [x + .3, o.pommel === 'wheel' ? -3.6 : -4.1, .25], o.guard);
+      // Grip: leather (or wire) wrap, a riser band at each end.
+      b('grip', [x - .5, -1.8, -.45], [x + .5, 2.8, .45], o.grip, { decals: ['north', 'south', 'east', 'west'].map(face => ({ face, palette: { w: o.wrap }, map: ['.', 'w', '.', 'w', '.'] })) });
+      b('riser_low', [x - .6, -1.75, -.55], [x + .6, -1.35, .55], o.guard);
+      b('riser_high', [x - .6, 2.35, -.55], [x + .6, 2.75, .55], o.guard);
+      // Crossguard: a bar, its block over the blade, quillon ends bent toward or away from the blade.
+      b('guard', [x - 3.6, 2.8, -.5], [x + 3.6, 3.55, .5], o.guard);
+      b('guard_block', [x - .8, 2.6, -.72], [x + .8, 3.9, .72], o.guard);
+      for (const sgn of [1, -1]) b(`quillon_${sgn > 0 ? 'r' : 'l'}`, [x + sgn * 3.4 - .5, 2.9, -.42], [x + sgn * 3.4 + .5, 3.45, .42], o.guard,
+        { origin: [x + sgn * 3.4, 3.2, 0], rotation: [0, 0, sgn * o.bend] });
+      if (o.spikes) for (const sgn of [1, -1]) b(`spike_${sgn > 0 ? 'r' : 'l'}`, [x + sgn * 2.2 - .2, 3.5, -.2], [x + sgn * 2.2 + .2, 5.2, .2], o.guard,
+        { origin: [x + sgn * 2.2, 3.5, 0], rotation: [0, 0, -sgn * 18] });
+      // Ricasso, then the blade in tapering steps; the fuller a darker groove down its middle.
+      b('ricasso', [x - .75, 3.9, -.22], [x + .75, 5.3, .22], o.ricasso || o.blade);
+      const steps = o.broken ? [[5.3, 13.5, .7, .18], [13.5, 19.5, .62, .17], [19.5, 21.4, .5, .15]] : [[5.3, 14, .7, .18], [14, 20, .62, .17], [20, 23, .48, .15], [23, 24.6, .3, .12], [24.6, 25.4, .12, .08]];
+      steps.forEach(([y0, y1, w, t], k) => b(`blade_${k}`, [x - w, y0, -t], [x + w, y1, t], o.blade));
+      if (o.broken) { b('break_a', [x - .5, 21.4, -.14], [x + .05, 22.3, .14], o.blade); b('break_b', [x + .05, 21.4, -.14], [x + .45, 21.8, .14], o.blade); }
+      b('fuller', [x - .17, 5.3, -.2], [x + .17, o.broken ? 15 : 17.5, .2], o.fuller);
+    };
+    sword('sword_rusty', 0, { blade: 'rust', guard: 'ironDark', grip: 'leatherDark', wrap: '#5a4030', fuller: 'ironDark', pommel: 'wheel', bend: 0, broken: true });
+    sword('sword_guard', 10, { blade: 'steel', ricasso: 'iron', guard: 'brass', grip: 'leather', wrap: '#b3bec2', fuller: 'ironDark', pommel: 'drop', bend: -24 });
+    sword('sword_ash', 20, { blade: 'darkSteel', guard: 'darkSteel', grip: 'leatherDark', wrap: '#5b2a1a', fuller: 'ember', gem: 'ember', pommel: 'wheel', bend: 28, spikes: true });
     bones.push(['hammer', null, [32, 0, 0]]);
     cubes.push(box('hammer_handle', 'hammer', [31.5, -6, -.5], [32.5, 9, .5], 'wood', { inflate: .15 }),
       box('hammer_head', 'hammer', [29.5, 8, -1.5], [34.5, 11, 1.5], 'iron'),

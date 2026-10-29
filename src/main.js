@@ -2115,6 +2115,7 @@ function applySettings(values) {
   ambience.setVolume({ master: values.masterVolume, music: values.musicVolume, effects: values.effectsVolume });
   if (values.graphicsQuality && values.graphicsQuality !== graphics.state().quality) graphics.apply(values.graphicsQuality);
   if ((values.pixelFilter ?? true) !== graphics.state().pixelFilter) graphics.setPixelFilter(values.pixelFilter ?? true);
+  graphics.setGrade(values.colorGrade ?? 'standard');
 }
 createMenu({ values: settings, onSettingsChange: applySettings });
 applySettings(settings);
