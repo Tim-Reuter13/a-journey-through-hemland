@@ -276,7 +276,7 @@ export function makeCamp(scene, heightAt, x, z) {
   for (let i = 0; i < 4; i++) { const a = i * PI / 2 + .3; block(g, 1.5, .28, .28, 'bark', Math.cos(a) * .25, .3, Math.sin(a) * .25, 0, a, .35); }
   blockOn(g, .9, .1, .9, pixelMaterial('ember', { emissive: 1.2 }), 0, .05, 0, 0, { shadow: false });
   const flameMaterial = new THREE.MeshBasicMaterial({ map: pixelTexture('flame'), alphaTest: .5, side: THREE.DoubleSide, color: 0xffd9a0 });
-  const fire = new THREE.Mesh(crossGeometry(1.3, 1.5, 3), flameMaterial); fire.position.y = .1; g.add(fire);
+  const fire = new THREE.Mesh(crossGeometry(1.3, 1.5, 3), flameMaterial); fire.position.y = .1; fire.name = 'flame'; g.add(fire);
   const light = new THREE.PointLight(0xff8a37, 8, 15, 2); light.position.y = 1.5; g.add(light);
   for (let i = 0; i < 3; i++) { const a = i * 2.1 + .4; block(g, 1.6, .38, .38, 'bark', Math.cos(a) * 2.6, .2, Math.sin(a) * 2.6, 0, -a + PI / 2, 0); }
   // A-frame tents with cloth slabs and a ridge pole.
@@ -332,6 +332,8 @@ export function makeForge(scene, heightAt, x, z, ry) {
   const g = group(scene, x, heightAt(x, z), z, ry);
   blockOn(g, 2.4, 1.2, 1.8, 'cobble', 0, -.2, 0, 0, { solid: true });
   blockOn(g, 1.4, .12, 1, pixelMaterial('ember', { emissive: 1.3 }), 0, 1, 0, 0, { shadow: false });
+  // The coal bed burns with low block flames and sparks (fire.js).
+  const coals = new THREE.Object3D(); coals.name = 'coals'; coals.position.set(0, 1.12, .1); coals.userData.fire = { width: 1.1, height: .45, kind: 'coals' }; g.add(coals);
   blockOn(g, 1.2, 2.6, 1, 'bricks', 0, 1, -.5);
   blockOn(g, .8, 1.4, .8, 'bricks', 0, 3.6, -.5);
   const light = new THREE.PointLight(0xff7a2e, 5, 9, 2); light.position.set(0, 1.6, .3); g.add(light);

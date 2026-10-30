@@ -121,5 +121,5 @@ export function createAtmosphere(scene, sun, ambient) {
       halo.material.opacity = (.13 + (1 - daylight) * .32) * flicker;
     }
   }
-  return { update, collectLights, moon };
+  return { update, collectLights, moon, uniforms };
 }

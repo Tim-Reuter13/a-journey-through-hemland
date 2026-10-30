@@ -231,6 +231,20 @@ Open: "brown things at the oven" not reproduced — needs a screenshot; chimney 
   acceleration from walking, turning, jumping) on a lightly damped spring and sloshes for a while; a ripple grid
   rides on it; agitation from shaking makes more bubbles and foam that fade over a few seconds; a see-through
   liquid; holding Block (right mouse) with the potion shakes the flask; a slosh sound when it hits the glass.
+- [x] Water, tracks and fire (2026-10-30):
+  Water (water.js) — the ripple tile is read as a height field: isotropic on still water, stretched into
+  streaks along the current in the river; the body darkens with depth in seven dithered steps (clear, greenish
+  shallows with moving caustics on the bed, teal water, a dark channel) instead of four hard bands; the surface
+  mirrors the real sky colours (atmosphere uniforms) more toward a grazing view, haze falls on the water but not
+  on the mirrored sky; sun and moon glitter in single pixels; lakes swell gently (the bank line comes and goes)
+  and gusts drift over them; a thinner broken foam line at the bank.
+  Tracks (world/tracks.js) — boots, paws and hooves leave prints in sand, wet sand, dirt roads, mud and snow
+  (world.groundAt reads the terrain's layer weights), one per stride along the way the walker moves; the
+  player, townsfolk, bandits, wolves, deer, foxes and hares; prints fade (snow keeps them longest).
+  Fire (world/fire.js) — every fire burns like Funken: rising, swirling block flames on the Funken colour
+  ramp (FLAME_RAMP in spellFx.js), sparks, smoke outdoors; camp and cook fires, hearths, braziers, wall torches,
+  candles and the forge's coal bed share one instanced pool near the viewer; the old flame sprites stand in
+  beyond 38 m and are kept out of the static batches for that.
 Open (motion): townsfolk grips, surface footsteps, catching/supporting people, drawn IK debug, wolves.
 Open (AI): NPC potions, wounded posture, voiced callouts, shield bash, mage wards, an off-screen camp economy, drawn
 debug overlays (cones, cover points).

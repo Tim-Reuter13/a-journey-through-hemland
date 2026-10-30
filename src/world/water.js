@@ -4,82 +4,131 @@ import { pixelMaterial, registerPixelTexture } from '../art/pixelTextures.js';
 import { block } from '../art/blocks.js';
 
 // Water per terrain chunk, drawn in the 16-texel grid of the art style:
-// - an animated 16×16 water tile (16 frames) that scrolls with the current in whole texels;
-// - a palette in fixed depth steps (shallows you can see through, darker pools, deep channel);
-// - a wave simulation around the player at 16 cells per unit, after the Wakes mod: wading,
-//   swimming, animals, splashes and fish leave rings and V-shaped wakes, drawn through banded
-//   wake colours; the river carries the whole wave field downstream;
-// - the river acts on its surroundings: stones in the stream throw a standing wake, leaves and
-//   twigs drift down it; still ponds get lily pads, duckweed and rising fish instead.
+// - an animated 16×16 water tile (16 frames) read as a height field: on still water it ripples in every
+//   direction, in the river it is stretched into streaks along the current and scrolls with it;
+// - the body darkens with depth in many small steps blended by an ordered dither (clear shallows that
+//   show the bed with moving light caustics, green-teal water, a dark channel), no hard bands;
+// - the surface reflects the sky (the real sky colours, so lakes mirror the evening glow) more and more
+//   toward a grazing view, and glitters where a ripple turns the sun (or the moon) toward you;
+// - lakes and ponds swell gently, so the line on the bank comes and goes, and gusts darken drifting
+//   patches; a thin broken line of foam laps at the bank;
+// - a wave simulation around the player at 16 cells per unit, after the Wakes mod: wading, swimming,
+//   animals, splashes and fish leave rings and V-shaped wakes; the river carries them downstream;
+// - stones in the stream throw a standing wake, leaves drift down it; still ponds get lily pads,
+//   duckweed and rising fish instead.
 const STEP = 4, CELLS = CHUNK / STEP;
 const N = 192, RES = 16, WAKE_STEP = 1 / 30;
 
 const vertexShader = `
   attribute float depth; attribute vec2 flow;
-  varying vec2 vXZ; varying float vDepth; varying vec2 vFlow;
+  uniform float uTime;
+  varying vec3 vWorld; varying float vDepth; varying vec2 vFlow; varying float vSwell;
   #include <fog_pars_vertex>
   void main() {
-    vXZ = position.xz; vDepth = depth; vFlow = flow;
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vec3 p = position;
+    // Still water swells a little (the bank line comes and goes); the river runs flat.
+    float still = 1. - clamp(length(flow) * 3., 0., 1.);
+    vSwell = (sin(uTime * 1.1 + p.x * .35 + p.z * .2) * .5 + sin(uTime * .73 - p.x * .13 + p.z * .31) * .5) * .045 * still;
+    p.y += vSwell;
+    vWorld = (modelMatrix * vec4(p, 1.)).xyz; vDepth = depth; vFlow = flow;
+    vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
   }`;
 const fragmentShader = `
-  uniform float uTime; uniform float uLight;
-  uniform sampler2D uFrames; uniform sampler2D uPalette; uniform sampler2D uWake; uniform vec2 uWakeOrigin;
-  varying vec2 vXZ; varying float vDepth; varying vec2 vFlow;
+  uniform float uTime; uniform float uLight; uniform float uDay;
+  uniform sampler2D uFrames; uniform sampler2D uWake; uniform vec2 uWakeOrigin;
+  uniform vec3 uSkyTop, uSkyMid, uSkyHorizon, uSunDir, uMoonDir, uSunColor;
+  varying vec3 vWorld; varying float vDepth; varying vec2 vFlow; varying float vSwell;
   #include <fog_pars_fragment>
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
     return mix(mix(hash(i), hash(i + vec2(1., 0.)), f.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), f.x), f.y); }
+  float bayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(.5, a.y * .75))); }
+  float bayer4(vec2 a) { return bayer2(.5 * a) * .25 + bayer2(a); }
   // Wakes-style banded colours: the wave height picks one of a few flat, semi-opaque tones.
   vec4 wakeColor(float w) {
     if (w < .05) return vec4(0.);
-    if (w < .15) return vec4(.157, .576, .6, .55);
-    if (w < .2) return vec4(.392, .62, .647, .62);
-    if (w < .35) return vec4(.706, .769, .792, .78);
+    if (w < .15) return vec4(.2, .5, .52, .45);
+    if (w < .2) return vec4(.39, .6, .62, .55);
+    if (w < .35) return vec4(.7, .77, .78, .7);
     if (w < .52) return vec4(0.);
-    if (w < .6) return vec4(.706, .769, .792, .78);
-    if (w < .7) return vec4(1., 1., 1., .92);
-    if (w < .9) return vec4(.706, .769, .792, .78);
-    return vec4(.392, .62, .647, .62);
+    if (w < .6) return vec4(.7, .77, .78, .7);
+    if (w < .7) return vec4(.95, .97, .95, .85);
+    if (w < .9) return vec4(.7, .77, .78, .7);
+    return vec4(.39, .6, .62, .55);
+  }
+  // The ripple height (0..4) of the tile at a point: isotropic on still water; in the river stretched along
+  // the current into streaks and scrolled with it in whole texels.
+  float level(vec2 p, vec2 dir, float speed, float frame) {
+    vec2 perp = vec2(-dir.y, dir.x);
+    float run = clamp(speed * 1.6, 0., 1.);
+    vec2 q = mix(p, vec2(dot(p, dir) * .45, dot(p, perp) * 1.7), run);
+    q.x -= floor(speed * uTime * 16.0) / 16.0 * mix(1., .45, run);
+    q /= 4.0;
+    if (noise(p * .09) + (hash(floor(p * 16.)) - .5) * .12 > .5) q = vec2(q.y, -q.x) + vec2(.3125, .5625);
+    vec2 tuv = fract(q);
+    return floor(texture2D(uFrames, vec2(tuv.x, (tuv.y + frame) / 16.0)).r * 4.0 + .5);
+  }
+  vec3 sky(vec3 r) {
+    float h = r.y;
+    return mix(mix(uSkyHorizon, uSkyMid, smoothstep(-.02, .24, h)), uSkyTop, smoothstep(.2, .88, h));
   }
   void main() {
-    if (vDepth < -0.02) discard;
-    vec2 cell = floor(vXZ * 16.0), p = (cell + .5) / 16.0;
+    float d = vDepth + vSwell;
+    if (d < -0.02) discard;
+    vec2 cell = floor(vWorld.xz * 16.0), p = (cell + .5) / 16.0;
     float speed = length(vFlow);
-    // The tile scrolls with the current in whole texels; still water only plays its frames.
-    // The tile is 64 texels (4 units); a second, quarter-turned reading takes over in drifting
-    // patches so lakes never show a grid. Far off, where a texel is smaller than a screen pixel,
-    // the pattern calms to its middle tones instead of flickering.
-    vec2 scroll = floor(vFlow * uTime * 16.0) / 16.0;
-    vec2 q = (p - scroll) / 4.0;
-    if (noise(p * .09) + (hash(cell) - .5) * .12 > .5) q = vec2(q.y, -q.x) + vec2(.3125, .5625);
-    vec2 tuv = fract(q);
+    vec2 dir = speed > .01 ? vFlow / speed : vec2(1., 0.);
     float frame = mod(floor(uTime * (5.0 + speed * 3.0)), 16.0);
-    float level = floor(texture2D(uFrames, vec2(tuv.x, (tuv.y + frame) / 16.0)).r * 4.0 + .5);
-    float texels = length(fwidth(vXZ)) * 16.0;
-    if (texels > 1.2) level = mix(level, 2.0, clamp((texels - 1.2) / 2.0, 0.0, 1.0)) + (hash(cell) > .5 ? .49 : -.49);
-    // Still water lies calmer: mostly the middle tones, the odd bright crest.
-    level = mix(level, 2.0, (1.0 - clamp(speed * 4.0, 0.0, 1.0)) * .4);
-    level = clamp(floor(level + .5), 0.0, 4.0);
-    float d = clamp(vDepth, 0.0, 8.0);
-    float row = d < .55 ? 0.0 : d < 1.6 ? 1.0 : d < 3.2 ? 2.0 : 3.0;
-    vec3 col = texture2D(uPalette, vec2((level + .5) / 5.0, (row + .5) / 4.0)).rgb;
-    float alpha = row < .5 ? .5 : row < 1.5 ? .7 : row < 2.5 ? .84 : .92;
+    // Gusts: on still water, drifting patches where the wind roughens the surface.
+    float gust = smoothstep(.55, .75, noise(p * .07 + vec2(uTime * .18, uTime * .07))) * (1. - clamp(speed * 3., 0., 1.));
+    float l = level(p, dir, speed, frame), lx = level(p + vec2(1. / 16., 0.), dir, speed, frame), lz = level(p + vec2(0., 1. / 16.), dir, speed, frame);
+    // Far off, where a texel is smaller than a screen pixel, the ripples calm down instead of flickering.
+    float texels = length(fwidth(vWorld.xz)) * 16.0, calm = clamp((texels - 1.2) / 2.0, 0.0, 1.0);
+    float rough = (.55 + gust * .6 + clamp(speed, 0., 1.) * .3) * (1. - calm * .8);
+    vec3 n = normalize(vec3((l - lx) * .045 * rough, 1., (l - lz) * .045 * rough));
+    vec3 v = normalize(cameraPosition - vWorld);
+    // Body: clear and greenish in the shallows, teal, then a dark channel; many steps, dithered.
+    float dither = bayer4(cell);
+    float k = 1. - exp(-max(d, 0.) * .75);
+    k = floor(k * 7. + dither * .99) / 7.;
+    vec3 body = mix(vec3(.3, .55, .44), vec3(.1, .37, .42), smoothstep(0., .5, k));
+    body = mix(body, vec3(.035, .15, .21), smoothstep(.45, 1., k));
+    body *= .9 + l * .045 - gust * .06;
+    // Light caustics on the bed under clear shallows.
+    float c1 = noise(p * 2.6 + vec2(uTime * .45, uTime * .2)), c2 = noise(p * 2.6 + vec2(-uTime * .3, uTime * .4) + 7.);
+    float caustic = step(abs(c1 - c2), .045) * (1. - smoothstep(.2, 1.4, d)) * uDay;
+    float lit = uLight * (.82 + .18 * max(dot(n, uSunDir), 0.));
+    vec3 col = (body + caustic * vec3(.3, .34, .26)) * lit;
+    float alpha = mix(.38, .95, k);
+    // Haze falls on the water itself, not on the sky it mirrors (the sky is never fogged either).
+    #ifdef USE_FOG
+      col = mix(col, fogColor, 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth));
+    #endif
+    // The sky in the water, more of it the flatter you look; in a few steps, like the palette.
+    float fresnel = (.02 + .98 * pow(1. - clamp(dot(n, v), 0., 1.), 5.)) * .72;
+    fresnel = floor(fresnel * 6. + dither * .99) / 6.;
+    vec3 r = reflect(-v, n); r.y = abs(r.y);
+    col = mix(col, sky(r) * .82, fresnel);
+    alpha = mix(alpha, 1., fresnel);
+    // Glitter where a ripple turns the sun (or the moon) toward you, in single pixels.
+    float sunUp = smoothstep(-.02, .08, uSunDir.y);
+    float glint = pow(max(dot(r, uSunDir), 0.), 160.) * sunUp + pow(max(dot(r, uMoonDir), 0.), 260.) * .5 * (1. - sunUp);
+    float sparkle = hash(cell + floor(uTime * 7.));
+    if (glint * (.6 + l * .2) > .25 + sparkle * .6) { col = mix(uSunColor, vec3(.85, .9, 1.), 1. - sunUp) * 1.4; alpha = 1.; }
     // Still shallows grow duckweed in clumps near the bank.
-    if (speed < .05 && d < .9 && hash(floor(p * 2.0)) > .72 && hash(cell) > .35) { col = hash(cell + 3.0) > .5 ? vec3(.33, .48, .2) : vec3(.42, .56, .24); alpha = .95; }
-    // Foam: a thin broken line where the water laps at the bank.
-    float lap = .04 + .04 * floor(2.5 + 2.5 * sin(uTime * 1.3 + dot(cell, vec2(.023, .017)))) / 5.0;
-    if (d < lap && hash(cell + floor(uTime * 2.0)) > .62) { col = vec3(.82, .9, .88); alpha = .82; }
+    if (speed < .05 && d < .9 && hash(floor(p * 2.0)) > .72 && hash(cell) > .35) { col = (hash(cell + 3.0) > .5 ? vec3(.33, .48, .2) : vec3(.42, .56, .24)) * uLight; alpha = .95; }
+    // Foam: a thin, broken line lapping at the bank, drifting along it.
+    float lap = .02 + .03 * (sin(uTime * 1.3 + dot(cell, vec2(.023, .017))) * .5 + .5);
+    if (d < lap && noise(p * 3. + vec2(uTime * .6, 0.)) > .56) { col = vec3(.78, .85, .82) * uLight; alpha = .75; }
     // Wakes around the player.
     vec2 wuv = (cell - uWakeOrigin + .5) / ${N}.0;
     if (wuv.x > 0. && wuv.y > 0. && wuv.x < 1. && wuv.y < 1.) {
       vec4 wc = wakeColor(abs(texture2D(uWake, wuv).r * 2.0 - 1.0) * 1.35);
-      col = mix(col, wc.rgb, wc.a); alpha = max(alpha, wc.a);
+      col = mix(col, wc.rgb * uLight, wc.a); alpha = max(alpha, wc.a);
     }
-    gl_FragColor = vec4(col * uLight, alpha);
-    #include <fog_fragment>
+    gl_FragColor = vec4(col, alpha);
   }`;
 
 /** 16 frames of a 64×64 water tile (4 units at 16 texels each) in five brightness levels, stacked
@@ -113,17 +162,6 @@ function framesTexture() {
   texture.magFilter = texture.minFilter = THREE.NearestFilter; texture.wrapS = THREE.RepeatWrapping; texture.needsUpdate = true;
   return texture;
 }
-/** Water colours: five levels (trough → crest) × four depth steps (shallow → deep channel). */
-function paletteTexture() {
-  const rows = [['#3f8b86', '#4c9c92', '#5fae9f', '#7cc0ae', '#b4ded0'], ['#25707e', '#2e7f8b', '#3a8f98', '#55a3a8', '#9fd0cc'],
-    ['#1a5268', '#205f75', '#286d82', '#3a8191', '#86bcc4'], ['#123e55', '#174a62', '#1d5670', '#2c6a80', '#6fa5b5']];
-  const data = new Uint8Array(5 * 4 * 4);
-  rows.forEach((row, j) => row.forEach((hex, i) => { const n = parseInt(hex.slice(1), 16), k = (j * 5 + i) * 4; data.set([n >> 16 & 255, n >> 8 & 255, n & 255, 255], k); }));
-  const texture = new THREE.DataTexture(data, 5, 4);
-  texture.magFilter = texture.minFilter = THREE.NearestFilter; texture.colorSpace = THREE.SRGBColorSpace; texture.needsUpdate = true;
-  return texture;
-}
-
 // Little things on the water, as 16×16 cutouts.
 registerPixelTexture('lilyPad', p => {
   p.clear();
@@ -148,8 +186,12 @@ export function createWater(field) {
   const wakeData = new Uint8Array(N * N).fill(128);
   const wakeTexture = new THREE.DataTexture(wakeData, N, N, THREE.RedFormat, THREE.UnsignedByteType);
   wakeTexture.magFilter = wakeTexture.minFilter = THREE.NearestFilter; wakeTexture.needsUpdate = true;
-  const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uLight: { value: 1 }, uWakeOrigin: { value: new THREE.Vector2() } }]);
-  uniforms.uFrames = { value: framesTexture() }; uniforms.uPalette = { value: paletteTexture() }; uniforms.uWake = { value: wakeTexture };
+  const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uLight: { value: 1 }, uDay: { value: 1 }, uWakeOrigin: { value: new THREE.Vector2() },
+    uSunColor: { value: new THREE.Color(1, .9, .7) } }]);
+  uniforms.uFrames = { value: framesTexture() }; uniforms.uWake = { value: wakeTexture };
+  // The sky the water mirrors: shared with the atmosphere (useSky), placeholders until then.
+  Object.assign(uniforms, { uSkyTop: { value: new THREE.Color(0x3a7cc4) }, uSkyMid: { value: new THREE.Color(0x79acd8) }, uSkyHorizon: { value: new THREE.Color(0xcfe3ef) },
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uMoonDir: { value: new THREE.Vector3(0, 1, 0) } });
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, transparent: true, depthWrite: false, fog: true });
   material.name = 'chunk water';
 
@@ -335,6 +377,11 @@ export function createWater(field) {
       if (d.life <= 0 || d.mesh.position.y < WATER_LEVEL) { d.mesh.visible = false; d.life = 0; }
     }
   }
-  return { material, chunkMesh, at, flowAt, ripple, splash, wake, update, root,
+  /** Mirrors the real sky: takes the atmosphere's own uniforms, so colours follow the time of day. */
+  function useSky(sky, sun) {
+    Object.assign(uniforms, { uSkyTop: sky.uTop, uSkyMid: sky.uMid, uSkyHorizon: sky.uHorizon, uSunDir: sky.uSun, uMoonDir: sky.uMoon, uDay: sky.uDay });
+    uniforms.uSunColor.value = sun.color;
+  }
+  return { material, chunkMesh, at, flowAt, ripple, splash, wake, update, root, useSky,
     state: () => ({ origin: [ox, oz], rocks: rocks.length, flow: [flowX, flowZ], peak: h.reduce((m, v) => Math.max(m, Math.abs(v)), 0) }) };
 }

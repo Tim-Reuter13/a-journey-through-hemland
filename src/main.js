@@ -41,6 +41,7 @@ import { createMenu, loadSettings, saveSettings, setBarVisibility, SETTINGS_KEY 
 import { createTouchControls, prefersTouch, toggleFullscreen } from './ui/touchControls.js';
 import { createCharacterCreator, randomAppearance } from './ui/characterCreator.js';
 import { createWildlife } from './systems/wildlife.js';
+import { createTracks } from './world/tracks.js';
 import { createAIManager } from './systems/ai/manager.js';
 import { campSchedule } from './systems/ai/camp.js';
 import { AI } from './systems/ai/config.js';
@@ -442,6 +443,17 @@ function rememberSpared(e) {
 // Animals around the wanderer (systems/wildlife.js); they keep away from towns and farms.
 const ambientFx = createAmbientFx(scene, { heightAt: world.heightAt, biomeWeights, waterLevel: WATER_LEVEL });
 const ambientSun = v3(0, 1, 0);
+// Prints in sand, road dust, mud and snow (world/tracks.js), left by everyone walking near the wanderer.
+const tracks = createTracks(scene, { heightAt: world.terrainHeightAt, groundAt: world.groundAt });
+const PAWS = { wolf: 'paw', fox: 'paw', hare: 'paw', deer: 'hoof' };
+function leaveTracks(dt) {
+  const near = p => Math.abs(p.x - player.position.x) < 40 && Math.abs(p.z - player.position.z) < 40;
+  if (!player.fly) tracks.step(player, player.position.x, player.position.y, player.position.z, 'boot');
+  for (const n of npcs) if (n.model.visible && near(n.model.position)) tracks.step(n, n.model.position.x, n.model.position.y, n.model.position.z, 'boot');
+  for (const e of enemies) if (!e.dead && e.model.visible && near(e.model.position)) tracks.step(e, e.model.position.x, e.model.position.y, e.model.position.z, PAWS[e.kind] || 'boot'); else tracks.forget(e);
+  for (const an of wildlife.animals) if (!an.dead && PAWS[an.kind] && near(an.group.position)) tracks.step(an, an.group.position.x, an.group.position.y, an.group.position.z, PAWS[an.kind]); else tracks.forget(an);
+  tracks.update(dt);
+}
 const wildlife = createWildlife(scene, { heightAt: world.heightAt, biomeAt: biomeWeights, waterLevel: WATER_LEVEL,
   ragdoll: (model, impulse) => createCreatureRagdoll(physics, model, { impulse }),
   avoid: (x, z) => ['village', 'city', 'castle', 'inn', 'camp', 'mill', 'farm_bridge', 'farm_east', 'farm_north', 'shrine'].some(id => world.field.siteDistance(id, x, z) < 25) });
@@ -1708,7 +1720,7 @@ function animate(now) {
   animateActors(visualDt,voice); profile.mark('actors');
   updateSoundscape(dt);
   compass.update(player.yaw,player.position,compassMarkers());
-  profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); profile.mark('world');
+  profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) leaveTracks(visualDt); profile.mark('world');
   updateParticles(visualDt);
   combat.effects.update(game.paused?0:dt,camera);
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
@@ -2194,7 +2206,7 @@ window.__ASHEN_TEST__ = {
     lifeState:()=>npcs.map(n=>({id:n.id,activity:n.life?.activity,x:+n.model.position.x.toFixed(1),z:+n.model.position.z.toFixed(1),inside:n.life?.inside,bark:n.life?.bark})),
     snapshot:async(file='shot')=>{graphics.render(scene,camera,player.mode==='first'&&game.started&&!game.paused?firstPerson.render:null);const blob=await new Promise(r=>renderer.domElement.toBlob(r,'image/png'));return fetch('http://127.0.0.1:5299/save?file=work/screens/'+file+'.png',{method:'POST',body:blob}).then(r=>r.text());},
     rootPosition:()=>playerModel.position.toArray(),
-    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai}),ai:()=>ai.state(),aiDebug:()=>ai.debugLines(player.position,10),aiDays:n=>{game.flags.ai_day=(game.flags.ai_day||0)+n;campCheckAt=0;},introTime:()=>game.cinematic?.director?.time??null,
+    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai}),ai:()=>ai.state(),aiDebug:()=>ai.debugLines(player.position,10),aiDays:n=>{game.flags.ai_day=(game.flags.ai_day||0)+n;campCheckAt=0;},introTime:()=>game.cinematic?.director?.time??null,
     killEnemy:i=>damageEnemy(enemies[i],9999),
     motion:()=>motion.state(),ambient:()=>ambientFx.state(),body:i=>motion.debugActor(i==='player'?playerModel:enemies[i].model),
     push:(i,force=2,dx=1,dz=0)=>motion.impact(i==='player'?playerModel:enemies[i].model,{force,dir:v3(dx,0,dz)}),

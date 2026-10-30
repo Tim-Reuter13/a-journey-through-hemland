@@ -5,12 +5,13 @@ import { createAtmosphere } from './atmosphere.js';
 import { createCollisionWorld, collidersFrom } from './navigation.js';
 import { buildFarTerrain, buildWater } from './terrain.js';
 import { createWater } from './water.js';
+import { createFires } from './fire.js';
 import { createHeightfield } from './heightfield.js';
 import { createChunkStreamer } from './chunks.js';
 import { createChimneySmoke } from './smoke.js';
 import { createCritters } from './critters.js';
 import { boulder, wind, setGroundDensity } from './flora.js';
-import { BOUNDS, SITES, ROADS } from './hemland.js';
+import { BOUNDS, SITES, ROADS, WATER_LEVEL } from './hemland.js';
 import { makeHouse, makeLantern, makeWell, makeShrine, makeWatchtower, makeCamp, makeCart, makeFence, makeChest, makeForge, makeAnvil, glowMaterials } from './buildings.js';
 
 /* Hemland, region Aschmark: a streamed heightfield world (hemland.js, heightfield.js,
@@ -52,6 +53,20 @@ export function createWorld(scene) {
     }
     return best;
   }
+  /** What the ground keeps prints of (tracks.js): sand, wet sand by the water, a dirt road or bare earth,
+   *  mud, snow — or null for grass, rock, paving and water. Read from the terrain's own layer weights. */
+  function groundAt(x, z) {
+    const h = heightAt(x, z);
+    if (h < WATER_LEVEL + .02) return null;
+    const slope = Math.hypot(heightAt(x + 1, z) - heightAt(x - 1, z), heightAt(x, z + 1) - heightAt(x, z - 1)) / 2;
+    const { a, b } = field.surface(x, z, h, slope);
+    if (a[3] > .5) return 'snow';
+    if (b[3] > .35 || a[2] > .55) return null;
+    if (b[2] > .3) return h < WATER_LEVEL + .8 ? 'wetsand' : 'sand';
+    if (b[1] > .45) return 'mud';
+    if (a[0] > .45 || a[1] > .78) return 'path';
+    return null;
+  }
   /** Standing on a building's floor, under its roof (for light that should not reach in). */
   function indoorAt(x, z) {
     const list = floorCells.get(floorKey(Math.floor(x / FLOOR_CELL), Math.floor(z / FLOOR_CELL)));
@@ -78,6 +93,7 @@ export function createWorld(scene) {
   scene.add(buildFarTerrain(field));
   // Near water is built per chunk (water.js); the big plane only fills in beyond the streamed rings.
   const water = buildWater(), waters = createWater(field); scene.add(water.mesh, waters.root);
+  waters.useSky(atmosphere.uniforms, sun);
 
   // Building registry shared by the village and the site modules.
   const doors = [], interiors = [], loose = [], markers = [], pois = [], extraColliders = [], updaters = [];
@@ -186,13 +202,19 @@ export function createWorld(scene) {
   }
 
   // Animated or physical things must stay separate meshes; each group batches on its own.
-  const keep = new Set([...shrine.crystal.children, camp.fire]);
+  // Fires (fire.js): flame sprites and coal beds stay out of the static batches, so near the viewer the
+  // block flames can take a sprite's place and far off the sprite can stand in again.
+  const fireSources = [];
+  for (const g of [village, ...siteGroups]) g.traverse(o => { if (o.name === 'flame' && o.isMesh || o.name === 'coals' && o.userData.fire) fireSources.push(o); });
+  const keep = new Set([...shrine.crystal.children, camp.fire, ...fireSources]);
   for (const door of doors) door.hinge.traverse(o => o.isMesh && keep.add(o));
   for (const item of loose) item.traverse(o => o.isMesh && keep.add(o));
   // Road barrier poles swing (main.js updateBarriers), so they stay separate meshes.
   scene.traverse(o => { if (o.userData.barrier) o.traverse(m => m.isMesh && keep.add(m)); });
   // The dense city merges into bigger cells: far fewer draw calls, still culled by district.
   const batching = [village, ...siteGroups].map(g => batchScenery(g, keep, /kronwacht/.test(g.name) ? 176 : 64));
+  scene.updateMatrixWorld(true);
+  const fires = createFires(scene, fireSources.map(sprite => { const p = sprite.getWorldPosition(new THREE.Vector3()); return { sprite, outdoors: !indoorAt(p.x, p.z) }; }));
 
   // Scenery avoids the village core, houses and every authored site.
   const occupied = (x, z) => houses.some(([hx, hz]) => Math.hypot(x - hx, z - hz) < 6) ||
@@ -225,7 +247,7 @@ export function createWorld(scene) {
     elapsed += dt;
     atmosphere.update(dt, hour, camera, focus); mark('atmosphere');
     streamer.update(focus); mark('streamer');
-    wind.value += dt; water.update(dt, focus);
+    wind.value += dt; water.update(dt, focus); fires.update(dt, camera);
     for (const g of siteGroups) { const s = g.userData.cull; if (s) g.visible = cullPoint.copy(s.center).distanceTo(focus) < s.radius + 520; }
     for (const fn of updaters) fn(dt, hour, focus);
     mark('sites');
@@ -250,7 +272,7 @@ export function createWorld(scene) {
   const routePoints = ROADS.filter(r => ['village_east', 'village_west', 'king', 'camp', 'tower', 'shrine'].includes(r.id))
     .map(r => r.points.filter(([x, z]) => Math.hypot(x, z) < 140).map(([x, z]) => at(x, z))).filter(r => r.length > 1);
   return {
-    lights, profile, navBlocked, water: waters, supportAt: (x, z, radius, y) => collision.supportAt(x, z, radius, y), heightAt: walkHeightAt, terrainHeightAt: heightAt, field, routePoints, colliders: collision.colliders, segmentBlocked: collision.segmentBlocked,
+    lights, fires, profile, navBlocked, water: waters, supportAt: (x, z, radius, y) => collision.supportAt(x, z, radius, y), heightAt: walkHeightAt, terrainHeightAt: heightAt, groundAt, field, routePoints, colliders: collision.colliders, segmentBlocked: collision.segmentBlocked,
     // What a struck point is made of: 'stone', 'wood', 'soft', or 'earth' for open ground.
     surfaceAt: point => collision.colliderAt(point.x, point.z, point.y)?.surface ?? 'earth',
     collidersNear: (x, z, r) => collision.near(x, z, r),

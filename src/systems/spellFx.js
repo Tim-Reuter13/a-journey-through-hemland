@@ -3,6 +3,8 @@ import { block, boxGeometry } from '../art/blocks.js';
 import { pixelMaterial, pixelTexture, registerPixelTexture, TEXTURE_NAMES } from '../art/pixelTextures.js';
 
 export const SPELL_PARTICLES=112,SCORCH_CAP=40;
+/** Funken's fire: a flame block's colour by how much of its life is left (1 = just born, 0 = burnt out). */
+export const FLAME_RAMP=[[1,0xfff3c8],[.78,0xffd060],[.55,0xff8a24],[.32,0xe0451a],[0,0x5a1608]];
 const TEXEL=1/16,UP=new THREE.Vector3(0,1,0);
 if(!TEXTURE_NAMES().includes('scorch'))registerPixelTexture('scorch',p=>{
   p.clear();
@@ -128,7 +130,7 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
   let time=0,chargeEmit=0;
   // Fire (HUMANITY polish): flames are glowing blocks that rise on their own heat, swirl, swell and burn
   // down from white-yellow through orange to a dull red; sparks shoot out and arc down; smoke rolls up grey.
-  const FLAME=[[1,0xfff3c8],[.78,0xffd060],[.55,0xff8a24],[.32,0xe0451a],[0,0x5a1608]],flameColor=new THREE.Color(),flameNext=new THREE.Color();
+  const FLAME=FLAME_RAMP,flameColor=new THREE.Color(),flameNext=new THREE.Color();
   function rampColor(f){for(let i=1;i<FLAME.length;i++)if(f>=FLAME[i][0]){const [a,ca]=FLAME[i-1],[b,cb]=FLAME[i];return flameColor.setHex(cb).lerp(flameNext.setHex(ca),(f-b)/(a-b));}return flameColor.setHex(FLAME.at(-1)[1]);}
   function emit(point,direction,type,count,burst=false,scale=1){
     // Reserve forty slots for a readable impact even after a long flight.

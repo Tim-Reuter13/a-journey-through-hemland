@@ -284,7 +284,7 @@ function buildOutpost(ctx, id) {
   for (let i = 0; i < 9; i++) { const a = i / 9 * PI * 2; blockOn(root, .34, .24, .34, i % 3 ? 'stone' : 'cobbleMossy', fx + Math.cos(a) * .72, 0, fz + Math.sin(a) * .72, a); }
   for (const r of [.4, -.5, 1.4]) block(root, .2, .2, 1.1, 'bark', fx, .14, fz, 0, r, 0);
   const flame = new THREE.Mesh(crossGeometry(.8, .9, 3), pixelMaterial('flame', { emissive: 1 }));
-  flame.position.set(fx, .14, fz); flame.castShadow = false; root.add(flame);
+  flame.position.set(fx, .14, fz); flame.castShadow = false; flame.name = 'flame'; root.add(flame);
   for (const a of [0, 2.1, 4.2]) beam(root, [fx + Math.cos(a) * .75, 0, fz + Math.sin(a) * .75], [fx, 1.55, fz], .07, 'iron');
   blockOn(root, .42, .34, .42, 'iron', fx, .95, fz); blockOn(root, .3, .05, .3, 'darkPlanks', fx, 1.29, fz);
   const fire = new THREE.PointLight(0xff9a48, 6, 11, 2); fire.position.set(fx, 1, fz); root.add(fire);
