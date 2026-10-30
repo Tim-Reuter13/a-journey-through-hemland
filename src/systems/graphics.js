@@ -42,16 +42,17 @@ const postShader = {
         for (int k = 0; k < 5; k++) { vec2 o = vec2(float(k == 1) - float(k == 2), float(k == 3) - float(k == 4)) * .006; vis += 1. - texture2D(tScene, uSun + o).a; }
         vis *= .2;
         vec2 toC = vec2(.5) - uSun, at = (uv - uSun) * vec2(uAspect, 1.);
-        vec3 flare = uSunColor * exp(-length(at) * 9.) * .35 * vis;
+        vec3 flare = uSunColor * exp(-length(at) * 9.) * .26 * vis;
         for (int g = 0; g < 4; g++) {
           float t = g == 0 ? .55 : g == 1 ? .9 : g == 2 ? 1.35 : 1.75, rad = g == 0 ? .035 : g == 1 ? .06 : g == 2 ? .025 : .09;
           vec2 q = (uv - (uSun + toC * t)) * vec2(uAspect, 1.);
           float d = max(abs(q.x) * .92 + abs(q.y) * .38, abs(q.y));   // octagon-ish, like an aperture
-          float ghost = step(d, rad) * (.35 + .65 * smoothstep(rad * .55, rad, d));
+          // Soft-edged and faint: a hard-rimmed ghost read as a strange shape over the scene.
+          float ghost = (1. - smoothstep(rad * .45, rad, d)) * .6;
           vec3 tint = g == 0 ? vec3(1., .75, .45) : g == 1 ? vec3(.55, 1., .7) : g == 2 ? vec3(1., .55, .8) : vec3(.55, .7, 1.);
-          flare += tint * ghost * .07 * vis;
+          flare += tint * ghost * .018 * vis;
         }
-        gl_FragColor.rgb += (rays * uSunColor * .044 + flare) * uSunOn;
+        gl_FragColor.rgb += (rays * uSunColor * .03 + flare) * uSunOn;
       }
       #include <tonemapping_fragment>
       #include <colorspace_fragment>

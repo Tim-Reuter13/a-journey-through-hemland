@@ -214,6 +214,23 @@ Open: "brown things at the oven" not reproduced — needs a screenshot; chimney 
   Web app manifest and icons (home screen opens full screen in landscape). Deployed by .github/workflows/pages.yml
   (tests, build with --base=/<repo>/, GitHub Pages); voice files resolve against the base path.
   Not yet measured on real phones: frame rate (draw calls, chunk jobs) and iOS memory.
+- [x] Feedback round (2026-10-30, after the first mobile build):
+  mobile — a thumb held on a button (Schlag/Bogen, Block, Nutzen, Sprung) can slide to turn the view, so you aim
+  while drawing; the cluster is down to Schlag, Block, Nutzen, Sprung, Ducken, Packen with icons only; Sicht,
+  Inventar and Menü at the top; Journal and Vollbild moved into the pause menu; the quickbar shows icons and counts;
+  smaller compass, no region/level lines on touch.
+  Light — the beams from roof eaves are gone (they drew bright streaked bands across houses), crown shafts are
+  faint and soft-edged, lens ghosts soft and faint, god rays a little weaker.
+  Swords — chunky Blockbench proportions (blade 2.5 px wide and 0.8 px thick, thicker grip longer than the fist,
+  bigger guard and pommel; spec in art/blockbench/models.js, the glTF re-proportioned to match until the next
+  Blockbench export). First person: the hilt sits in the fist and the wrist sets the blade, so the grip crosses
+  the fist; view-space poses (rest, guard, forehand, backhand, diagonal chop) with the forearm always coming from a
+  shoulder at the lower right. Third person: a little larger, at rest the blade points forward and down from the fist.
+  First-person hand sway roughly halved and the springs damped close to critical.
+  Potion — systems/liquid.js replaces slosh.js: the surface follows felt gravity (gravity minus the flask's real
+  acceleration from walking, turning, jumping) on a lightly damped spring and sloshes for a while; a ripple grid
+  rides on it; agitation from shaking makes more bubbles and foam that fade over a few seconds; a see-through
+  liquid; holding Block (right mouse) with the potion shakes the flask; a slosh sound when it hits the glass.
 Open (motion): townsfolk grips, surface footsteps, catching/supporting people, drawn IK debug, wolves.
 Open (AI): NPC potions, wounded posture, voiced callouts, shield bash, mage wards, an off-screen camp economy, drawn
 debug overlays (cones, cover points).

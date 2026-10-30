@@ -716,42 +716,43 @@ function AshenModels() {
 
   // ── Held items. Each top-level bone is one item whose pivot is the grip point.
   function weapons() {
-    // Swords, souls-like: real proportions (an arming/longsword, about 0.8 m of blade on a 1.1 m sword), a thin
-    // blade (1.4 px wide, 0.36 px thick) that tapers in steps to a point, a fuller running two thirds of the way
-    // up, a ricasso above the guard, a crossguard with its own block, a wrapped grip with risers, a pommel.
-    // Pivot (0, 0, 0) is where the hand closes; the blade runs up +Y, its edges face ±X.
+    // Swords: souls-like shapes (an arming/longsword, about 0.8 m of blade on a 1.1 m sword) in chunky
+    // Blockbench proportions, so they read in a fist four pixels wide and at the low render resolution:
+    // a blade 2.5 px wide and 0.8 px thick that tapers in steps to a point, a fuller two thirds of the way
+    // up, a ricasso above the guard, a crossguard with its own block, a wrapped grip longer than the fist
+    // with risers, a pommel. Pivot (0, 0, 0) is where the hand closes; the blade runs up +Y, edges face ±X.
     const bones = [], cubes = [];
     const sword = (name, x, o) => {
       bones.push([name, null, [x, 0, 0]]);
       const b = (part, from, to, mat, opts) => cubes.push(box(`${name}_${part}`, name, from, to, mat, opts));
       // Pommel: a wheel (two squares turned 45°) or a teardrop, and the peen of the tang.
       if (o.pommel === 'wheel') {
-        b('pommel', [x - .9, -3.6, -.45], [x + .9, -1.8, .45], o.guard);
-        b('pommel_45', [x - .9, -3.6, -.45], [x + .9, -1.8, .45], o.guard, { origin: [x, -2.7, 0], rotation: [0, 0, 45] });
-        b('pommel_face', [x - .45, -3.15, -.55], [x + .45, -2.25, .55], o.gem || o.guard);
+        b('pommel', [x - 1.4, -5.4, -.75], [x + 1.4, -2.6, .75], o.guard);
+        b('pommel_45', [x - 1.4, -5.4, -.75], [x + 1.4, -2.6, .75], o.guard, { origin: [x, -4, 0], rotation: [0, 0, 45] });
+        b('pommel_face', [x - .7, -4.7, -.9], [x + .7, -3.3, .9], o.gem || o.guard);
       } else {
-        b('pommel', [x - .7, -3.3, -.6], [x + .7, -1.8, .6], o.guard);
-        b('pommel_drop', [x - .5, -4.1, -.45], [x + .5, -3.3, .45], o.guard);
-        if (o.gem) b('pommel_gem', [x - .35, -2.9, -.7], [x + .35, -2.2, .7], o.gem);
+        b('pommel', [x - 1.1, -4.7, -.95], [x + 1.1, -2.6, .95], o.guard);
+        b('pommel_drop', [x - .8, -5.9, -.7], [x + .8, -4.7, .7], o.guard);
+        if (o.gem) b('pommel_gem', [x - .5, -4.2, -1.05], [x + .5, -3.1, 1.05], o.gem);
       }
-      b('peen', [x - .3, -4.4, -.25], [x + .3, o.pommel === 'wheel' ? -3.6 : -4.1, .25], o.guard);
+      b('peen', [x - .45, o.pommel === 'wheel' ? -6 : -6.4, -.4], [x + .45, o.pommel === 'wheel' ? -5.4 : -5.9, .4], o.guard);
       // Grip: leather (or wire) wrap, a riser band at each end.
-      b('grip', [x - .5, -1.8, -.45], [x + .5, 2.8, .45], o.grip, { decals: ['north', 'south', 'east', 'west'].map(face => ({ face, palette: { w: o.wrap }, map: ['.', 'w', '.', 'w', '.'] })) });
-      b('riser_low', [x - .6, -1.75, -.55], [x + .6, -1.35, .55], o.guard);
-      b('riser_high', [x - .6, 2.35, -.55], [x + .6, 2.75, .55], o.guard);
+      b('grip', [x - .85, -2.6, -.8], [x + .85, 2.8, .8], o.grip, { decals: ['north', 'south', 'east', 'west'].map(face => ({ face, palette: { w: o.wrap }, map: ['.', 'w', '.', 'w', '.'] })) });
+      b('riser_low', [x - .95, -2.55, -.9], [x + .95, -2.1, .9], o.guard);
+      b('riser_high', [x - .95, 2.35, -.9], [x + .95, 2.75, .9], o.guard);
       // Crossguard: a bar, its block over the blade, quillon ends bent toward or away from the blade.
-      b('guard', [x - 3.6, 2.8, -.5], [x + 3.6, 3.55, .5], o.guard);
-      b('guard_block', [x - .8, 2.6, -.72], [x + .8, 3.9, .72], o.guard);
-      for (const sgn of [1, -1]) b(`quillon_${sgn > 0 ? 'r' : 'l'}`, [x + sgn * 3.4 - .5, 2.9, -.42], [x + sgn * 3.4 + .5, 3.45, .42], o.guard,
-        { origin: [x + sgn * 3.4, 3.2, 0], rotation: [0, 0, sgn * o.bend] });
-      if (o.spikes) for (const sgn of [1, -1]) b(`spike_${sgn > 0 ? 'r' : 'l'}`, [x + sgn * 2.2 - .2, 3.5, -.2], [x + sgn * 2.2 + .2, 5.2, .2], o.guard,
-        { origin: [x + sgn * 2.2, 3.5, 0], rotation: [0, 0, -sgn * 18] });
+      b('guard', [x - 4.2, 2.8, -.85], [x + 4.2, 3.9, .85], o.guard);
+      b('guard_block', [x - 1.4, 2.5, -1.1], [x + 1.4, 4.4, 1.1], o.guard);
+      for (const sgn of [1, -1]) b(`quillon_${sgn > 0 ? 'r' : 'l'}`, [x + sgn * 4 - .75, 2.85, -.75], [x + sgn * 4 + .75, 3.95, .75], o.guard,
+        { origin: [x + sgn * 4, 3.4, 0], rotation: [0, 0, sgn * o.bend] });
+      if (o.spikes) for (const sgn of [1, -1]) b(`spike_${sgn > 0 ? 'r' : 'l'}`, [x + sgn * 2.6 - .35, 3.9, -.35], [x + sgn * 2.6 + .35, 6, .35], o.guard,
+        { origin: [x + sgn * 2.6, 3.9, 0], rotation: [0, 0, -sgn * 18] });
       // Ricasso, then the blade in tapering steps; the fuller a darker groove down its middle.
-      b('ricasso', [x - .75, 3.9, -.22], [x + .75, 5.3, .22], o.ricasso || o.blade);
-      const steps = o.broken ? [[5.3, 13.5, .7, .18], [13.5, 19.5, .62, .17], [19.5, 21.4, .5, .15]] : [[5.3, 14, .7, .18], [14, 20, .62, .17], [20, 23, .48, .15], [23, 24.6, .3, .12], [24.6, 25.4, .12, .08]];
+      b('ricasso', [x - 1.3, 4.4, -.45], [x + 1.3, 5.6, .45], o.ricasso || o.blade);
+      const steps = o.broken ? [[5.6, 13.5, 1.25, .4], [13.5, 19.5, 1.1, .38], [19.5, 21.4, .9, .34]] : [[5.6, 14, 1.25, .4], [14, 20, 1.1, .38], [20, 23, .85, .34], [23, 24.6, .55, .28], [24.6, 25.6, .22, .18]];
       steps.forEach(([y0, y1, w, t], k) => b(`blade_${k}`, [x - w, y0, -t], [x + w, y1, t], o.blade));
-      if (o.broken) { b('break_a', [x - .5, 21.4, -.14], [x + .05, 22.3, .14], o.blade); b('break_b', [x + .05, 21.4, -.14], [x + .45, 21.8, .14], o.blade); }
-      b('fuller', [x - .17, 5.3, -.2], [x + .17, o.broken ? 15 : 17.5, .2], o.fuller);
+      if (o.broken) { b('break_a', [x - .9, 21.4, -.3], [x + .1, 22.4, .3], o.blade); b('break_b', [x + .1, 21.4, -.3], [x + .8, 21.9, .3], o.blade); }
+      b('fuller', [x - .3, 5.6, -.44], [x + .3, o.broken ? 15 : 17.5, .44], o.fuller);
     };
     sword('sword_rusty', 0, { blade: 'rust', guard: 'ironDark', grip: 'leatherDark', wrap: '#5a4030', fuller: 'ironDark', pommel: 'wheel', bend: 0, broken: true });
     sword('sword_guard', 10, { blade: 'steel', ricasso: 'iron', guard: 'brass', grip: 'leather', wrap: '#b3bec2', fuller: 'ironDark', pommel: 'drop', bend: -24 });

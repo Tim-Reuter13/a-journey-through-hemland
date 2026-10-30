@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { block, boxGeometry } from '../art/blocks.js';
 import { pixelMaterial } from '../art/pixelTextures.js';
-import { createSlosh } from '../systems/slosh.js';
+import { createLiquid } from '../systems/liquid.js';
 import { APPEARANCE_OPTIONS } from './appearance.js';
 import { createHeldBow, aimObject } from './bow.js';
 import { heldItem, WEAPON_MODELS } from './models.js';
@@ -47,18 +47,24 @@ function arm(parent, skin, sleeve, bracer, glove) {
 
 
 // The sword in hand is the Blockbench model the world uses (art/blockbench/models.js weapons), so first and
-// third person show the same blade; until the models have loaded nothing is shown.
+// third person show the same blade; until the models have loaded nothing is shown. The hilt is the grip of
+// the fist: it sits inside the end of the arm and turns with the wrist, so the grip runs through the fist,
+// the pommel shows on one side and the guard on the other. The sword inside it rolls about its own axis so
+// an edge leads (rollBlade).
 function makeSword(parent) {
-  const sword = new THREE.Group(); parent.add(sword); sword.name = 'Held sword';
+  const hilt = new THREE.Group(); parent.add(hilt); hilt.name = 'Hilt';
+  hilt.position.copy(ELBOW).multiplyScalar(.11);
+  const sword = new THREE.Group(); hilt.add(sword); sword.name = 'Held sword';
   let equipped = null, model = null;
   return {
-    sword,
+    hilt, sword,
     equip(weapon = 'rostiges_schwert') {
       const key = WEAPON_MODELS[weapon] || 'sword_rusty';
       if (key === equipped && model) return;
       const item = heldItem(key); if (!item) return;
       model?.removeFromParent(); model = item; equipped = key;
-      item.scale.setScalar(.78); item.rotation.set(0, 0, 0); item.position.set(0, -.05, -.045);
+      // The hand closes just below the guard.
+      item.scale.setScalar(.72); item.rotation.set(0, 0, 0); item.position.set(0, -.05, 0);
       sword.add(item);
     },
   };
@@ -78,74 +84,161 @@ function potion(parent, trim) {
   }
   block(bottle, T, T, T / 2, trim, 0, -.08, .2);
 
-  const liquidMaterial = painted('liquid', ['#4b1426', '#842337', '#ab3a45'], (x, y) => (x + y * 3) % 5 === 0 ? 2 : y % 4 === 0 ? 0 : 1);
-  // Own geometry: tilt the four upper corners, keeping the bottom in the bottle.
-  // No shader clipping or round cap: the liquid remains a closed box.
-  const liquidGeometry = boxGeometry(.34375, .40625, .34375).clone();
-  const liquid = new THREE.Mesh(liquidGeometry, liquidMaterial); bottle.add(liquid);
-  const vertices = liquidGeometry.attributes.position;
-  const original = vertices.array.slice(), uv = liquidGeometry.attributes.uv;
-  const slosh = createSlosh(), inverse = new THREE.Quaternion(), cameraInverse = new THREE.Quaternion();
-  const normal = new THREE.Vector3(0, 1, 0);
-  let lastYaw = null, lastPitch = 0, lastSpeed = 0, level = .045;
-
-  function updateLiquid() {
-    liquid.visible = level > -.203125;
-    for (let i = 0; i < vertices.count; i++) {
-      const x = original[i * 3], y = original[i * 3 + 1], z = original[i * 3 + 2];
-      const top = clamp((level - normal.x * x - normal.z * z) / Math.max(.18, normal.y), -.203125, .203125);
-      const height = y > 0 ? top : y;
-      vertices.setY(i, height);
-      // Preserve world-unit texel height as the volume empties.
-      if (i < 8 || i >= 16) uv.setY(i, height + .203125);
+  // The liquid (systems/liquid.js): a box whose top is a grid of ripples on the sloshing plane and whose
+  // walls rise to meet it; a little see-through, so the bubbles show inside. Darker toward the floor.
+  const HALF = .171875, BOTTOM = -.203125, TOP = .203125, FULL = .045;
+  const liquid = createLiquid({ cells: 6, half: HALF }), N = liquid.cells + 1, step = 2 * HALF / liquid.cells;
+  const liquidMaterial = painted('liquid', ['#4b1426', '#842337', '#ab3a45'], (x, y) => (x + y * 3) % 5 === 0 ? 2 : y % 4 === 0 ? 0 : 1).clone();
+  Object.assign(liquidMaterial, { transparent: true, opacity: .86, depthWrite: false, side: THREE.DoubleSide, vertexColors: true });
+  const positions = [], uvs = [], colors = [], indices = [];
+  const vertex = (x, y, z, u, v, shade) => { positions.push(x, y, z); uvs.push(u, v); colors.push(shade, shade, shade); return positions.length / 3 - 1; };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) vertex(-HALF + i * step, FULL, -HALF + j * step, i * step, j * step, 1);
+  for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) { const a = j * N + i; indices.push(a, a + N, a + 1, a + 1, a + N, a + N + 1); }
+  // Walls: for each side the grid points along its edge, a floor row and a row that follows the surface.
+  const edges = [[k => k, () => 0], [() => N - 1, k => k], [k => k, () => N - 1], [() => 0, k => k]], walls = [];
+  for (const [ei, ej] of edges) {
+    const first = positions.length / 3;
+    for (let k = 0; k < N; k++) {
+      const i = ei(k), j = ej(k), x = -HALF + i * step, z = -HALF + j * step, along = k * step;
+      vertex(x, BOTTOM, z, along, 0, .62); walls.push([vertex(x, FULL, z, along, FULL - BOTTOM, .8), j * N + i]);
     }
-    vertices.needsUpdate = uv.needsUpdate = true;
-    liquidGeometry.computeVertexNormals(); liquidGeometry.computeBoundingSphere();
+    for (let k = 0; k < N - 1; k++) { const a = first + k * 2; indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
   }
-  updateLiquid();
+  const floor = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, z]) => vertex(x * HALF, BOTTOM, z * HALF, (x + 1) * HALF, (z + 1) * HALF, .55));
+  indices.push(floor[0], floor[1], floor[2], floor[0], floor[2], floor[3]);
+  const liquidGeometry = new THREE.BufferGeometry();
+  liquidGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  liquidGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  liquidGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  liquidGeometry.setIndex(indices);
+  const surfaceMesh = new THREE.Mesh(liquidGeometry, liquidMaterial); surfaceMesh.renderOrder = 3; bottle.add(surfaceMesh);
+  const vertices = liquidGeometry.attributes.position;
+  // Bubbles rise inside; foam floats on top while the potion is churned up. Both fade with the agitation.
+  const bubbleMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffc4cc, transparent: true, opacity: .8, depthWrite: false }), liquid.bubbles.length);
+  const FOAM = 18, foam = Array.from({ length: FOAM }, (_, k) => ({ u: Math.random() * 2 - 1, v: Math.random() * 2 - 1, size: .018 + Math.random() * .02, phase: k * 1.7 }));
+  const foamMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xf2c6c6, transparent: true, opacity: .9, depthWrite: false }), FOAM);
+  bubbleMesh.renderOrder = foamMesh.renderOrder = 4; bubbleMesh.frustumCulled = foamMesh.frustumCulled = false; bottle.add(bubbleMesh, foamMesh);
+  const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), p0 = new THREE.Vector3(), s0 = new THREE.Vector3();
+  let level = FULL;
+
+  function updateLiquid(time) {
+    const visible = level > BOTTOM + .004;
+    surfaceMesh.visible = bubbleMesh.visible = foamMesh.visible = visible;
+    if (!visible) return;
+    const height = (x, z, edge) => clamp(level + liquid.surface(x, z) + (edge ? .006 : 0), BOTTOM + .002, TOP);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const edge = i === 0 || j === 0 || i === N - 1 || j === N - 1;
+      vertices.setY(j * N + i, height(-HALF + i * step, -HALF + j * step, edge));
+    }
+    for (const [wall, top] of walls) vertices.setY(wall, vertices.getY(top));
+    vertices.needsUpdate = true; liquidGeometry.computeVertexNormals();
+    let count = 0;
+    for (const b of liquid.bubbles) {
+      if (!b.alive || b.y > level + liquid.surface(b.x, b.z)) continue;
+      m4.compose(p0.set(b.x, b.y, b.z), q0, s0.setScalar(b.size * 2)); bubbleMesh.setMatrixAt(count++, m4);
+    }
+    bubbleMesh.count = count; bubbleMesh.instanceMatrix.needsUpdate = true;
+    const froth = Math.min(1, liquid.state.agitation * 1.6);
+    count = 0;
+    for (const f of foam) {
+      const k = clamp(froth * FOAM - count, 0, 1); if (k <= 0) break;
+      const x = clamp(f.u * HALF * .8 + Math.sin(time * 1.3 + f.phase) * .02, -HALF * .9, HALF * .9), z = clamp(f.v * HALF * .8 + Math.cos(time * 1.1 + f.phase) * .02, -HALF * .9, HALF * .9);
+      m4.compose(p0.set(x, height(x, z, false) + .003, z), q0, s0.set(f.size * k, .006, f.size * k)); foamMesh.setMatrixAt(count++, m4);
+    }
+    foamMesh.count = count; foamMesh.instanceMatrix.needsUpdate = true;
+  }
+  // Where the bottle really goes in the world: the view model hangs in front of the world camera, so its
+  // place there follows the walk, the jumps, the turning view and the hand's own shaking.
+  const world = new THREE.Vector3(), lastWorld = new THREE.Vector3(), velocity = new THREE.Vector3(), lastVelocity = new THREE.Vector3();
+  const accel = new THREE.Vector3(), raw = new THREE.Vector3(), felt = new THREE.Vector3(), quick = new THREE.Vector3(), toBottle = new THREE.Quaternion();
+  let tracked = false, time = 0;
+  updateLiquid(0);
   return {
     bottle,
     reset() {
-      slosh.reset(); lastYaw = null; lastPitch = lastSpeed = 0;
-      normal.set(0, 1, 0); level = .045; cork.position.y = .425; cork.visible = true; updateLiquid();
+      liquid.reset(); tracked = false; accel.set(0, 0, 0);
+      level = FULL; cork.position.y = .425; cork.visible = true; updateLiquid(0);
     },
     update(dt, player, worldCamera, action) {
-      const yaw = player.yaw || 0, pitch = player.pitch || 0, speed = player.moveSpeed || 0;
-      if (lastYaw !== null) {
-        const yawDelta = THREE.MathUtils.euclideanModulo(yaw - lastYaw + Math.PI, Math.PI * 2) - Math.PI;
-        if (Math.abs(yawDelta) < .5) slosh.impulse(yawDelta * 8 + (speed - lastSpeed) * .025, (pitch - lastPitch) * 8);
+      time += dt;
+      bottle.updateWorldMatrix(true, false);
+      bottle.getWorldPosition(world).applyQuaternion(worldCamera.quaternion).add(worldCamera.position);
+      if (!tracked || dt <= 0 || world.distanceToSquared(lastWorld) > 4 || !bottle.visible) { velocity.set(0, 0, 0); accel.set(0, 0, 0); tracked = true; }
+      else {
+        velocity.subVectors(world, lastWorld).divideScalar(dt);
+        raw.subVectors(velocity, lastVelocity).divideScalar(dt).clampLength(0, 60);
+        accel.lerp(raw, 1 - Math.exp(-dt / .035));
       }
-      lastYaw = yaw; lastPitch = pitch; lastSpeed = speed;
-      const spring = slosh.update(dt);
-      bottle.updateWorldMatrix(true, false); bottle.getWorldQuaternion(inverse).invert();
-      worldCamera.getWorldQuaternion(cameraInverse).invert();
-      normal.set(0, 1, 0).applyQuaternion(cameraInverse).applyQuaternion(inverse);
-      normal.x += spring.x; normal.z += spring.z; normal.normalize();
+      lastWorld.copy(world); lastVelocity.copy(velocity);
+      // Felt gravity as the liquid's "up", and the acceleration, both in the bottle's own frame.
+      bottle.getWorldQuaternion(toBottle).premultiply(worldCamera.quaternion).invert();
+      felt.set(accel.x, 9.8 + accel.y, accel.z).applyQuaternion(toBottle).normalize();
+      quick.copy(accel).applyQuaternion(toBottle);
       const drinking = action?.kind === 'drink', p = drinking ? clamp(action.progress, 0, 1) : 0;
-      level = drinking ? THREE.MathUtils.lerp(.045, -.208, phase(p, .25, .72)) : player.potions > 0 ? .045 : -.208;
-      updateLiquid();
+      level = drinking ? THREE.MathUtils.lerp(FULL, BOTTOM - .005, phase(p, .25, .72)) : player.potions > 0 ? FULL : BOTTOM - .005;
+      liquid.update(dt, { felt, quick, level, bottom: BOTTOM });
+      updateLiquid(time);
       cork.position.y = .425 + (drinking ? phase(p, 0, .2) * .18 : 0);
       cork.visible = !drinking || p < .24;
     },
-    state: () => ({ slosh: { ...slosh.state }, normal: normal.toArray(), level }),
+    takeCue: () => liquid.takeCue(),
+    state: () => ({ tilt: { x: liquid.state.x, z: liquid.state.z }, agitation: liquid.state.agitation, bubbles: liquid.bubbles.filter(b => b.alive).length, level }),
   };
 }
 
-// Pose offsets: x/y/z, then pitch/yaw/roll. Smooth authored poses give a brief
-// wind-up and long recovery around a fast, committed strike.
-const SWINGS = [
-  [[0, 0, 0, 0, 0, 0], [.1, .07, .12, -.32, -.5, -.55], [-.47, .02, -.12, .35, .55, 1.25], [-.5, -.07, -.04, .55, .65, 1.5], [0, 0, 0, 0, 0, 0]],
-  [[0, 0, 0, 0, 0, 0], [-.38, .03, .1, -.24, .48, 1.05], [.12, -.01, -.13, .35, -.55, -.8], [.17, -.09, -.03, .5, -.7, -1.05], [0, 0, 0, 0, 0, 0]],
-  [[0, 0, 0, 0, 0, 0], [-.2, 1.4, .13, -.95, .05, .12], [-.23, -.95, -.19, .9, -.08, .08], [-.23, -1.05, -.1, 1.12, -.08, .03], [0, 0, 0, 0, 0, 0]],
+// Sword poses in view space: the fist (`at`: x and y in half screen heights, depth) and the blade (grip →
+// tip). The forearm always runs from a shoulder below and right of the view to the fist, so the arm comes in
+// from the lower right like a body's would; the wrist bends, so at rest and in guard the blade crosses the
+// forearm almost at right angles, as a hand holds a sword. Neither pose covers the screen centre.
+const SHOULDER = new THREE.Vector3(.42, -.62, .2);
+const SWORD_REST = { at: [.95, -.6, .95], blade: [-.32, 1, -.08] };
+const SWORD_GUARD = { at: [.3, -.48, .8], blade: [.55, .8, -.25] };
+// Strikes: wind-up, two keys through the cut (the blade sweeps through the front, never past the face),
+// follow-through, then back. Times are fractions of the attack; the hit lands near the third key.
+const STRIKES = [
+  { times: [0, .22, .36, .45, .6, 1], keys: [ // forehand, right to left
+    { at: [1.15, .1, .85], blade: [.75, .55, .35] },
+    { at: [.55, -.05, .8], blade: [.95, .3, -.15] },
+    { at: [-.25, -.2, .8], blade: [-.95, .15, -.2] },
+    { at: [-.85, -.5, .85], blade: [-.6, -.2, .75] }] },
+  { times: [0, .22, .36, .45, .6, 1], keys: [ // backhand, left to right
+    { at: [-.55, 0, .8], blade: [-.75, .45, .5] },
+    { at: [-.25, -.1, .78], blade: [-.95, .2, -.15] },
+    { at: [.45, -.25, .8], blade: [.95, .1, -.2] },
+    { at: [1.2, -.55, .9], blade: [.7, -.25, .6] }] },
+  { times: [0, .3, .42, .5, .64, 1], keys: [ // diagonal chop, upper right to lower left
+    { at: [.6, .45, .75], blade: [.2, .5, .85] },
+    { at: [.45, .25, .78], blade: [.25, .95, -.2] },
+    { at: [.05, -.2, .8], blade: [-.75, -.3, -.6] },
+    { at: [-.2, -.75, .85], blade: [-.6, -.75, -.25] }] },
 ];
-function swingPose(group, progress, combo) {
-  const keys = SWINGS[combo], times = combo === 2 ? [0, .32, .48, .63, 1] : [0, .24, .43, .59, 1];
+const _pa = new THREE.Vector3(), _pb = new THREE.Vector3();
+const read = (v, src) => src.isVector3 ? v.copy(src) : v.fromArray(src);
+/** Blends two sword poses (arrays or Vector3s) into `out`; the blade blends and renormalises. `out` may be
+ *  `a` or `b`: each part is read before it is written. */
+function blendPose(out, a, b, t) {
+  for (const key of ['at', 'blade']) {
+    read(_pa, a[key]); read(_pb, b[key]);
+    if (key === 'blade') { _pa.normalize(); _pb.normalize(); }
+    out[key].lerpVectors(_pa, _pb, t);
+    if (key === 'blade') out[key].normalize();
+  }
+  return out;
+}
+/** Where the sword is during an attack, from the pose it starts and ends in. */
+function strikePose(out, base, progress, combo) {
+  const { times, keys } = STRIKES[combo], frames = [base, ...keys, base];
   let index = 0;
-  while (index < 3 && progress > times[index + 1]) index++;
-  const t = phase(progress, times[index], times[index + 1]);
-  const pose = keys[index].map((v, i) => THREE.MathUtils.lerp(v, keys[index + 1][i], t));
-  group.position.x += pose[0]; group.position.y += pose[1]; group.position.z += pose[2];
-  group.rotation.x += pose[3]; group.rotation.y += pose[4]; group.rotation.z += pose[5];
+  while (index < frames.length - 2 && progress > times[index + 1]) index++;
+  return blendPose(out, frames[index], frames[index + 1], phase(progress, times[index], times[index + 1]));
+}
+// Turns an arm group so the forearm (elbow → fist) points along `dir`, its sides kept level with the screen.
+const ARM_AXIS = ELBOW.clone().negate(), _ax = new THREE.Vector3(), _az = new THREE.Vector3(), _basis = new THREE.Matrix4();
+const ARM_FRAME = new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), ARM_AXIS, new THREE.Vector3(1, 0, 0).cross(ARM_AXIS)).transpose();
+function aimArm(group, dir) {
+  _ax.set(1, 0, 0).addScaledVector(dir, -dir.x).normalize();
+  _az.crossVectors(_ax, dir);
+  group.quaternion.setFromRotationMatrix(_basis.makeBasis(_ax, dir, _az).multiply(ARM_FRAME));
 }
 
 export function createFirstPerson() {
@@ -213,19 +306,20 @@ export function createFirstPerson() {
   leftFist.scale.setScalar(.7);
   let held = null;
   const pull = new THREE.Vector3(), aim = new THREE.Vector3(), grip = new THREE.Vector3();
-  let time = 0, currentTool = 0, switchDip = 0, walking = 0, guarding = 0, roll = Math.PI / 2;
+  let time = 0, currentTool = 0, switchDip = 0, walking = 0, guarding = 0, shaking = 0, roll = Math.PI / 2;
   // The blade turns about its own axis so the cutting edge (its width, local X) leads: along the
   // path of the tip while it swings, toward the target (into the screen) at rest and in guard.
   const tip = new THREE.Vector3(), lastTip = new THREE.Vector3(), lead = new THREE.Vector3(), turn = new THREE.Quaternion();
   let tipReady = false;
   function rollBlade(dt, swinging) {
-    right.updateWorldMatrix(true, false);
-    tip.set(0, .9, -.045).applyMatrix4(right.matrixWorld);
+    const hilt = weapon.hilt;
+    hilt.updateWorldMatrix(true, false);
+    tip.set(0, .9, 0).applyMatrix4(hilt.matrixWorld);
     // At rest the flat of the (thin) blade turns toward you, the edge to the side, so you see the steel.
     if (swinging && tipReady) lead.subVectors(tip, lastTip); else lead.set(-1, -.15, -.25);
     lastTip.copy(tip); tipReady = true;
     if (lead.lengthSq() < 1e-7) return;
-    right.getWorldQuaternion(turn).invert(); lead.applyQuaternion(turn);
+    hilt.getWorldQuaternion(turn).invert(); lead.applyQuaternion(turn);
     let target = Math.atan2(-lead.z, lead.x);
     // Two edges: take whichever turn is shorter.
     target = roll + THREE.MathUtils.euclideanModulo(target - roll + Math.PI / 2, Math.PI) - Math.PI / 2;
@@ -268,6 +362,19 @@ export function createFirstPerson() {
     right.visible = false;
     held.update(bow.draw, bow.nocked || bow.draw > 0 ? pull : null, bow.nocked);
   }
+  // Sword (tool 1): the fist, forearm and blade from the view-space poses above, rest blended into guard and
+  // the strike keys laid over that. Screen terms like the bow, so it keeps its place on ultrawide screens.
+  const swordPose = { at: new THREE.Vector3(), blade: new THREE.Vector3() };
+  const bladeLocal = new THREE.Vector3(), armInverse = new THREE.Quaternion(), forearm = new THREE.Vector3();
+  function poseSword(action, lift) {
+    blendPose(swordPose, SWORD_REST, SWORD_GUARD, guarding);
+    if (action?.kind === 'sword') strikePose(swordPose, swordPose, clamp(action.progress, 0, 1), clamp(Math.floor(action.combo || 0), 0, 2));
+    const wide = Math.min(1.35, Math.max(1, camera.aspect / (16 / 9))), z = swordPose.at.z;
+    right.position.set(swordPose.at.x * wide * HALF * z + lift.x, swordPose.at.y * HALF * z + lift.y, -z);
+    aimArm(right, forearm.subVectors(right.position, SHOULDER).normalize());
+    armInverse.copy(right.quaternion).invert();
+    weapon.hilt.quaternion.setFromUnitVectors(UP, bladeLocal.copy(swordPose.blade).applyQuaternion(armInverse));
+  }
   function hideBow() { bowRig.visible = leftFist.visible = false; if (held) { held.setVisible(false); held.bow.visible = true; } }
   function light(world, camera) {
     if (!world) return;
@@ -302,29 +409,30 @@ export function createFirstPerson() {
     motion.side = THREE.MathUtils.lerp(motion.side, clamp(sideways / 5, -1, 1), 1 - Math.exp(-dt * 8));
     // Landing: a bounce by the speed of the fall.
     const air = !grounded;
-    if (motion.wasAir && !air) { const k = clamp(-motion.lastVy / 12, .1, 1); kick(0, -.55 * k, .1 * k, -1.6 * k, 0, 0); }
+    if (motion.wasAir && !air) { const k = clamp(-motion.lastVy / 12, .1, 1); kick(0, -.28 * k, .05 * k, -.8 * k, 0, 0); }
     motion.wasAir = air; motion.lastVy = player.velocityY || 0;
     motion.reach = Math.max(0, motion.reach - dt / .45); motion.swap = Math.max(0, motion.swap - dt);
     // Targets the springs pull toward.
     const stride = player.stride || 0, w = clamp(speed / 5, 0, 1.6);
+    // Kept small (feedback 2026-10-30: the hands swung far too much): a hint of weight, never a wobble.
     springTarget.set(
-      -look.vy * .012 + Math.sin(stride * .5) * .02 * w + motion.side * .03,
-      Math.abs(Math.cos(stride * .5)) * -.018 * w - motion.sprint * .045 - motion.sneak * .06 + (air ? clamp(-(player.velocityY || 0) * .006, -.05, .06) : 0),
-      motion.sprint * .04);
+      -look.vy * .005 + Math.sin(stride * .5) * .008 * w + motion.side * .015,
+      Math.abs(Math.cos(stride * .5)) * -.008 * w - motion.sprint * .03 - motion.sneak * .05 + (air ? clamp(-(player.velocityY || 0) * .003, -.025, .03) : 0),
+      motion.sprint * .025);
     rotTarget.set(
-      look.vp * .03 - motion.sprint * .18 + motion.sneak * .08,
-      look.vy * .045 + motion.sprint * .16,
-      -look.vy * .02 + Math.sin(stride * .5) * .03 * w - motion.side * .12 - motion.sprint * .15);
+      look.vp * .012 - motion.sprint * .1 + motion.sneak * .06,
+      look.vy * .018 + motion.sprint * .08,
+      -look.vy * .008 + Math.sin(stride * .5) * .012 * w - motion.side * .05 - motion.sprint * .08);
     // Sprinting the hands pump with the stride.
-    if (motion.sprint > .05) { springTarget.y += Math.sin(stride) * .025 * motion.sprint; rotTarget.x += Math.sin(stride) * .08 * motion.sprint; }
+    if (motion.sprint > .05) { springTarget.y += Math.sin(stride) * .012 * motion.sprint; rotTarget.x += Math.sin(stride) * .04 * motion.sprint; }
     // Tool swap: down and turned away, then back up.
     if (motion.swap > 0) { const k = Math.sin(Math.PI * Math.min(1, motion.swap / .35)); springTarget.y -= .22 * k; rotTarget.x -= .6 * k; rotTarget.z += .3 * k; }
-    // Damped springs (stiff enough to follow, soft enough to swing).
-    const kP = 90, cP = 14, kR = 70, cR = 12;
+    // Damped springs, close to critical: they follow without swinging back and forth.
+    const kP = 90, cP = 19, kR = 70, cR = 17;
     spring.pv.addScaledVector(springTarget.clone().sub(spring.p), kP * dt).multiplyScalar(Math.exp(-cP * dt));
     spring.rv.addScaledVector(rotTarget.clone().sub(spring.r), kR * dt).multiplyScalar(Math.exp(-cR * dt));
     spring.p.addScaledVector(spring.pv, dt); spring.r.addScaledVector(spring.rv, dt);
-    spring.p.clampLength(0, .4);
+    spring.p.clampLength(0, .2);
     rig.position.copy(rigBase).add(spring.p); rig.rotation.set(spring.r.x, spring.r.y, spring.r.z);
     // Reaching (E): the free (left) hand goes out toward what you take, opens, comes back.
     if (motion.reach > 0 && tool !== 3) {
@@ -350,29 +458,21 @@ export function createFirstPerson() {
     walking = THREE.MathUtils.lerp(walking, clamp((player.moveSpeed || 0) / 3, 0, 1), 1 - Math.exp(-dt * 10));
     guarding = THREE.MathUtils.lerp(guarding, guard ? 1 : 0, 1 - Math.exp(-dt * 18));
     const stride = player.stride || 0, breathe = Math.sin(time * 1.65) * .004;
-    const bob = (Math.abs(Math.cos(stride)) - .5) * .024 * walking;
-    const sway = Math.sin(stride * .5) * .012 * walking + Math.sin(time * .83) * .003;
+    const bob = (Math.abs(Math.cos(stride)) - .5) * .012 * walking;
+    const sway = Math.sin(stride * .5) * .006 * walking + Math.sin(time * .83) * .002;
     const dip = ease(switchDip / .15) * .14;
     right.position.set(.34 + sway, -.32 + breathe + bob - dip, -1.05);
     right.rotation.set(-.08, -.08, -.14 + sway * .6);
-    // Return to the low resting pose only after the authored attack arc.
-    const attack = action?.kind === 'sword' ? phase(action.progress, 0, .18) * (1 - phase(action.progress, .65, 1)) : 0;
-    const rest = tool === 0 ? (1 - guarding) * (1 - attack) : 0;
-    right.position.x += rest * .28; right.position.y -= rest * .23;
-    right.rotation.x -= rest * 1.04;
-    sword.scale.setScalar(THREE.MathUtils.lerp(.8, 1, guarding));
+    weapon.hilt.quaternion.identity();
     left.position.set(-.34 - sway, -.32 + breathe - bob - dip, -.92);
     left.rotation.set(.1, .18, .15 - sway * .6);
     right.visible = tool !== 1; left.visible = tool === 1 || guard || guarding > .01;
     sword.visible = tool === 0; flask.bottle.visible = tool === 2; spell.visible = tool === 1;
-    right.position.lerp(new THREE.Vector3(.08, -.14, -.69), guarding);
-    right.rotation.x = THREE.MathUtils.lerp(right.rotation.x, .1, guarding);
-    right.rotation.y += guarding * .28; right.rotation.z -= guarding * .91;
     left.position.lerp(new THREE.Vector3(-.22, -.2, -.72), guarding);
+    if (tool === 0) poseSword(action, { x: sway, y: breathe + bob - dip });
     if (action) {
       const p = clamp(action.progress, 0, 1);
-      if (action.kind === 'sword') swingPose(right, p, clamp(Math.floor(action.combo || 0), 0, 2));
-      else if (action.kind === 'cast') {
+      if (action.kind === 'cast') {
         const gather = phase(p, 0, .22) * (1 - phase(p, .22, .4));
         const push = phase(p, .22, .42) * (1 - phase(p, .56, 1));
         left.position.z += gather * .08 - push * .25;
@@ -383,6 +483,12 @@ export function createFirstPerson() {
         right.position.lerp(new THREE.Vector3(.12, -.42, -1.3), lift);
         right.rotation.z += tilt * 1.1; right.rotation.x -= lift * .25;
       }
+    }
+    // Shaking the potion (block held with the potion in hand): the fist rattles it to and fro.
+    shaking = THREE.MathUtils.lerp(shaking, tool === 2 && player.shaking && action?.kind !== 'drink' ? 1 : 0, 1 - Math.exp(-dt * 12));
+    if (shaking > .01) {
+      right.position.x += Math.sin(time * 26) * .05 * shaking; right.position.y += Math.sin(time * 52) * .02 * shaking;
+      right.rotation.z += Math.sin(time * 26 + .6) * .35 * shaking;
     }
     rollBlade(dt, action?.kind === 'sword');
     if (tool === 3) poseBow(bow, bob, sway, dip); else hideBow();
@@ -396,7 +502,6 @@ export function createFirstPerson() {
   function reset() {
     time = currentTool = switchDip = walking = guarding = 0; flask.reset();
     right.position.set(.62, -.55, -1.05); right.rotation.set(-1.12, -.08, -.14);
-    sword.scale.setScalar(.8);
     left.position.set(-.34, -.32, -.92); left.rotation.set(.1, .18, .15);
     right.visible = sword.visible = true; left.visible = flask.bottle.visible = spell.visible = false;
     hideBow();
@@ -404,6 +509,8 @@ export function createFirstPerson() {
   reset();
   return {
     update, reset,
+    /** Strength (0..1) of a slosh against the glass worth a sound since the last call, else 0. */
+    sloshCue: () => flask.takeCue(),
     /** The free hand reaches out (taking, opening, looting). */
     reach() { motion.reach = 1; },
     /** A blow taken (strength 0..1), or a blow caught on the guard. */

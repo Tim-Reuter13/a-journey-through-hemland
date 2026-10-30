@@ -440,7 +440,7 @@ function rememberSpared(e) {
 }
 
 // Animals around the wanderer (systems/wildlife.js); they keep away from towns and farms.
-const ambientFx = createAmbientFx(scene, { heightAt: world.heightAt, biomeWeights, waterLevel: WATER_LEVEL, colliders: (x, z, r) => world.collidersNear(x, z, r) });
+const ambientFx = createAmbientFx(scene, { heightAt: world.heightAt, biomeWeights, waterLevel: WATER_LEVEL });
 const ambientSun = v3(0, 1, 0);
 const wildlife = createWildlife(scene, { heightAt: world.heightAt, biomeAt: biomeWeights, waterLevel: WATER_LEVEL,
   ragdoll: (model, impulse) => createCreatureRagdoll(physics, model, { impulse }),
@@ -726,7 +726,7 @@ function syncPresentation() {
   show('hud',game.started&&!cinematic&&!dialog);
   show('reticle',game.started&&!game.paused&&!cinematic&&!dialog);
   const thumbs=touchMode&&game.started&&!game.paused&&!cinematic&&!dialog;
-  if(thumbs&&touch&&!touch.visible&&!touchHelpShown){touchHelpShown=true;toast('LINKS ZIEHEN: GEHEN · WEITER ZIEHEN: SPRINTEN · RECHTS WISCHEN: UMSEHEN · ZWEI FINGER: ZOOM',6000);}
+  if(thumbs&&touch&&!touch.visible&&!touchHelpShown){touchHelpShown=true;toast('LINKS ZIEHEN: GEHEN · WEITER ZIEHEN: SPRINTEN · RECHTS WISCHEN: UMSEHEN · AUF EINER GEHALTENEN TASTE WISCHEN: ZIELEN',6500);}
   touch?.setVisible(thumbs);
 }
 let touchHelpShown=false;
@@ -1018,6 +1018,8 @@ function updateHUD() {
   document.querySelector('.slot small').textContent = ITEMS[player.equipment.weapon]?.name || 'Unbewaffnet';
   document.querySelectorAll('.slot small')[2].textContent = `Heiltrank × ${player.potions}`;
   document.querySelectorAll('.slot small')[3].textContent = ITEMS[player.equipment.ranged] ? `${ITEMS[player.equipment.ranged].name} · ${player.satchel.pfeil || 0}` : 'Kein Bogen';
+  // The compact touch quickbar shows only the icons and these counts.
+  const slots = document.querySelectorAll('.slot'); slots[2].dataset.count = player.potions; slots[3].dataset.count = ITEMS[player.equipment.ranged] ? player.satchel.pfeil || 0 : '–';
   [...document.querySelectorAll('.slot')].forEach((element, i) => element.classList.toggle('selected', i === player.tool));
   touch?.setTool(player.tool);
 }
@@ -1186,10 +1188,11 @@ function attack() {
   if(player.tool===3&&!ITEMS[player.equipment.ranged]){toast('KEIN BOGEN AUSGERÜSTET',1500);return;}
   combat.attack();
 }
-let bowHintShown=false;
+let bowHintShown=false,potionHintShown=false;
 function selectTool(tool){
   player.tool=tool;updateHUD();
-  if(tool===3&&!bowHintShown&&ITEMS[player.equipment.ranged]){bowHintShown=true;toast(tip('BOGEN · LINKE MAUSTASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · RECHTSKLICK SENKT IHN','BOGEN · GROSSE TASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · BLOCK SENKT IHN'),4200);}
+  if(tool===2&&!potionHintShown){potionHintShown=true;toast(tip('HEILTRANK · LINKSKLICK TRINKT · RECHTSKLICK HALTEN SCHÜTTELT DIE FLASCHE','HEILTRANK · SCHLAG TRINKT · BLOCK HALTEN SCHÜTTELT DIE FLASCHE'),4200);}
+  if(tool===3&&!bowHintShown&&ITEMS[player.equipment.ranged]){bowHintShown=true;toast(tip('BOGEN · LINKE MAUSTASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · RECHTSKLICK SENKT IHN','BOGEN · GROSSE TASTE HALTEN ZUM SPANNEN, DABEI WISCHEN ZUM ZIELEN, LOSLASSEN ZUM SCHIESSEN'),4200);}
 }
 function heal(){if(game.started&&!game.paused&&!game.cinematic)combat.drink();}
 function applyHeal(){
@@ -1564,8 +1567,9 @@ function primaryDown() {
   else attack();
 }
 function primaryUp() { if (player.tool === 3 && combat.archery?.release()) updateHUD(); }
-function secondaryDown() { if (game.started && !game.paused && !game.cinematic) { if (player.tool === 3) combat.archery?.cancel(); else combat.setGuard(true); } }
-function secondaryUp() { combat.setGuard(false); }
+// With the potion in hand the block button shakes the flask instead (firstPerson.js, systems/liquid.js).
+function secondaryDown() { if (game.started && !game.paused && !game.cinematic) { if (player.tool === 3) combat.archery?.cancel(); else if (player.tool === 2) player.shaking = true; else combat.setGuard(true); } }
+function secondaryUp() { combat.setGuard(false); player.shaking = false; }
 renderer.domElement.addEventListener('mousedown', (event) => {
   if (!game.started) return;
   if (event.button === 2) { secondaryDown(); return; }
@@ -1606,6 +1610,8 @@ $('continue').addEventListener('click', () => { if (touchMode) toggleFullscreen(
 $('dialog-close').addEventListener('click', () => setModal(null));
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => setModal(null)));
 $('resume').addEventListener('click', () => setModal(null));
+$('pause-journal').addEventListener('click', () => setModal('journal'));
+$('pause-fullscreen').addEventListener('click', () => { toggleFullscreen(); setModal(null); });
 $('save').addEventListener('click', () => saveGame(true));
 $('restart').addEventListener('click', () => { resetGame(); setModal(null); toast('EIN NEUES ABENTEUER BEGINNT'); });
 window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); graphics.resize(); });
@@ -1639,7 +1645,7 @@ function interpolateSimulation(models, alpha) {
     (u.renderPos ??= new THREE.Vector3()).copy(m.position);
   }
 }
-let prev = performance.now(), elapsed = 0, frame = 0, accumulator = 0;
+let prev = performance.now(), elapsed = 0, frame = 0, accumulator = 0, lastSlosh = 0;
 const simulationStep = 1 / 60;
 const profile = { sections: {}, last: 0, worst: { total: 0 }, mark(name) { const t = performance.now(); this.sections[name] = (this.sections[name] || 0) + t - this.last; this.last = t; } };
 // Dev: ?timerLoop keeps the game running on a timer when the tab is not painted (hidden previews).
@@ -1708,7 +1714,7 @@ function animate(now) {
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
   renderer.info.autoReset=false;renderer.info.reset();
   const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first';
-  if(hands)firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));
+  if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
   aimZoom();
   profile.mark('effects'); graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
   graphics.update(rawDt);

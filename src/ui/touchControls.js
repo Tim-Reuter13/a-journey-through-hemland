@@ -1,7 +1,8 @@
 // Touch controls for phones and tablets. A stick appears wherever the left thumb lands (push past its
 // ring to sprint), the rest of the screen turns the view (two fingers zoom the third-person camera),
-// and a thumb cluster on the right holds the actions. Pointer events only; main.js decides what each
-// control does through the handlers it passes in.
+// and a small thumb cluster on the right holds the actions. A thumb held on a button can slide to turn
+// the view too, so you aim while drawing the bow or holding the guard. Pointer events only; main.js
+// decides what each control does through the handlers it passes in.
 import { icon } from './inventoryIcons.js';
 
 /** True on devices whose main pointer is a finger (phones, tablets), false with a mouse. */
@@ -45,23 +46,23 @@ const TOOL_ICONS = ['sword', 'star', 'potion', 'bow'];
 const TOOL_LABELS = ['Schlag', 'Zauber', 'Trinken', 'Bogen'];
 
 // kind: primary/secondary = attack and block (held), hold = a key held while pressed, tap = one key
-// press, toggle = latched mode, fullscreen. ring: [ring, angle] round the attack button.
+// press, toggle = latched mode. ring: [ring, angle] round the attack button. Kept to what a fight needs:
+// the potion is quickbar slot 3, journal and full screen sit in the pause menu.
 const PAD = [
   { id: 'attack', icon: 'sword', label: 'Schlag', kind: 'primary', big: true },
   { id: 'block', icon: 'shield', label: 'Block', kind: 'secondary', ring: [1, 180] },
   { id: 'use', icon: 'use', label: 'Nutzen', kind: 'hold', code: 'KeyE', ring: [1, 135] },
   { id: 'jump', icon: 'jump', label: 'Sprung', kind: 'hold', code: 'Space', ring: [1, 90] },
-  { id: 'sneak', icon: 'sneak', label: 'Ducken', kind: 'toggle', ring: [2, 180] },
-  { id: 'grab', icon: 'grab', label: 'Packen', kind: 'tap', code: 'KeyG', ring: [2, 150] },
-  { id: 'heal', icon: 'potion', label: 'Trank', kind: 'tap', code: 'KeyQ', ring: [2, 120] },
-  { id: 'view', icon: 'eye', label: 'Sicht', kind: 'tap', code: 'KeyF', ring: [2, 90] },
+  { id: 'sneak', icon: 'sneak', label: 'Ducken', kind: 'toggle', ring: [2, 168] },
+  { id: 'grab', icon: 'grab', label: 'Packen', kind: 'tap', code: 'KeyG', ring: [2, 118] },
 ];
 const TOP = [
+  { id: 'view', icon: 'eye', label: 'Sicht', kind: 'tap', code: 'KeyF' },
   { id: 'inventory', icon: 'bag', label: 'Inventar', kind: 'tap', code: 'KeyI' },
-  { id: 'journal', icon: 'book', label: 'Journal', kind: 'tap', code: 'KeyJ' },
-  { id: 'fullscreen', icon: 'expand', label: 'Vollbild', kind: 'fullscreen' },
-  { id: 'pause', icon: 'pause', label: 'Pause', kind: 'tap', code: 'Escape' },
+  { id: 'pause', icon: 'pause', label: 'Menü', kind: 'tap', code: 'Escape' },
 ];
+// Buttons a thumb may slide on to turn the view while holding them.
+const AIMING = new Set(['primary', 'secondary', 'hold']);
 
 /**
  * @param {HTMLElement} root  empty container, shown as an overlay above the canvas
@@ -69,26 +70,24 @@ const TOP = [
  *          onLook(dx:number, dy:number):void, onZoom?(delta:number):void}} handlers
  */
 export function createTouchControls(root, handlers) {
-  const button = b => `<button type="button" class="touch-btn${b.big ? ' big' : ''}" data-touch="${b.id}" aria-label="${b.label}">${art(b.icon)}<small>${b.label}</small></button>`;
+  const button = b => `<button type="button" class="touch-btn${b.big ? ' big' : ''}" data-touch="${b.id}" aria-label="${b.label}">${art(b.icon)}${b.big ? `<small>${b.label}</small>` : ''}</button>`;
   root.innerHTML = `<div class="touch-zone"></div><div class="touch-stick idle"><i></i></div>
     <div class="touch-top">${TOP.map(button).join('')}</div><div class="touch-pad">${PAD.map(button).join('')}</div>`;
   const zone = root.querySelector('.touch-zone'), stickEl = root.querySelector('.touch-stick'), knob = stickEl.firstElementChild;
   const buttons = new Map([...root.querySelectorAll('[data-touch]')].map(el => [el.dataset.touch, el]));
   const specs = new Map([...PAD, ...TOP].map(b => [b.id, b]));
-  const fullscreenOk = !!document.fullscreenEnabled;
-  if (!fullscreenOk) buttons.get('fullscreen').hidden = true;
 
   const state = { stick: { x: 0, y: 0, mag: 0, sprint: false }, sneak: false, visible: false };
   let stick = null, radius = 56; // { id, x, y } — the stick's base where the thumb landed
   const rest = { x: 0, y: 0 }; // where the idle stick waits, bottom left
   const looks = new Map(); // pointerId → last { x, y }
   let pinch = 0;
-  const held = new Map(); // pointerId → button id
+  const held = new Map(); // pointerId → { id, x, y, aiming } of the thumb on a button
   let interactLabel = null;
 
   function layout() {
     const short = Math.min(innerWidth, innerHeight);
-    const big = Math.round(Math.max(64, Math.min(96, short * .2))), small = Math.round(Math.max(44, Math.min(64, short * .135)));
+    const big = Math.round(Math.max(60, Math.min(88, short * .18))), small = Math.round(Math.max(42, Math.min(58, short * .12)));
     const gap = Math.round(small * .18), inset = Math.round(Math.max(14, short * .04));
     radius = Math.round(Math.max(46, Math.min(74, short * .15)));
     rest.x = Math.round(inset * 2 + radius + 12); rest.y = Math.round(innerHeight - inset * 2 - radius - 12);
@@ -156,15 +155,22 @@ export function createTouchControls(root, handlers) {
     else if (b.kind === 'secondary') handlers.onSecondary(down);
     else if (b.kind === 'hold') handlers.onKey(b.code, down);
     else if (b.kind === 'tap' && down) { handlers.onKey(b.code, true); handlers.onKey(b.code, false); }
-    else if (b.kind === 'fullscreen' && down) toggleFullscreen();
   }
   for (const el of buttons.values()) {
     el.addEventListener('pointerdown', event => {
       event.preventDefault(); event.stopPropagation();
       el.setPointerCapture?.(event.pointerId);
-      held.set(event.pointerId, el.dataset.touch); press(el.dataset.touch, true);
+      held.set(event.pointerId, { id: el.dataset.touch, x: event.clientX, y: event.clientY, aiming: false }); press(el.dataset.touch, true);
     });
-    const up = event => { const id = held.get(event.pointerId); if (id === undefined) return; held.delete(event.pointerId); press(id, false); };
+    // Sliding the thumb that holds a button turns the view (after a few pixels, so a tap stays a tap).
+    el.addEventListener('pointermove', event => {
+      const thumb = held.get(event.pointerId); if (!thumb || !AIMING.has(specs.get(thumb.id).kind)) return;
+      const dx = event.clientX - thumb.x, dy = event.clientY - thumb.y;
+      if (!thumb.aiming && Math.hypot(dx, dy) < 8) return;
+      thumb.aiming = true; thumb.x = event.clientX; thumb.y = event.clientY;
+      handlers.onLook(dx, dy);
+    });
+    const up = event => { const thumb = held.get(event.pointerId); if (!thumb) return; held.delete(event.pointerId); press(thumb.id, false); };
     for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(type, up);
     el.addEventListener('contextmenu', event => event.preventDefault());
   }
@@ -173,7 +179,7 @@ export function createTouchControls(root, handlers) {
   /** Lets go of everything: fingers still on the glass no longer steer once the controls hide. */
   function reset() {
     endStick(); looks.clear(); pinch = 0;
-    for (const [pointer, id] of held) { held.delete(pointer); press(id, false); }
+    for (const [pointer, thumb] of held) { held.delete(pointer); press(thumb.id, false); }
   }
   addEventListener('resize', layout);
   layout();
@@ -203,7 +209,8 @@ export function createTouchControls(root, handlers) {
   };
 }
 
-/** Full screen (and landscape where the browser allows locking it). Needs a user gesture. */
+/** Full screen (and landscape where the browser allows locking it). Needs a user gesture.
+ *  `force` true/false only enters/leaves; without it, it toggles. */
 export function toggleFullscreen(force) {
   const doc = document, on = !!doc.fullscreenElement;
   if (force === on) return;

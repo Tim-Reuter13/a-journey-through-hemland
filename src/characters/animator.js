@@ -23,7 +23,8 @@ const wrapAngle = a => THREE.MathUtils.euclideanModulo(a + Math.PI, TAU) - Math.
 // and the cutting edge (model ±X, the blade's width) faces the target, so nobody fights with the
 // flat. Directions in body space (front −Z, right +X). In a swing the blade continues the forearm
 // and the edge leads along the path of the hand.
-const BLADE = { rest: [.04, -.93, -.36], ready: [-.14, .4, -.9], guard: [-.36, .66, -.66] };
+// At rest the blade points forward and down from the hanging fist (crossing it, not continuing the arm).
+const BLADE = { rest: [.05, -.62, -.78], ready: [-.14, .4, -.9], guard: [-.36, .66, -.66] };
 const _body = new THREE.Quaternion(), _grip = new THREE.Quaternion(), _arm = new THREE.Quaternion(), _target = new THREE.Quaternion();
 const _blade = new THREE.Vector3(), _edge = new THREE.Vector3(), _side = new THREE.Vector3(), _hand = new THREE.Vector3(), _basis = new THREE.Matrix4();
 function aimSword(character, input, state, dt) {

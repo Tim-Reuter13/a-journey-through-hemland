@@ -49,12 +49,12 @@ export function createCombatEffects(scene,world) {
     try{
       audio??=new (window.AudioContext||window.webkitAudioContext)();void audio.resume();
       if(kind.startsWith('bow')||kind.startsWith('arrow')){bowSound(kind);return;}
-      const t=audio.currentTime,d=kind==='fireImpact'?.38:kind==='crackle'?.025:kind==='swing'?.18:kind==='drink'?.25:.12;
-      const gain=audio.createGain();gain.gain.setValueAtTime(kind==='crackle'?.009:kind==='fireImpact'?.16:kind==='impact'?.11:.055,t);gain.gain.exponentialRampToValueAtTime(.001,t+d);gain.connect(audio.destination);
-      if(kind==='swing'||kind==='impact'||kind==='fireImpact'||kind==='crackle'){
+      const t=audio.currentTime,d=kind==='fireImpact'?.38:kind==='crackle'?.025:kind==='swing'?.18:kind==='drink'?.25:kind==='slosh'?.22:.12;
+      const gain=audio.createGain();gain.gain.setValueAtTime(kind==='crackle'?.009:kind==='fireImpact'?.16:kind==='impact'?.11:kind==='slosh'?.03:.055,t);gain.gain.exponentialRampToValueAtTime(.001,t+d);gain.connect(audio.destination);
+      if(kind==='swing'||kind==='impact'||kind==='fireImpact'||kind==='crackle'||kind==='slosh'){
         const buffer=audio.createBuffer(1,Math.ceil(audio.sampleRate*d),audio.sampleRate),data=buffer.getChannelData(0);
         for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*(1-i/data.length);
-        const source=audio.createBufferSource(),filter=audio.createBiquadFilter();source.buffer=buffer;filter.type='lowpass';filter.frequency.value=kind==='crackle'?4200:kind==='swing'?1500:kind==='fireImpact'?950:520;source.connect(filter);filter.connect(gain);source.start(t);
+        const source=audio.createBufferSource(),filter=audio.createBiquadFilter();source.buffer=buffer;filter.type=kind==='slosh'?'bandpass':'lowpass';filter.frequency.value=kind==='crackle'?4200:kind==='swing'?1500:kind==='fireImpact'?950:kind==='slosh'?640:520;if(kind==='slosh'){filter.Q.value=3;filter.frequency.exponentialRampToValueAtTime(260,t+d);}source.connect(filter);filter.connect(gain);source.start(t);
         if(kind==='fireImpact'){
           const bass=audio.createOscillator();bass.type='triangle';bass.frequency.setValueAtTime(110,t);bass.frequency.exponentialRampToValueAtTime(32,t+d);bass.connect(gain);bass.start(t);bass.stop(t+d);
         }

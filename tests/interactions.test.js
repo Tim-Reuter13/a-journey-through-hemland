@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { sampleTerrain, createCollisionWorld, routePoints, nearTrail } from '../src/world/navigation.js';
-import { createSlosh } from '../src/systems/slosh.js';
+import { createLiquid } from '../src/systems/liquid.js';
 import { crossedImpact, inAttackArc } from '../src/systems/combatRules.js';
 
 test('terrain sampling follows mesh triangles and stays continuous at cell boundaries',()=>{
@@ -28,13 +28,40 @@ test('collisions respect height and stop even very short projectile segments',()
  assert.equal(world.segmentBlocked(new THREE.Vector3(.91,1,0),new THREE.Vector3(.98,1,0),.03),true);
  assert.equal(world.segmentBlocked(new THREE.Vector3(0,3,0),new THREE.Vector3(2,3,0)),false);
 });
-test('liquid reacts to impulses, stays bounded and settles',()=>{
- const slosh=createSlosh();slosh.impulse(3,-2);slosh.update(.03);
- assert.ok(Math.abs(slosh.state.x)>0);
- for(let i=0;i<2000;i++){slosh.update(i%5===0?.1:1/60);assert.ok(Number.isFinite(slosh.state.x));assert.ok(Math.abs(slosh.state.x)<=.5);}
- assert.ok(Math.hypot(slosh.state.x,slosh.state.z)<.0001);
- slosh.impulse(100,100);slosh.update(50);assert.ok(Number.isFinite(slosh.state.vx));
- slosh.reset();assert.equal(slosh.state.x,0);
+test('liquid tilts toward felt gravity, sloshes after a jolt and settles',()=>{
+ let seed=7;const random=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ const liquid=createLiquid({random}),up={x:0,y:1,z:0};
+ liquid.impulse(3,-2);liquid.update(.03,{felt:up,level:.04,bottom:-.2});
+ assert.ok(Math.abs(liquid.state.x)>0);
+ let crossings=0,last=Math.sign(liquid.state.x);
+ for(let i=0;i<4000;i++){
+  liquid.update(i%5===0?.1:1/60,{felt:up,level:.04,bottom:-.2});
+  const s=liquid.state;assert.ok(Number.isFinite(s.x)&&Math.abs(s.x)<=.75&&Math.abs(s.z)<=.75);
+  if(i<300&&Math.sign(s.x)!==last&&Math.abs(s.x)>1e-3){crossings++;last=Math.sign(s.x);}
+ }
+ assert.ok(crossings>=3,'a jolt swings back and forth a few times');
+ assert.ok(Math.hypot(liquid.state.x,liquid.state.z)<1e-3,'and comes to rest');
+ // Felt gravity leaning sideways (an acceleration or a tilted bottle): the surface follows it.
+ const lean={x:.4,y:Math.sqrt(1-.16),z:0};
+ for(let i=0;i<600;i++)liquid.update(1/60,{felt:lean,level:.04,bottom:-.2});
+ assert.ok(Math.abs(liquid.state.x-.4)<.02);
+ liquid.impulse(100,100);liquid.update(50,{felt:up});assert.ok(Number.isFinite(liquid.state.vx));
+ liquid.reset();assert.equal(liquid.state.x,0);assert.equal(liquid.bubbles.filter(b=>b.alive).length,0);
+});
+test('shaking churns the potion: more bubbles and foam that fade again, volume kept',()=>{
+ let seed=11;const random=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ const liquid=createLiquid({random}),up={x:0,y:1,z:0},alive=()=>liquid.bubbles.filter(b=>b.alive).length;
+ let calm=0;for(let i=0;i<180;i++){liquid.update(1/60,{felt:up,level:.04,bottom:-.2});calm=Math.max(calm,alive());}
+ let shaken=0;
+ for(let i=0;i<180;i++){const a=Math.sin(i/60*Math.PI*2*4)*40;liquid.update(1/60,{felt:up,quick:{x:a,z:a*.3},level:.04,bottom:-.2});shaken=Math.max(shaken,alive());}
+ assert.ok(liquid.state.agitation>.4,'agitation builds while shaken');
+ assert.ok(shaken>calm*2,`more bubbles when shaken (${calm} → ${shaken})`);
+ const mean=liquid.heights.reduce((a,b)=>a+b,0)/liquid.heights.length;
+ assert.ok(Math.abs(mean)<1e-4,'ripples neither add nor remove water');
+ for(let i=0;i<900;i++)liquid.update(1/60,{felt:up,level:.04,bottom:-.2});
+ assert.ok(liquid.state.agitation<.02,'it settles again');
+ for(let i=0;i<60;i++)liquid.update(1/60,{felt:up,level:-.21,bottom:-.2});
+ assert.equal(alive(),0,'an empty flask has no bubbles');
 });
 test('weapon, spell and drink impacts trigger once at their animation moment',()=>{
  for(const [kind,at] of [['sword',.29],['cast',.34],['drink',1.02]]){

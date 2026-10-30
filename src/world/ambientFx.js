@@ -4,30 +4,32 @@ import { canopiesNear } from './trees.js';
 // Life in the air round the wanderer.
 // - Leaves come out of real crowns (trees.js keeps them on a grid): a few at a time, more from autumn
 //   trees, from the lower half of a crown near you; they flutter down, lie a while and fade.
-// - Light shafts: soft beams of sunlight slanting down along the sun's direction from the edges of crowns
-//   and the eaves of roofs, fading in and out over several seconds, golden when the sun is low, faint at
-//   noon, none at night or when the sun is down. Each is a ribbon along the light, turned to face you.
+// - Light shafts: faint, soft beams of sunlight slanting down along the sun's direction from the edges of
+//   crowns, fading in and out over several seconds, golden when the sun is low, fainter at noon, none at
+//   night or when the sun is down. Each is a ribbon along the light, turned to face you. (Beams from roof
+//   eaves were dropped on feedback 2026-10-30: bright streaked bands across houses.)
 // - Petals and pollen over meadows by day, fireflies by night.
 // One instanced mesh (or small pool) per kind, a fixed budget.
 const T = 1 / 16;
 const LEAF_COLORS = { autumn: [0xc8521e, 0xe08a2a, 0xd8b030, 0xa83a1c, 0xb86a24], broadleaf: [0x5e8a3a, 0x7a9a3e, 0x4e7a34, 0x8aa040] };
 const PETALS = [0xf2f0e6, 0xf4c8d8, 0xf6e27a, 0xe8e4f4];
 
-// A beam in pixels: bright core, soft sides with a few streaks, faded in at the top and out at the foot.
+// A beam in pixels: a soft core that fades smoothly to both sides (no hard edges or streaks), faded in at
+// the top and out long before the foot.
 function shaftTexture() {
   const w = 16, h = 64, canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d'), img = ctx.createImageData(w, h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const across = 1 - Math.abs((x + .5) / w * 2 - 1), streak = [3, 7, 10, 12].includes(x) ? .7 : 1;
-    const along = Math.min(1, y / (h * .1)) * Math.pow(1 - y / h, .9);
-    const a = Math.min(1, Math.pow(across, 1.2) * 1.25) * along * streak, i = (y * w + x) * 4;
+    const across = 1 - Math.abs((x + .5) / w * 2 - 1);
+    const along = Math.min(1, y / (h * .2)) * Math.pow(1 - y / h, 1.6);
+    const a = across * across * (3 - 2 * across) * along, i = (y * w + x) * 4;
     img.data[i] = img.data[i + 1] = img.data[i + 2] = 255; img.data[i + 3] = Math.round(255 * a);
   }
   ctx.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(canvas); t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; return t;
 }
 
-export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0, colliders = null }) {
+export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0 }) {
   const make = (count, material, size) => {
     const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(size, size), material, count);
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
@@ -77,31 +79,20 @@ export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0,
     f.v.set((Math.random() - .5) * .3, night ? 0 : .05, (Math.random() - .5) * .3);
     motes.setColorAt(M.indexOf(f), night ? c.setHex(0xc8ff6a) : c.setHex(PETALS[Math.floor(Math.random() * PETALS.length)])); motes.instanceColor.needsUpdate = true;
   }
-  // A shaft from the edge of a crown, or from the eave of a roof nearby.
-  // Sources in front of the camera are preferred: a beam you never see is wasted.
+  // A shaft from the edge of a crown. Sources in front of the camera are preferred: a beam you never see
+  // is wasted.
   const ahead = new THREE.Vector3(), seen = (x, z, cam) => { if (!cam) return true; cam.getWorldDirection(ahead); const dx = x - cam.position.x, dz = z - cam.position.z, d = Math.hypot(dx, dz) || 1; return (dx * ahead.x + dz * ahead.z) / d > .25; };
   function spawnShaft(player, allCrowns, camera, groundY) {
     const f = shafts.find(o => o.life <= 0); if (!f) return;
     const crowns = allCrowns.filter(k => seen(k.x, k.z, camera));
-    const roofs = colliders ? colliders(player.x, player.z, 26).filter(o => o.kind === 'roof' && seen(o.x, o.z, camera)) : [];
-    const roofShafts = shafts.filter(o => o.life > 0 && o.roof).length;
-    f.roof = false;
-    if (roofs.length && roofShafts < 4 && (Math.random() < .35 || !crowns.length)) {
-      f.roof = true;
-      const o = roofs[Math.floor(Math.random() * roofs.length)], u = (Math.random() * 2 - 1) * o.halfWidth, v = Math.random() < .5 ? o.halfDepth : -o.halfDepth;
-      const cr = Math.cos(o.rotation || 0), sr = Math.sin(o.rotation || 0);
-      f.at.set(o.x + u * cr + v * sr, o.top - .4, o.z - u * sr + v * cr);
-      f.width = .7 + Math.random() * .9; f.length = 5 + Math.random() * 3;
-    } else {
-      const crown = crowns[Math.floor(Math.random() * crowns.length)]; if (!crown) return;
-      const a = Math.random() * Math.PI * 2, r = crown.radius * (.55 + Math.random() * .45);
-      f.at.set(crown.x + Math.cos(a) * r, crown.bottom + (crown.top - crown.bottom) * (.35 + Math.random() * .4), crown.z + Math.sin(a) * r);
-      f.width = .5 + Math.random() * 1.1; f.length = 5.5 + Math.random() * 4.5;
-    }
+    const crown = crowns[Math.floor(Math.random() * crowns.length)]; if (!crown) return;
+    const a = Math.random() * Math.PI * 2, r = crown.radius * (.55 + Math.random() * .45);
+    f.at.set(crown.x + Math.cos(a) * r, crown.bottom + (crown.top - crown.bottom) * (.35 + Math.random() * .4), crown.z + Math.sin(a) * r);
+    f.width = .5 + Math.random() * 1.1; f.length = 5.5 + Math.random() * 4.5;
     if (f.at.distanceToSquared(player) > 34 * 34) return;
     // Long enough to reach the ground along the slant of the light.
     f.length = Math.max(f.length, (f.at.y - heightAt(f.at.x, f.at.z)) / Math.max(.25, Math.abs(down.y)) + .5);
-    f.life = f.max = 6 + Math.random() * 4; f.peak = (f.roof ? .2 : .32) + Math.random() * .16; f.mesh.visible = true;
+    f.life = f.max = 6 + Math.random() * 4; f.peak = .07 + Math.random() * .07; f.mesh.visible = true;
   }
   /** player: Vector3; hour 0..24; camera; sun: unit vector toward the sun; wind [x, z] m/s. */
   function update(dt, player, hour, camera = null, sun = null, wind = [.6, .2]) {
@@ -115,7 +106,7 @@ export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0,
     // Shafts need a sun above the trees; a low sun gives the longest, warmest ones.
     const elevation = sun ? sun.y : -1, sunny = THREE.MathUtils.smoothstep(elevation, .06, .25), low = 1 - THREE.MathUtils.smoothstep(elevation, .25, .7);
     if (sun) { light.copy(sun).negate(); down.copy(light); }
-    shaftTimer += dt * (sunny > 0 && camera ? 2.6 : 0); while (shaftTimer > 1) { shaftTimer--; spawnShaft(player, crowns, camera); }
+    shaftTimer += dt * (sunny > 0 && camera ? 1.4 : 0); while (shaftTimer > 1) { shaftTimer--; spawnShaft(player, crowns, camera); }
     for (const f of shafts) {
       if (f.life <= 0) continue;
       f.life -= dt;

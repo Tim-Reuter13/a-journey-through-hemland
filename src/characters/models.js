@@ -72,7 +72,7 @@ export function equipItem(character, item) {
   const source = templates.get('weapons')?.getObjectByName(item);
   if (!source) return null;
   const weapon = source.clone(true);
-  weapon.position.set(0, 0, 0); weapon.rotation.copy(WEAPON_POSE); weapon.scale.setScalar(.8);
+  weapon.position.set(0, 0, 0); weapon.rotation.copy(WEAPON_POSE); weapon.scale.setScalar(.9);
   grip.add(weapon);
   character.userData.weapon = weapon; character.userData.weaponName = item;
   return weapon;
