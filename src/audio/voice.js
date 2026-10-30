@@ -84,7 +84,8 @@ export async function speakLine(text, speaker = null) {
     return;
   }
 
-  const audio = new Audio(asset.url);
+  // The manifest stores site-absolute paths (/audio/…); the game may live below a sub-path (GitHub Pages).
+  const audio = new Audio(`${import.meta.env.BASE_URL}${asset.url.replace(/^\//, '')}`);
   audio.preload = 'auto';
   currentAudio = audio;
   meter(audio);

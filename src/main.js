@@ -37,7 +37,8 @@ import { createAmbience } from './audio/ambience.js';
 import { createCompass } from './ui/compass.js';
 import './ui/compass.css';
 import './ui/fonts.js';
-import { createMenu, loadSettings, setBarVisibility } from './ui/menu.js';
+import { createMenu, loadSettings, saveSettings, setBarVisibility, SETTINGS_KEY } from './ui/menu.js';
+import { createTouchControls, prefersTouch, toggleFullscreen } from './ui/touchControls.js';
 import { createCharacterCreator, randomAppearance } from './ui/characterCreator.js';
 import { createWildlife } from './systems/wildlife.js';
 import { createAIManager } from './systems/ai/manager.js';
@@ -46,13 +47,15 @@ import { AI } from './systems/ai/config.js';
 import { createBarks } from './ui/barks.js';
 import './ui/characterCreator.css';
 import './ui/style.css';
+import './ui/touch.css';
 
 // ASHEN REALMS — Die letzte Glut. Playable standalone fantasy RPG vertical slice.
 // The scene, creatures, architecture and effects are constructed locally.
 const $ = (id) => document.getElementById(id);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, .08, 320);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+// Phones skip MSAA on the canvas: the scene renders into the low-resolution target, the canvas only shows it.
+const renderer = new THREE.WebGLRenderer({ antialias: !prefersTouch(), powerPreference: 'high-performance' });
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -202,6 +205,9 @@ function equipLoot(index) {
 const player = { position: v3(3, world.heightAt(3, 0), 0), yaw: 2.55, pitch: -.09, hp: 100, maxHp: 100, stamina: 100, maxStamina: 100, level: 1, xp: 0, perkPoints: 0, gold: 24, potions: 3, kills: 0, skills: { sword: 1, magic: 0, survival: 0 }, attributes: { strength: 1, arcane: 1, endurance: 1 }, perks: [], equipment: { weapon: 'rostiges_schwert', ranged: 'jagdbogen', armor: 'reisekleidung' }, loot: [], velocityY: 0, grounded: true, attack: 0, invuln: 0, magicCd: 0, tool: 0, mode: 'third', stride: 0 };
 resetCharacter(player);
 const keys = new Set();
+// Touch controls (src/ui/touchControls.js), created with the settings at the end; touchMode follows the setting.
+let touch = null, touchMode = false;
+const tip = (desk, finger) => touchMode ? finger : desk;
 const npcs = [
   { id: 'elira', name: 'Elira', role: 'DORFÄLTESTE', x: -7.1, z: 4.4, facing: -.2, trust: 0, mood: 'besorgt', memories: ['die erste Glutnacht', 'verlorene Dorfbewohner'], lines: ['Die Asche fällt wieder. Der letzte Glutstein beginnt zu erwachen.', 'Im Westen haben Plünderer unser Heiligtum entweiht. Ohne die Glut wird die Aschmark verstummen.'] },
   { id: 'bryn', name: 'Bryn', role: 'SCHMIED', x: 7.0, z: 7.0, facing: 2.0, trust: 0, mood: 'misstrauisch', memories: ['sein zerbrochenes Meisterschwert'], lines: ['Gutes Eisen erzählt die Wahrheit. Das hier riecht nach Krieg.', 'Nimm dich vor den Wölfen im Wald in Acht. Sie jagen inzwischen im Rudel.'] },
@@ -711,7 +717,7 @@ function resetGame(clearSave = true) {
   updatePlayer(0); updateCamera(1); objective(); updateHUD(); updateInteractions();
 }
 
-function lockPointer() { if (!game.paused && !game.modal && !game.cinematic && document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock?.().catch(() => {}); }
+function lockPointer() { if (!touchMode && !game.paused && !game.modal && !game.cinematic && document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock?.().catch(() => {}); }
 function unlockPointer() { if (document.pointerLockElement) document.exitPointerLock?.(); }
 function syncPresentation() {
   const cinematic=!!game.cinematic,dialog=game.modal==='dialog';
@@ -719,7 +725,11 @@ function syncPresentation() {
   document.body.classList.toggle('in-dialog',dialog);
   show('hud',game.started&&!cinematic&&!dialog);
   show('reticle',game.started&&!game.paused&&!cinematic&&!dialog);
+  const thumbs=touchMode&&game.started&&!game.paused&&!cinematic&&!dialog;
+  if(thumbs&&touch&&!touch.visible&&!touchHelpShown){touchHelpShown=true;toast('LINKS ZIEHEN: GEHEN · WEITER ZIEHEN: SPRINTEN · RECHTS WISCHEN: UMSEHEN · ZWEI FINGER: ZOOM',6000);}
+  touch?.setVisible(thumbs);
 }
+let touchHelpShown=false;
 function setModal(id, inventoryContext) {
   keys.clear();combat.setGuard(false);
   const closingInventory = game.modal === 'inventory' && id !== 'inventory';
@@ -1009,6 +1019,7 @@ function updateHUD() {
   document.querySelectorAll('.slot small')[2].textContent = `Heiltrank × ${player.potions}`;
   document.querySelectorAll('.slot small')[3].textContent = ITEMS[player.equipment.ranged] ? `${ITEMS[player.equipment.ranged].name} · ${player.satchel.pfeil || 0}` : 'Kein Bogen';
   [...document.querySelectorAll('.slot')].forEach((element, i) => element.classList.toggle('selected', i === player.tool));
+  touch?.setTool(player.tool);
 }
 function nearestInteraction() {
   let best = null, distance = 3.8;
@@ -1178,7 +1189,7 @@ function attack() {
 let bowHintShown=false;
 function selectTool(tool){
   player.tool=tool;updateHUD();
-  if(tool===3&&!bowHintShown&&ITEMS[player.equipment.ranged]){bowHintShown=true;toast('BOGEN · LINKE MAUSTASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · RECHTSKLICK SENKT IHN',4200);}
+  if(tool===3&&!bowHintShown&&ITEMS[player.equipment.ranged]){bowHintShown=true;toast(tip('BOGEN · LINKE MAUSTASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · RECHTSKLICK SENKT IHN','BOGEN · GROSSE TASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · BLOCK SENKT IHN'),4200);}
 }
 function heal(){if(game.started&&!game.paused&&!game.cinematic)combat.drink();}
 function applyHeal(){
@@ -1201,8 +1212,10 @@ function hurt(amount) {
 function updatePlayer(dt) {
   player.invuln = Math.max(0, player.invuln - dt);
 
-  const walking = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
-  const strafing = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+  // The touch stick adds an analogue direction; a light push walks, a full one runs, past the ring sprints.
+  const pad = touchMode && touch.stick.mag > 0 ? touch.stick : null;
+  const walking = clamp((keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + (pad?.y ?? 0), -1, 1);
+  const strafing = clamp((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + (pad?.x ?? 0), -1, 1);
   let movement = v3(-Math.sin(player.yaw) * walking + Math.cos(player.yaw) * strafing, 0, -Math.cos(player.yaw) * walking - Math.sin(player.yaw) * strafing);
   // HUMANITY MOTION: down or getting up you do not walk; held you barely move; holding, you drag.
   const bodyLocked = motion.locked(playerModel), heldBy = motion.heldBy(playerModel), holdingSomeone = motion.holding(playerModel);
@@ -1210,13 +1223,13 @@ function updatePlayer(dt) {
   const active = movement.lengthSq() > .001;
   if (active) movement.normalize();
   // Hold C to creep (Ctrl would close the browser tab with W): slow and quiet, game lets you come close.
-  player.sneaking = keys.has('KeyC') && !player.fly;
+  player.sneaking = (keys.has('KeyC') || touchMode && touch.sneak) && !player.fly;
   // Gaits: W runs, Shift sprints (stamina), Caps Lock toggles a calm walk for strolling through a village.
   // First person and fights steer directly; exploring in third person the body keeps a little weight.
-  const shift = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  const shift = keys.has('ShiftLeft') || keys.has('ShiftRight') || !!pad?.sprint;
   const ready = player.mode === 'first' || performance.now() < (player.drawnUntil || 0) || !!combat.action || combat.guarding || !!combat.archery?.bow;
   const sprinting = active && !player.sneaking && shift && player.stamina > 1;
-  const running = active && !player.sneaking && !sprinting && !player.walkMode;
+  const running = active && !player.sneaking && !sprinting && !player.walkMode && !(pad && pad.mag < .5);
   // Ground under the feet: a bridge deck or floor far overhead (swimming under a bridge) does not count.
   const groundAt = (x, z) => { const g = world.heightAt(x, z); return g > player.position.y + 1.6 ? world.terrainHeightAt(x, z) : g; };
   // Water: wading slows you down, deeper you swim with the head above the surface.
@@ -1421,7 +1434,7 @@ function updateEnemies(dt) {
   show('enemy-hud',!!nearest);
   if(nearest){
     $('enemy-name').textContent=nearest.name;$('enemy-fill').style.width=100*Math.max(0,nearest.hp)/nearest.maxHp+'%';
-    $('enemy-intent').textContent=MOOD[nearest.ai?.hostility]??(nearest.casting==='bolt'?'WIRKT FEUER · AUSWEICHEN ODER DECKUNG':nearest.casting==='heal'?'HEILT EINEN VERBÜNDETEN · UNTERBRECHEN':nearest.shieldUp?'SCHILD ERHOBEN · VON DER SEITE ANGREIFEN':nearest.windup>0&&nearest.archer?'SPANNT DEN BOGEN · DECKUNG HOCH ODER HINTER ETWAS':nearest.windup>0?'ANGRIFF · BLOCKEN ODER AUSWEICHEN':nearest.stagger>0?'TAUMELT':combat.guarding?'DECKUNG':'LINKSKLICK · ANGRIFF');
+    $('enemy-intent').textContent=MOOD[nearest.ai?.hostility]??(nearest.casting==='bolt'?'WIRKT FEUER · AUSWEICHEN ODER DECKUNG':nearest.casting==='heal'?'HEILT EINEN VERBÜNDETEN · UNTERBRECHEN':nearest.shieldUp?'SCHILD ERHOBEN · VON DER SEITE ANGREIFEN':nearest.windup>0&&nearest.archer?'SPANNT DEN BOGEN · DECKUNG HOCH ODER HINTER ETWAS':nearest.windup>0?'ANGRIFF · BLOCKEN ODER AUSWEICHEN':nearest.stagger>0?'TAUMELT':combat.guarding?'DECKUNG':tip('LINKSKLICK · ANGRIFF','ANGRIFF'));
     $('enemy-hud').classList.toggle('threat',nearest.windup>0);
   }
 }
@@ -1497,7 +1510,8 @@ function updateCamera(dt) {
 function updateInteractions() {
   const target = nearestInteraction();
   show('interact', !!target && !game.paused);
-  if (target) $('interact-text').textContent = target.type === 'npc' ? `Mit ${target.npc.name} sprechen` : target.type === 'stash' ? 'Reisetruhe öffnen' : target.type === 'drop' ? 'Beutel durchsuchen' : target.type === 'corpse' ? (target.enemy.prey ? `${target.enemy.name} ausnehmen` : `${target.enemy.name} durchsuchen · [E halten] Ziehen`) : target.type === 'pickup' ? `${ITEMS[target.prop.item].name} nehmen` : target.type === 'door' ? (target.door.target > .5 ? 'Tür schließen' : 'Tür öffnen') : target.type === 'furniture' ? (target.spot.kind === 'sleep' ? 'Schlafen bis zum Morgen' : 'Truhe öffnen') : target.type === 'story' ? target.pickup.label : target.type === 'lore' ? target.marker.readLabel : target.type === 'arrow' ? 'Pfeil ziehen' : target.type === 'yielded' ? (target.enemy.ai.robbed ? `${target.enemy.name} ziehen lassen` : 'Wertsachen fordern') : target.type === 'toll' ? `Wegzoll zahlen (${AI.toll} Gold)` : '';
+  if (target) $('interact-text').textContent = target.type === 'npc' ? `Mit ${target.npc.name} sprechen` : target.type === 'stash' ? 'Reisetruhe öffnen' : target.type === 'drop' ? 'Beutel durchsuchen' : target.type === 'corpse' ? (target.enemy.prey ? `${target.enemy.name} ausnehmen` : `${target.enemy.name} durchsuchen · ${tip('[E halten]', '[Nutzen halten]')} Ziehen`) : target.type === 'pickup' ? `${ITEMS[target.prop.item].name} nehmen` : target.type === 'door' ? (target.door.target > .5 ? 'Tür schließen' : 'Tür öffnen') : target.type === 'furniture' ? (target.spot.kind === 'sleep' ? 'Schlafen bis zum Morgen' : 'Truhe öffnen') : target.type === 'story' ? target.pickup.label : target.type === 'lore' ? target.marker.readLabel : target.type === 'arrow' ? 'Pfeil ziehen' : target.type === 'yielded' ? (target.enemy.ai.robbed ? `${target.enemy.name} ziehen lassen` : 'Wertsachen fordern') : target.type === 'toll' ? `Wegzoll zahlen (${AI.toll} Gold)` : '';
+  touch?.setInteract(target && !game.paused ? $('interact-text').textContent : null);
 }
 function updateParticles(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1541,20 +1555,29 @@ document.addEventListener('mousemove', (event) => {
   player.yaw -= event.movementX * .0025 * settings.mouseSensitivity;
   player.pitch = clamp(player.pitch - event.movementY * .0021 * settings.mouseSensitivity * (settings.invertY ? -1 : 1), -1.15, 1.18);
 });
-renderer.domElement.addEventListener('mousedown', (event) => {
+// Primary (left button / touch "Schlag") and secondary (right button / touch "Block") actions.
+function primaryDown() {
   if (!game.started) return;
-  if(event.button===2){if(!game.paused&&!game.cinematic){if(player.tool===3)combat.archery?.cancel();else combat.setGuard(true);}return;}
-  if(event.button!==0)return;
   if (game.cinematic) { endCinematic(); return; }
   if (game.paused) return;
-  if (document.pointerLockElement !== renderer.domElement) lockPointer();
-  else if (physics.holding) { const d = camera.getWorldDirection(v3(0, 0, 0)); physics.release(d.multiplyScalar(11).add(v3(0, 2, 0))); }
+  if (physics.holding) { const d = camera.getWorldDirection(v3(0, 0, 0)); physics.release(d.multiplyScalar(11).add(v3(0, 2, 0))); }
   else attack();
+}
+function primaryUp() { if (player.tool === 3 && combat.archery?.release()) updateHUD(); }
+function secondaryDown() { if (game.started && !game.paused && !game.cinematic) { if (player.tool === 3) combat.archery?.cancel(); else combat.setGuard(true); } }
+function secondaryUp() { combat.setGuard(false); }
+renderer.domElement.addEventListener('mousedown', (event) => {
+  if (!game.started) return;
+  if (event.button === 2) { secondaryDown(); return; }
+  if (event.button !== 0) return;
+  // The first click only captures the mouse; touch has no pointer lock.
+  if (!game.cinematic && !game.paused && !touchMode && document.pointerLockElement !== renderer.domElement) lockPointer();
+  else primaryDown();
 });
 renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('wheel',e=>{if(!game.started||game.paused)return;cameraRig.zoom=clamp(cameraRig.zoom+Math.sign(e.deltaY)*.6,2,7.5);},{passive:true});
-window.addEventListener('mouseup',e=>{if(e.button===2)combat.setGuard(false);if(e.button===0&&player.tool===3&&combat.archery?.release())updateHUD();});
-$('new-game').addEventListener('click', openCreator);
+window.addEventListener('mouseup',e=>{if(e.button===2)secondaryUp();if(e.button===0)primaryUp();});
+$('new-game').addEventListener('click', () => { if (touchMode) toggleFullscreen(true); openCreator(); });
 // ── Character creation: the real player model stands in the village square while you edit it.
 const creatorSpot = { x: -6.2, z: 13.6, yaw: -2.5 };
 let creating = null, pendingAppearance = null;
@@ -1579,7 +1602,7 @@ renderer.domElement.addEventListener('pointerdown', e => { if (creating && e.but
 window.addEventListener('pointermove', e => { if (creating?.drag != null) { creating.spin += (e.clientX - creating.drag) * .012; creating.drag = e.clientX; } });
 window.addEventListener('pointerup', () => { if (creating) creating.drag = null; });
 renderer.domElement.addEventListener('wheel', e => { if (creating) creating.zoom = clamp(creating.zoom + Math.sign(e.deltaY) * .12, .55, 1.4); }, { passive: true });
-$('continue').addEventListener('click', () => startGame(true));
+$('continue').addEventListener('click', () => { if (touchMode) toggleFullscreen(true); startGame(true); });
 $('dialog-close').addEventListener('click', () => setModal(null));
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => setModal(null)));
 $('resume').addEventListener('click', () => setModal(null));
@@ -1851,12 +1874,12 @@ function motionWantsFree(t, h, g) {
 }
 function motionEvent(type, a, other, data) {
   if (type === 'grab' && a.kind === 'player') {
-    toast('GEPACKT · LMB STOSSEN · E NIEDERWERFEN · G LOSLASSEN', 2600);
+    toast(tip('GEPACKT · LMB STOSSEN · E NIEDERWERFEN · G LOSLASSEN', 'GEPACKT · SCHLAG STÖSST · NUTZEN WIRFT NIEDER · PACKEN LÄSST LOS'), 2600);
     // Laying hands on someone is an attack, the same as a blow.
     const e = other.ref;
     if (e && !YIELDING.has(e.ai?.hostility)) { if (e.calm && (e.ai?.group === 'camp' || !e.ai)) provokeCamp(); e.calm = false; if (e.ai) ai.hurt(e, 1, player.position.clone()); }
   }
-  if (type === 'grab' && other?.kind === 'player') { toast('DU WIRST FESTGEHALTEN · LEERTASTE / LMB: LOSREISSEN', 2400); if (a.ref?.ai) ai.say(a.ref.ai, 'heldYou', 6); }
+  if (type === 'grab' && other?.kind === 'player') { toast(tip('DU WIRST FESTGEHALTEN · LEERTASTE / LMB: LOSREISSEN', 'DU WIRST FESTGEHALTEN · SPRUNG / SCHLAG: LOSREISSEN'), 2400); if (a.ref?.ai) ai.say(a.ref.ai, 'heldYou', 6); }
   if (type === 'refused' && a.kind === 'player') toast('ER STEHT ZU FEST · ERST GEGEN DIE WAND DRÜCKEN ODER AUS DEM TRITT BRINGEN', 2200);
   if (type === 'escaped' && a.kind === 'player') toast('LOSGERISSEN', 1200);
   if (type === 'escaped' && other?.kind === 'player') toast('ER REISST SICH LOS', 1200);
@@ -2013,7 +2036,7 @@ function grantBow(loaded) {
   if (!owned) { if (!player.equipment.ranged) player.equipment.ranged = 'jagdbogen'; else player.loot.push('jagdbogen'); }
   if ((player.satchel.pfeil || 0) < 24) player.satchel.pfeil = 24;
   updateHUD();
-  if (loaded) toast('NEU IM GEPÄCK · JAGDBOGEN UND 24 PFEILE · TASTE 4', 5200);
+  if (loaded) toast(tip('NEU IM GEPÄCK · JAGDBOGEN UND 24 PFEILE · TASTE 4', 'NEU IM GEPÄCK · JAGDBOGEN UND 24 PFEILE · FELD 4'), 5200);
 }
 // ── Character animation, soundscape and compass (presentation only, per rendered frame).
 const playerHead = v3(0, 0, 0);
@@ -2106,17 +2129,39 @@ function compassMarkers() {
   if (quest && game.quest) markers.push({ id: 'quest', x: quest.x, z: quest.z, kind: 'quest', label: stageOf(game.quest).objective });
   return markers;
 }
-for (const type of ['pointerdown', 'keydown']) window.addEventListener(type, () => ambience.resume(), { passive: true });
+for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(type, () => ambience.resume(), { passive: true });
 // Settings (main menu and pause menu) apply live: controls, field of view, audio, subtitles.
 let settings = loadSettings();
+try { if (prefersTouch() && !localStorage.getItem(SETTINGS_KEY)) settings = saveSettings({ ...settings, graphicsQuality: 'low' }); } catch { /* Storage unavailable. */ }
 function applySettings(values) {
   settings = values;
+  touchMode = values.touchControls === 'on' || values.touchControls !== 'off' && prefersTouch();
+  document.body.classList.toggle('touch-mode', touchMode);
+  if (touchMode) unlockPointer();
+  syncPresentation();
   camera.fov = values.fov; camera.updateProjectionMatrix();
   ambience.setVolume({ master: values.masterVolume, music: values.musicVolume, effects: values.effectsVolume });
   if (values.graphicsQuality && values.graphicsQuality !== graphics.state().quality) graphics.apply(values.graphicsQuality);
   if ((values.pixelFilter ?? true) !== graphics.state().pixelFilter) graphics.setPixelFilter(values.pixelFilter ?? true);
   graphics.setGrade(values.colorGrade ?? 'standard');
 }
+// Touch: keys go through the same keyboard handlers, so every action behaves exactly as on a keyboard.
+touch = createTouchControls($('touch-ui'), {
+  onKey: (code, down) => window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, key: code === 'Space' ? ' ' : code, bubbles: true })),
+  onPrimary: down => down ? primaryDown() : primaryUp(),
+  onSecondary: down => down ? secondaryDown() : secondaryUp(),
+  onLook: (dx, dy) => {
+    if (game.paused || game.cinematic) return;
+    const k = .0055 * settings.mouseSensitivity;
+    player.yaw -= dx * k;
+    player.pitch = clamp(player.pitch - dy * k * .85 * (settings.invertY ? -1 : 1), -1.15, 1.18);
+  },
+  onZoom: delta => { if (!game.paused) cameraRig.zoom = clamp(cameraRig.zoom + delta, 2, 7.5); },
+});
+document.querySelectorAll('.quickbar .slot').forEach((slot, i) => slot.addEventListener('pointerdown', event => {
+  if (!touchMode || !game.started || game.paused) return;
+  event.preventDefault(); selectTool(i);
+}));
 createMenu({ values: settings, onSettingsChange: applySettings });
 applySettings(settings);
 

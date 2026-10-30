@@ -204,6 +204,16 @@ Open: "brown things at the oven" not reproduced — needs a screenshot; chimney 
   (the ash blade with a glowing fuller and an ember gem); first person now holds the same Blockbench model, flat
   toward you at rest. Settings: "Farbstil" Standard / Dunkle Fantasy (muted, heavy, cool shadows, amber light,
   vignette, grain).
+- [x] Mobile and GitHub Pages (2026-10-30): touch controls (src/ui/touchControls.js, touch.css) — a floating stick
+  for the left thumb (light push walks, full push runs, past the ring sprints; faint at rest so it is found), swipe to
+  look, two fingers zoom, a pixel-icon thumb cluster (Schlag/Bogen/Zauber by tool, Block, Nutzen lit when something
+  can be used, Sprung, Ducken, Packen, Trank, Sicht), Inventar/Journal/Vollbild/Pause at the top, tappable quickbar.
+  Buttons send the same key events as a keyboard, so every action behaves alike. Compact HUD, menus, dialogue,
+  inventory and character creator for 390 px tall phones; a "please turn your device" screen upright; key hints
+  hidden on touch; phones start on "Leistung" without canvas MSAA; setting "Touch-Steuerung" (auto/on/off).
+  Web app manifest and icons (home screen opens full screen in landscape). Deployed by .github/workflows/pages.yml
+  (tests, build with --base=/<repo>/, GitHub Pages); voice files resolve against the base path.
+  Not yet measured on real phones: frame rate (draw calls, chunk jobs) and iOS memory.
 Open (motion): townsfolk grips, surface footsteps, catching/supporting people, drawn IK debug, wolves.
 Open (AI): NPC potions, wounded posture, voiced callouts, shield bash, mage wards, an off-screen camp economy, drawn
 debug overlays (cones, cover points).

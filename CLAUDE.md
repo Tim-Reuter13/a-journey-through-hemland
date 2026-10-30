@@ -33,9 +33,15 @@ on :5299, writes work/screens/*.png), `dev()` (world, player, enemies, motion, a
 `body(i|'player')`, `push(i, force, dx, dz)`, `grabEnemy(i)`, `grip(cmd)`, `knock(i)`, `ambient()`, `killEnemy(i)`, `save()`,
 `load()`. In a hidden tab set `dev().camera` directly before `snapshot`. Any src edit reloads the page (HMR).
 
+Hosting: every push to main runs .github/workflows/pages.yml (tests, `npm run build -- --base=/<repo>/`, GitHub Pages).
+Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobile check: Playwright with
+`hasTouch: true, isMobile: true` at 844×390 (phone) and 1180×820 (tablet).
+
 ## Map of the code
 
 - src/main.js — game loop, player controller, interactions, wiring of everything below.
+- src/ui/touchControls.js + touch.css — phone/tablet controls (stick, swipe look, thumb cluster) and the compact
+  touch HUD (body.touch-mode); buttons dispatch the same KeyboardEvents as the keyboard.
 - src/characters/ — modular Blockbench characters (modular.js), procedural animator (animator.js), first-person hands
   and motion layer (firstPerson.js), bows (bow.js).
 - src/systems/ai/ — HUMANITY AI (perception, beliefs, emotions, utility actions, groups, camp life); see its README.

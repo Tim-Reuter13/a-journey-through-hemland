@@ -101,3 +101,22 @@
   #character-creator .cc-tabpanel { gap: 12px; }
   #character-creator h2 { margin: 6px 0; }
 }
+/* Phones in landscape: the choices scroll, the footer with "Abenteuer beginnen" always stays in view. */
+@media (max-height: 500px) {
+  #character-creator .cc-panel { overflow: hidden; gap: 8px; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)) 16px; }
+  #character-creator .cc-heading > p { display: none; }
+  #character-creator h2 { font-size: 26px; margin: 0; }
+  #character-creator .cc-tabs { padding-bottom: 4px; }
+  #character-creator .cc-tab { min-height: 32px; padding: 3px; }
+  #character-creator .cc-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #character-creator .cc-tabpanel { gap: 10px; }
+  #character-creator legend { margin-bottom: 4px; }
+  #character-creator button { min-height: 34px; padding: 4px 8px; }
+  #character-creator .cc-swatches { grid-template-columns: repeat(auto-fit, 32px); gap: 7px; }
+  #character-creator .cc-swatch { width: 32px; height: 32px; min-height: 32px; }
+  #character-creator .cc-footer { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 6px; padding-top: 8px; }
+  #character-creator .cc-summary, #character-creator .cc-hint { display: none; }
+  #character-creator .cc-secondary { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #character-creator .cc-cancel { grid-row: 2; grid-column: 1; }
+  #character-creator .cc-confirm { grid-row: 2; grid-column: 2; padding: 6px; }
+}
