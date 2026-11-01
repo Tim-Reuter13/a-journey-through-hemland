@@ -10,7 +10,7 @@ import { canopiesNear } from './trees.js';
 //   eaves were dropped on feedback 2026-10-30: bright streaked bands across houses.)
 // - Petals and pollen over meadows by day, fireflies by night.
 // One instanced mesh (or small pool) per kind, a fixed budget.
-const T = 1 / 16;
+const T = 1 / 16, UP_AXIS = new THREE.Vector3(0, 1, 0);
 const LEAF_COLORS = { autumn: [0xc8521e, 0xe08a2a, 0xd8b030, 0xa83a1c, 0xb86a24], broadleaf: [0x5e8a3a, 0x7a9a3e, 0x4e7a34, 0x8aa040] };
 const PETALS = [0xf2f0e6, 0xf4c8d8, 0xf6e27a, 0xe8e4f4];
 
@@ -35,7 +35,54 @@ export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0 
     mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3);
     mesh.frustumCulled = false; mesh.count = count; scene.add(mesh); return mesh;
   };
-  const LEAVES = 60, MOTES = 90, SHAFTS = 18;
+  const LEAVES = 60, MOTES = 90, SHAFTS = 18, FLIES = 8;
+  // A dragonfly in blocks: a long blue-green body, two pairs of glassy wings (bigger than life, or it would
+  // be two pixels at the game's resolution).
+  const flyGeometry = (() => {
+    const parts = [], box = (w, h, d, x, y, z, color) => { const g = new THREE.BoxGeometry(w, h, d).toNonIndexed(); g.translate(x, y, z);
+      const col = new THREE.Color(color), n = g.attributes.position.count, cols = new Float32Array(n * 3); for (let i = 0; i < n; i++) cols.set([col.r, col.g, col.b], i * 3);
+      g.setAttribute('color', new THREE.BufferAttribute(cols, 3)); parts.push(g); };
+    box(.02, .02, .2, 0, 0, .02, '#2a7f8a'); box(.03, .03, .04, 0, 0, -.09, '#1d4f60');
+    for (const z of [-.05, -.01]) { box(.18, .004, .035, .1, .005, z, '#c9dde0'); box(.18, .004, .035, -.1, .005, z, '#c9dde0'); }
+    const merged = new THREE.BufferGeometry(), pos = [], col = [], nor = [];
+    for (const g of parts) { pos.push(...g.attributes.position.array); col.push(...g.attributes.color.array); nor.push(...g.attributes.normal.array); }
+    merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); merged.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); merged.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    return merged;
+  })();
+  const flies = new THREE.InstancedMesh(flyGeometry, new THREE.MeshLambertMaterial({ vertexColors: true }), FLIES);
+  flies.frustumCulled = false; flies.name = 'Dragonflies'; scene.add(flies);
+  const F = Array.from({ length: FLIES }, () => ({ life: 0, p: new THREE.Vector3(), to: new THREE.Vector3(), hover: 0, heading: 0 }));
+  for (let i = 0; i < FLIES; i++) { flies.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0)); }
+  let flyTimer = 0;
+  const overWater = (x, z) => heightAt(x, z) < waterLevel - .08;
+  function updateFlies(dt, player, day) {
+    flyTimer += dt * (day ? 1.5 : 0);
+    while (flyTimer > 1) {
+      flyTimer--;
+      const f = F.find(o => o.life <= 0); if (!f) break;
+      const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 12, x = player.x + Math.cos(a) * r, z = player.z + Math.sin(a) * r;
+      if (!overWater(x, z)) continue;
+      f.life = 15 + Math.random() * 20; f.p.set(x, waterLevel + .5 + Math.random() * .8, z); f.to.copy(f.p); f.hover = .5;
+    }
+    F.forEach((f, i) => {
+      if (f.life <= 0) return;
+      f.life -= dt;
+      if (f.hover > 0) {
+        f.hover -= dt; f.p.y += Math.sin(time * 9 + i) * .002;
+        if (f.hover <= 0) {
+          // A new spot a few metres off, still over the water if it can.
+          for (let k = 0; k < 6; k++) { const a = Math.random() * Math.PI * 2, r = 1 + Math.random() * 3; f.to.set(f.p.x + Math.cos(a) * r, waterLevel + .35 + Math.random() * 1.1, f.p.z + Math.sin(a) * r); if (overWater(f.to.x, f.to.z)) break; }
+        }
+      } else {
+        const dx = f.to.x - f.p.x, dy = f.to.y - f.p.y, dz = f.to.z - f.p.z, dist = Math.hypot(dx, dy, dz), stepLen = Math.min(dist, dt * 5);
+        if (dist > .02) { f.p.x += dx / dist * stepLen; f.p.y += dy / dist * stepLen; f.p.z += dz / dist * stepLen; f.heading = Math.atan2(-dx, -dz); }
+        if (dist < .05) f.hover = .4 + Math.random() * 1.4;
+      }
+      if (f.life <= 0 || f.p.distanceToSquared(player) > 900) { f.life = 0; flies.setMatrixAt(i, m.makeScale(0, 0, 0)); return; }
+      flies.setMatrixAt(i, m.compose(f.p, q.setFromAxisAngle(UP_AXIS, f.heading), s.setScalar(1)));
+    });
+    flies.instanceMatrix.needsUpdate = true;
+  }
   const leaves = make(LEAVES, new THREE.MeshLambertMaterial({ side: THREE.DoubleSide }), 2 * T);
   const motes = make(MOTES, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }), 2.2 * T);
   leaves.name = 'Falling leaves'; motes.name = 'Petals and fireflies';
@@ -99,6 +146,7 @@ export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0 
     if (dt <= 0) return;
     time += dt;
     const night = hour < 5.5 || hour > 20.5;
+    updateFlies(dt, player, hour > 8 && hour < 19);
     const crowns = canopiesNear(player.x, player.z, 24);
     const autumn = crowns.filter(k => k.kind === 'autumn').length / Math.max(1, crowns.length);
     leafTimer += dt * (crowns.length ? 1.2 + autumn * 3 : 0); while (leafTimer > 1) { leafTimer--; spawnLeaf(crowns); }
@@ -155,5 +203,5 @@ export function createAmbientFx(scene, { heightAt, biomeWeights, waterLevel = 0 
     });
     leaves.instanceMatrix.needsUpdate = true; motes.instanceMatrix.needsUpdate = true;
   }
-  return { update, state: () => ({ leaves: L.filter(f => f.life > 0).length, motes: M.filter(f => f.life > 0).length, shafts: shafts.filter(f => f.life > 0).length }) };
+  return { update, state: () => ({ leaves: L.filter(f => f.life > 0).length, motes: M.filter(f => f.life > 0).length, shafts: shafts.filter(f => f.life > 0).length, flies: F.filter(f => f.life > 0).length }) };
 }

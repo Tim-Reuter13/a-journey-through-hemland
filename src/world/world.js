@@ -3,7 +3,7 @@ import { createLightPool } from './lightPool.js';
 import { batchScenery } from './batching.js';
 import { createAtmosphere } from './atmosphere.js';
 import { createCollisionWorld, collidersFrom } from './navigation.js';
-import { buildFarTerrain, buildWater } from './terrain.js';
+import { buildFarTerrain, buildWater, markNearChunk } from './terrain.js';
 import { createWater } from './water.js';
 import { createFires } from './fire.js';
 import { createHeightfield } from './heightfield.js';
@@ -221,7 +221,7 @@ export function createWorld(scene) {
     Math.hypot(x + 3, z - 9) < 3.2 || Math.hypot(x - 4.6, z - 9.8) < 2.6 || Math.hypot(x - 6, z - 20) < 2.6;
   const siteIds = Object.keys(SITES).filter(id => id !== 'village');
   const inSite = (x, z, margin) => siteIds.some(id => field.siteDistance(id, x, z) < margin);
-  const streamer = createChunkStreamer({ scene, field, collision, water: waters,
+  const streamer = createChunkStreamer({ scene, field, collision, water: waters, onTerrain: markNearChunk,
     avoidTrees: (x, z) => Math.hypot(x, z - 6) < 34 || occupied(x, z) || inSite(x, z, 8),
     // No grass on city paving, and none poking through any site building's floor.
     avoidGround: (x, z) => occupied(x, z) || field.siteDistance('city', x, z) <= 0 || field.siteDistance('castle', x, z) <= 0 ||

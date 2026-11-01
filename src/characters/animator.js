@@ -24,7 +24,7 @@ const wrapAngle = a => THREE.MathUtils.euclideanModulo(a + Math.PI, TAU) - Math.
 // flat. Directions in body space (front −Z, right +X). In a swing the blade continues the forearm
 // and the edge leads along the path of the hand.
 // At rest the blade points forward and down from the hanging fist (crossing it, not continuing the arm).
-const BLADE = { rest: [.05, -.62, -.78], ready: [-.14, .4, -.9], guard: [-.36, .66, -.66] };
+const BLADE = { rest: [.34, -.52, -.78], ready: [-.14, .4, -.9], guard: [-.62, .5, -.6] };
 const _body = new THREE.Quaternion(), _grip = new THREE.Quaternion(), _arm = new THREE.Quaternion(), _target = new THREE.Quaternion();
 const _blade = new THREE.Vector3(), _edge = new THREE.Vector3(), _side = new THREE.Vector3(), _hand = new THREE.Vector3(), _basis = new THREE.Matrix4();
 function aimSword(character, input, state, dt) {
@@ -151,7 +151,7 @@ const GETUP_FRONT = [
   [1, {}, 'out'],
 ];
 const GETUP = { back: [GETUP_BACK, 0], front: [GETUP_FRONT, 0], sitting: [GETUP_BACK, .45], kneeling: [GETUP_FRONT, .58] };
-const GUARD = { arm_upper_right: [1.05, .55, .35], arm_lower_right: [1.25, 0, 0], hand_right: [.2, .3, -.9], arm_upper_left: [1.15, -.6, -.25], arm_lower_left: [1.45, 0, 0], chest: [0, -.12, 0], torso: [-.1, 0, 0], head: [-.05, .12, 0], leg_upper_right: [.18, 0, .04], leg_lower_right: [-.32, 0, 0], leg_upper_left: [-.1, 0, -.04], leg_lower_left: [-.2, 0, 0], hipsY: -.06 };
+const GUARD = { arm_upper_right: [.8, .45, .22], arm_lower_right: [1.2, 0, 0], hand_right: [.2, .3, -.9], arm_upper_left: [.85, -.4, -.18], arm_lower_left: [1.4, 0, 0], chest: [0, -.12, 0], torso: [-.1, 0, 0], head: [-.05, .12, 0], leg_upper_right: [.18, 0, .04], leg_lower_right: [-.32, 0, 0], leg_upper_left: [-.1, 0, -.04], leg_lower_left: [-.2, 0, 0], hipsY: -.06 };
 
 // Looping work and life activities (NPC daily routines), layered over idle.
 function activityPose(pose, activity, t) {

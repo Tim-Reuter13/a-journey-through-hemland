@@ -32,6 +32,7 @@ export const SITES = {
   kiln: { name: 'Köhlerlager', x: 150, z: -210, radius: 11, blend: 14, mode: 'flatten' },
   quarry: { name: 'Königsbruch', x: 1235, z: -890, radius: 19, blend: 18, mode: 'flatten', offset: -1.5 },
   plague_field: { name: 'Pestacker', x: 790, z: -930, radius: 15, blend: 14, mode: 'flatten', offset: 5.5 },
+  jetty: { name: 'Fischersteg am Grausee', x: 768, z: 450, radius: 3, blend: 7, mode: 'flatten' },
 };
 
 /** Roads: type 'king' (wide, paved near the city), 'dirt', 'lane'. `ramp` interpolates height end to end. */

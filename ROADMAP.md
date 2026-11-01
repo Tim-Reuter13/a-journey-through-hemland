@@ -245,6 +245,19 @@ Open: "brown things at the oven" not reproduced — needs a screenshot; chimney 
   ramp (FLAME_RAMP in spellFx.js), sparks, smoke outdoors; camp and cook fires, hearths, braziers, wall torches,
   candles and the forge's coal bed share one instanced pool near the viewer; the old flame sprites stand in
   beyond 38 m and are kept out of the static batches for that.
+- [x] Holding items (2026-10-31): first-person sword at rest low right pointing away into the view, guard holds the
+  blade across in front (no stray left fist), forearm from a lower shoulder; third-person rest blade forward and down,
+  guard across the chest; potion sits in the fist, clear glass, deep red draught, small sparkling bubbles; resting FP
+  bow visible at the lower left; third-person drawn bow at arm's length beside the head, not in front of it.
+- [x] Water and shores (2026-10-31): the far terrain (32-unit grid) no longer draws under loaded chunks (it hid
+  ponds and hollows behind straight edges — the "half pond"); water built on the terrain's own 2-unit grid with
+  exact depth; new water look: slate-blue clear water in the lake and river, peaty brown-green in marsh and forest
+  ponds, the bed showing through the shallows, a sky sheen even from above, darker reflections of banks and trees,
+  a faint wet edge instead of white foam, no duckweed blotches; lake and river beds sand, pond and marsh beds mud,
+  a dark wet rim on every bank. Shore content from water.js: reed beds with plumes, cattails, rushes, sedge, yellow
+  iris, lily colonies with round notched pads and 3D blossoms, rounded stones and bleached driftwood at the
+  waterline, leaping fish, dragonflies. New POI: Fischersteg am Grausee (walkable jetty, moored rowboat, drying rack
+  with fish, net, upturned boat, an inscription).
 Open (motion): townsfolk grips, surface footsteps, catching/supporting people, drawn IK debug, wolves.
 Open (AI): NPC potions, wounded posture, voiced callouts, shield bash, mage wards, an off-screen camp economy, drawn
 debug overlays (cones, cover points).

@@ -1812,7 +1812,7 @@ function poseBow(cine) {
   bowAimDir.copy(camera.position).addScaledVector(camera.getWorldDirection(bowPole), 15).sub(bowShoulder).normalize();
   // Held a little right of the eye line, so the bow stands clear of the (big, blocky) head in the
   // over-the-shoulder view; arrows still leave it for the reticle.
-  bowPoint.copy(bowShoulder).addScaledVector(bowAimDir, 1.4 * k + .2).addScaledVector(bowSide, .32 * k).add(v3(0, -1.1 * (1 - k), 0));
+  bowPoint.copy(bowShoulder).addScaledVector(bowAimDir, 1.15 * k + .2).addScaledVector(bowSide, .2 * k).add(v3(0, -1.1 * (1 - k) - .08 * k, 0));
   bowPole.copy(bowShoulder).add(v3(0, -1, 0)).addScaledVector(bowSide, -.6);
   solveArm(playerModel, 'left', bowPoint, bowPole);
   aimObject(bow, bowAimDir, -.12); bowAimed.copy(bow.quaternion); bow.quaternion.identity().slerp(bowAimed, k);

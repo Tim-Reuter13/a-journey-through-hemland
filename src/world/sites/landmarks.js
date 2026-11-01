@@ -6,6 +6,8 @@ import * as F from '../furniture.js';
 import { siteGroup, pyramidRoof } from './cityBuildings.js';
 import { rockModule, scree } from '../rocks.js';
 import { propClone } from '../props.js';
+import { WATER_LEVEL } from '../hemland.js';
+import { registerPixelTexture } from '../../art/pixelTextures.js';
 
 // Points of interest between the village and the royal city (hemland.js SITES, flattened ground).
 // Each is a small authored place with a story told by what lies there and by one inscription the
@@ -192,8 +194,76 @@ function plagueField(ctx, r) {
     '„Im Jahr der Schwarzen Ernte. Ohne Namen, ohne Glocke, ohne Zahl. Die Stadt hielt das Tor geschlossen.“', { xp: 20, readLabel: 'Torstein lesen' });
 }
 
+// A fishing net: knotted cord in a coarse diamond grid, see-through.
+registerPixelTexture('fishNet', p => {
+  p.clear();
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if ((x + y) % 4 === 0 || (x - y + 16) % 4 === 0) p.set(x, y, (x * 3 + y) % 7 === 0 ? '#3e3326' : '#5a4a36');
+}, { cutout: true });
+
+/** A clinker rowboat: flat bottom, flared sides, a pointed bow, a transom, two thwarts, oars inside. */
+function rowboat(g, x, y, z, rotation, upturned = false) {
+  const b = siteGroup(g, x, y, z, rotation);
+  if (upturned) { b.rotation.z = PI; b.position.y += .42; }
+  const hull = 'darkPlanks', trim = 'planks';
+  block(b, 2.9, .08, .78, hull, -.1, .04, 0);
+  for (const s of [-1, 1]) {
+    block(b, 2.7, .3, .07, hull, -.2, .2, s * .45, s * .28, 0, 0);
+    block(b, 2.75, .05, .09, trim, -.2, .36, s * .5, 0, 0, 0);
+    block(b, .95, .3, .07, hull, 1.42, .2, s * .25, s * .28, s * -.52, 0);
+  }
+  block(b, .09, .32, .9, hull, -1.55, .2, 0);
+  block(b, .14, .34, .14, trim, 1.86, .24, 0);
+  for (const px of [-.6, .5]) block(b, .26, .05, .86, trim, px, .3, 0);
+  if (!upturned) { beam(b, [-1.2, .16, -.18], [1.3, .22, -.1], .05, trim); beam(b, [-1.1, .16, .2], [1.35, .22, .12], .05, trim); }
+  return b;
+}
+/** Fischersteg am Grausee: a plank jetty on posts out into the lake, a boat tied at its end, nets and a
+ *  drying rack on the bank, and a name cut into the last post. */
+function jetty(ctx) {
+  const s = ctx.site('jetty'), g = siteGroup(ctx.root, s.x, 0, s.z, 0);
+  const deck = WATER_LEVEL + .55, from = -4, to = -20, length = from - to;
+  // Planks across, each a little different; two stringers beneath.
+  for (let px = to + .14, k = 0; px < from; px += .31, k++) {
+    const jitter = Math.sin(k * 12.9898) * .5 + .5;
+    block(g, .28, .07, 1.8 + (jitter - .5) * .16, jitter > .82 ? 'darkPlanks' : 'planks', px, deck - .035 + (jitter - .5) * .012, (jitter - .5) * .06);
+  }
+  for (const pz of [-.7, .7]) block(g, length + .3, .14, .14, 'darkPlanks', (from + to) / 2, deck - .14, pz);
+  // Posts down into the lake bed, a hand's breadth above the deck, some leaning a little.
+  for (let px = from - .2; px >= to; px -= 2.6) for (const pz of [-.86, .86]) {
+    const bed = ctx.heightAt(s.x + px, s.z + pz) - .4, top = deck + .22, lean = Math.sin(px * 3.1 + pz) * .04;
+    block(g, .2, top - bed, .2, 'bark', px, (top + bed) / 2, pz, 0, 0, lean);
+  }
+  // The last post stands taller for mooring, rope wound round it; a ladder down into the water.
+  { const bed = ctx.heightAt(s.x + to, s.z) - .4;
+    block(g, .26, deck + .8 - bed, .26, 'bark', to - .1, (deck + .8 + bed) / 2, -.55);
+    for (let k = 0; k < 3; k++) block(g, .3, .05, .3, pixelMaterial('clothLinen', { tint: 0x8a6e48 }), to - .1, deck + .38 + k * .07, -.55);
+    for (const pz of [.45, .85]) block(g, .07, 1.3, .07, 'darkPlanks', to - .05, deck - .5, pz);
+    for (let k = 0; k < 4; k++) block(g, .07, .05, .46, 'darkPlanks', to - .05, deck - .15 - k * .32, .65);
+  }
+  ctx.registerFloor({ x: s.x + (from + to) / 2, z: s.z, rotation: 0, halfWidth: length / 2 + .1, halfDepth: .9, y: deck });
+  ctx.addCollider({ kind: 'jetty', surface: 'wood', x: s.x + (from + to) / 2, z: s.z, rotation: 0, halfWidth: length / 2, halfDepth: .9, bottom: WATER_LEVEL - 4, top: deck });
+  // The boat, tied alongside near the end, its painter rope running to the mooring post.
+  rowboat(g, to + 3.4, WATER_LEVEL - .12, -1.75, PI);
+  ctx.addCollider({ kind: 'boat', surface: 'wood', x: s.x + to + 3.4, z: s.z - 1.75, rotation: 0, halfWidth: 1.6, halfDepth: .55, bottom: WATER_LEVEL - .5, top: WATER_LEVEL + .4 });
+  beam(g, [to + 1.6, WATER_LEVEL + .3, -1.75], [to - .1, deck + .45, -.55], .03, pixelMaterial('clothLinen', { tint: 0x8a6e48 }));
+  // On the bank: a drying rack hung with fish, a net spread over a second rack, an upturned boat, barrels.
+  const land = (lx, lz) => ctx.heightAt(s.x + lx, s.z + lz);
+  for (const lz of [-3.4, -.4]) { const y = land(2.6, lz); block(g, .14, 1.9, .14, 'bark', 2.6, y + .9, lz); }
+  { const y = land(2.6, -1.9) + 1.82; beam(g, [2.6, y, -3.4], [2.6, y, -.4], .1, 'bark');
+    for (let k = 0; k < 6; k++) { const lz = -3.1 + k * .5; beam(g, [2.6, y, lz], [2.6, y - .32, lz], .015, pixelMaterial('clothLinen', { tint: 0x7a6040 }));
+      block(g, .05, .3, .1, pixelMaterial('stoneLight', { tint: k % 2 ? 0x9aa6a0 : 0x7e8c86 }), 2.6, y - .48, lz, 0, 0, .1 * (k % 2 ? 1 : -1)); } }
+  for (const lz of [1.2, 3.4]) { const y = land(4.4, lz); block(g, .12, 1.4, .12, 'bark', 4.4, y + .65, lz); }
+  { const y = land(4.4, 2.3) + 1.3; beam(g, [4.4, y, 1.2], [4.4, y, 3.4], .08, 'bark');
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.2), pixelMaterial('fishNet')); net.position.set(4.4, y - .52, 2.3); net.rotation.y = PI / 2; g.add(net); }
+  rowboat(g, 6.4, land(6.4, -2) - .04, -2, .35, true);
+  ctx.addCollider({ kind: 'boat', surface: 'wood', x: s.x + 6.4, z: s.z - 2, rotation: .35, halfWidth: 1.6, halfDepth: .55, bottom: land(6.4, -2) - .5, top: land(6.4, -2) + .45 });
+  prop(g, 'barrels', 1.4, 3.2, .4)?.position.setY(land(1.4, 3.2) - .03);
+  prop(g, 'crates', 3.2, 4.6, -.3)?.position.setY(land(3.2, 4.6) - .03);
+  landmark(ctx, 'jetty', 'jetty', s.x, s.z, 0, [to - .1, -.55], 'In den Pfahl am Ende geschnitten, die Kerben schon grau: „Für Hennek, den der Grausee im Eismond nahm. Wer hier fischt, gibt den ersten Fang zurück.“', { radius: 22, readLabel: 'Pfahl lesen' });
+}
+
 export function buildLandmarks(ctx) {
   const r = ctx.random;
-  barrow(ctx, r); chapelRuin(ctx, r); wayshrine(ctx, r); kiln(ctx, r); quarry(ctx, r); plagueField(ctx, r);
+  barrow(ctx, r); chapelRuin(ctx, r); wayshrine(ctx, r); kiln(ctx, r); quarry(ctx, r); plagueField(ctx, r); jetty(ctx);
   return {};
 }

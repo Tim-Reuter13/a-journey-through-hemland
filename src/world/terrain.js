@@ -154,6 +154,32 @@ export function buildChunkMesh(heightfield, cx, cz, lod) {
 }
 
 /** One coarse mesh over the whole region (and beyond its edge) for distant mountain silhouettes. */
+// The far terrain (a 32-unit grid, lowered 1.5 units) fills the view beyond the streamed chunks. It must
+// never draw where a near chunk is loaded: in a pond or any hollow narrower than its grid its coarse surface
+// lies above the real ground and the water, and would hide them behind a straight edge. One texel per chunk
+// says which chunks are loaded (the streamer keeps it up to date).
+const FAR_MASK = 32, FAR_ORIGIN = [Math.floor((BOUNDS.minX - 640) / CHUNK), Math.floor((BOUNDS.minZ - 640) / CHUNK)];
+const farMaskData = new Uint8Array(FAR_MASK * FAR_MASK);
+const farMask = new THREE.DataTexture(farMaskData, FAR_MASK, FAR_MASK, THREE.RedFormat, THREE.UnsignedByteType);
+farMask.magFilter = farMask.minFilter = THREE.NearestFilter; farMask.needsUpdate = true;
+/** Marks a near terrain chunk as drawn (or dropped), so the far terrain leaves it alone. */
+export function markNearChunk(cx, cz, loaded) {
+  const i = cx - FAR_ORIGIN[0], j = cz - FAR_ORIGIN[1];
+  if (i < 0 || j < 0 || i >= FAR_MASK || j >= FAR_MASK) return;
+  farMaskData[j * FAR_MASK + i] = loaded ? 255 : 0; farMask.needsUpdate = true;
+}
+function farTerrainMaterial() {
+  const near = terrainMaterial(), far = new THREE.MeshLambertMaterial({ vertexColors: true });
+  far.onBeforeCompile = (shader, renderer) => {
+    near.onBeforeCompile(shader, renderer);
+    shader.uniforms.farMask = { value: farMask }; shader.uniforms.farOrigin = { value: new THREE.Vector2(...FAR_ORIGIN) };
+    shader.fragmentShader = 'uniform sampler2D farMask; uniform vec2 farOrigin;\n' + shader.fragmentShader.replace('void main() {', `void main() {
+      vec2 farChunk = floor(vTerrainPos.xz / ${CHUNK}.) - farOrigin;
+      if (texture2D(farMask, (farChunk + .5) / ${FAR_MASK}.).r > .5) discard;`);
+  };
+  far.customProgramCacheKey = () => 'far-terrain';
+  return far;
+}
 export function buildFarTerrain(heightfield, step = 32, margin = 640) {
   const x0 = BOUNDS.minX - margin, z0 = BOUNDS.minZ - margin;
   const nx = Math.round((BOUNDS.maxX - BOUNDS.minX + 2 * margin) / step), nz = Math.round((BOUNDS.maxZ - BOUNDS.minZ + 2 * margin) / step);
@@ -172,7 +198,7 @@ export function buildFarTerrain(heightfield, step = 32, margin = 640) {
   geometry.setAttribute('splatA', new THREE.BufferAttribute(attr.splatA, 4));
   geometry.setAttribute('splatB', new THREE.BufferAttribute(attr.splatB, 4));
   geometry.setIndex(index); geometry.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geometry, terrainMaterial());
+  const mesh = new THREE.Mesh(geometry, farTerrainMaterial());
   mesh.name = 'far terrain'; mesh.receiveShadow = false;
   return mesh;
 }
@@ -182,7 +208,7 @@ export function buildWater() {
   const size = Math.max(BOUNDS.maxX - BOUNDS.minX, BOUNDS.maxZ - BOUNDS.minZ) + 1400;
   const texture = pixelTexture('water').clone();
   texture.repeat.set(size / 2, size / 2); texture.needsUpdate = true;
-  const mat = new THREE.MeshLambertMaterial({ map: texture, transparent: true, opacity: .84, emissive: 0x16303a, emissiveIntensity: .6, depthWrite: false });
+  const mat = new THREE.MeshLambertMaterial({ map: texture, color: 0x6f8c92, transparent: true, opacity: .92, emissive: 0x10232b, emissiveIntensity: .5, depthWrite: false });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   mesh.rotation.x = -Math.PI / 2; mesh.position.set((BOUNDS.minX + BOUNDS.maxX) / 2, WATER_LEVEL, (BOUNDS.minZ + BOUNDS.maxZ) / 2);
   mesh.renderOrder = 2; mesh.name = 'water';

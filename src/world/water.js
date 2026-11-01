@@ -1,7 +1,9 @@
 import * as THREE from 'three';
-import { CHUNK, WATER_LEVEL } from './hemland.js';
-import { pixelMaterial, registerPixelTexture } from '../art/pixelTextures.js';
-import { block } from '../art/blocks.js';
+import { WATER_LEVEL, LAKES, SITES, biomeWeights } from './hemland.js';
+import { pixelMaterial, pixelTexture, registerPixelTexture } from '../art/pixelTextures.js';
+import { block, beam } from '../art/blocks.js';
+import { spriteInstances } from './flora.js';
+import { rockModule } from './rocks.js';
 
 // Water per terrain chunk, drawn in the 16-texel grid of the art style:
 // - an animated 16×16 water tile (16 frames) read as a height field: on still water it ripples in every
@@ -14,23 +16,27 @@ import { block } from '../art/blocks.js';
 //   patches; a thin broken line of foam laps at the bank;
 // - a wave simulation around the player at 16 cells per unit, after the Wakes mod: wading, swimming,
 //   animals, splashes and fish leave rings and V-shaped wakes; the river carries them downstream;
-// - stones in the stream throw a standing wake, leaves drift down it; still ponds get lily pads,
-//   duckweed and rising fish instead.
-const STEP = 4, CELLS = CHUNK / STEP;
-const N = 192, RES = 16, WAKE_STEP = 1 / 30;
+// - stones in the stream throw a standing wake, leaves drift down it; still ponds get lily pads and
+//   rising fish instead.
+// The surface is built on the terrain's own 2-unit grid with the same triangle split, so its depth is
+// exact everywhere and the waterline lies exactly where the ground meets the water (no cut-off ponds).
+// Water differs by place: clear slate water in the lake and the river, peaty brown-green in the marsh
+// and in forest ponds. The banks get their plants and things from here too (reed beds, rushes, irises,
+// lily colonies, stones and driftwood at the waterline).
+const N = 192, RES = 16, WAKE_STEP = 1 / 30, UP = new THREE.Vector3(0, 1, 0);
 
 const vertexShader = `
-  attribute float depth; attribute vec2 flow;
+  attribute float depth; attribute vec2 flow; attribute float murk;
   uniform float uTime;
-  varying vec3 vWorld; varying float vDepth; varying vec2 vFlow; varying float vSwell;
+  varying vec3 vWorld; varying float vDepth; varying vec2 vFlow; varying float vSwell; varying float vMurk;
   #include <fog_pars_vertex>
   void main() {
     vec3 p = position;
     // Still water swells a little (the bank line comes and goes); the river runs flat.
     float still = 1. - clamp(length(flow) * 3., 0., 1.);
-    vSwell = (sin(uTime * 1.1 + p.x * .35 + p.z * .2) * .5 + sin(uTime * .73 - p.x * .13 + p.z * .31) * .5) * .045 * still;
+    vSwell = (sin(uTime * 1.1 + p.x * .35 + p.z * .2) * .5 + sin(uTime * .73 - p.x * .13 + p.z * .31) * .5) * .03 * still;
     p.y += vSwell;
-    vWorld = (modelMatrix * vec4(p, 1.)).xyz; vDepth = depth; vFlow = flow;
+    vWorld = (modelMatrix * vec4(p, 1.)).xyz; vDepth = depth; vFlow = flow; vMurk = murk;
     vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
@@ -39,7 +45,7 @@ const fragmentShader = `
   uniform float uTime; uniform float uLight; uniform float uDay;
   uniform sampler2D uFrames; uniform sampler2D uWake; uniform vec2 uWakeOrigin;
   uniform vec3 uSkyTop, uSkyMid, uSkyHorizon, uSunDir, uMoonDir, uSunColor;
-  varying vec3 vWorld; varying float vDepth; varying vec2 vFlow; varying float vSwell;
+  varying vec3 vWorld; varying float vDepth; varying vec2 vFlow; varying float vSwell; varying float vMurk;
   #include <fog_pars_fragment>
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
@@ -49,14 +55,14 @@ const fragmentShader = `
   // Wakes-style banded colours: the wave height picks one of a few flat, semi-opaque tones.
   vec4 wakeColor(float w) {
     if (w < .05) return vec4(0.);
-    if (w < .15) return vec4(.2, .5, .52, .45);
-    if (w < .2) return vec4(.39, .6, .62, .55);
-    if (w < .35) return vec4(.7, .77, .78, .7);
+    if (w < .15) return vec4(.2, .4, .42, .35);
+    if (w < .2) return vec4(.34, .5, .52, .45);
+    if (w < .35) return vec4(.58, .66, .67, .55);
     if (w < .52) return vec4(0.);
-    if (w < .6) return vec4(.7, .77, .78, .7);
-    if (w < .7) return vec4(.95, .97, .95, .85);
-    if (w < .9) return vec4(.7, .77, .78, .7);
-    return vec4(.39, .6, .62, .55);
+    if (w < .6) return vec4(.58, .66, .67, .55);
+    if (w < .7) return vec4(.8, .85, .84, .7);
+    if (w < .9) return vec4(.58, .66, .67, .55);
+    return vec4(.34, .5, .52, .45);
   }
   // The ripple height (0..4) of the tile at a point: isotropic on still water; in the river stretched along
   // the current into streaks and scrolled with it in whole texels.
@@ -76,52 +82,65 @@ const fragmentShader = `
   }
   void main() {
     float d = vDepth + vSwell;
-    if (d < -0.02) discard;
+    if (d < -.005) discard;
     vec2 cell = floor(vWorld.xz * 16.0), p = (cell + .5) / 16.0;
-    float speed = length(vFlow);
+    float speed = length(vFlow), still = 1. - clamp(speed * 3., 0., 1.);
     vec2 dir = speed > .01 ? vFlow / speed : vec2(1., 0.);
-    float frame = mod(floor(uTime * (5.0 + speed * 3.0)), 16.0);
-    // Gusts: on still water, drifting patches where the wind roughens the surface.
-    float gust = smoothstep(.55, .75, noise(p * .07 + vec2(uTime * .18, uTime * .07))) * (1. - clamp(speed * 3., 0., 1.));
+    float frame = mod(floor(uTime * (4.0 + speed * 3.0)), 16.0);
+    // Wind patches drifting over open water: rougher (more glitter) and a shade darker.
+    float gust = smoothstep(.52, .78, noise(p * .06 + vec2(uTime * .16, uTime * .05))) * still;
     float l = level(p, dir, speed, frame), lx = level(p + vec2(1. / 16., 0.), dir, speed, frame), lz = level(p + vec2(0., 1. / 16.), dir, speed, frame);
     // Far off, where a texel is smaller than a screen pixel, the ripples calm down instead of flickering.
     float texels = length(fwidth(vWorld.xz)) * 16.0, calm = clamp((texels - 1.2) / 2.0, 0.0, 1.0);
-    float rough = (.55 + gust * .6 + clamp(speed, 0., 1.) * .3) * (1. - calm * .8);
-    vec3 n = normalize(vec3((l - lx) * .045 * rough, 1., (l - lz) * .045 * rough));
+    float rough = (.36 + gust * .3 + clamp(speed, 0., 1.) * .35) * (1. - calm * .85);
+    vec3 n = normalize(vec3((l - lx) * .04 * rough, 1., (l - lz) * .04 * rough));
     vec3 v = normalize(cameraPosition - vWorld);
-    // Body: clear and greenish in the shallows, teal, then a dark channel; many steps, dithered.
     float dither = bayer4(cell);
-    float k = 1. - exp(-max(d, 0.) * .75);
-    k = floor(k * 7. + dither * .99) / 7.;
-    vec3 body = mix(vec3(.3, .55, .44), vec3(.1, .37, .42), smoothstep(0., .5, k));
-    body = mix(body, vec3(.035, .15, .21), smoothstep(.45, 1., k));
-    body *= .9 + l * .045 - gust * .06;
-    // Light caustics on the bed under clear shallows.
+    // How much water lies between the eye and the bed: more where it is deep, and more again when you look
+    // flat across it. Clear water lets the bed show through for longer than peaty water.
+    float path = d / max(.22, v.y);
+    float k = 1. - exp(-path * mix(.45, 1., vMurk));
+    k = floor(k * 10. + dither * .99) / 10.;
+    vec3 shallow = mix(vec3(.22, .32, .3), vec3(.26, .25, .15), vMurk);
+    vec3 deep = mix(vec3(.05, .12, .15), vec3(.075, .09, .06), vMurk);
+    vec3 body = mix(shallow, deep, smoothstep(0., 1., k));
+    body *= .93 + l * .035 - gust * .03;
+    float sunUp = smoothstep(-.02, .08, uSunDir.y);
+    vec3 col = body * uLight * (.86 + .14 * max(dot(n, uSunDir), 0.) * sunUp);
+    float alpha = mix(.12, .93, k);
+    // Light caustics on the bed under clear, sunny shallows.
     float c1 = noise(p * 2.6 + vec2(uTime * .45, uTime * .2)), c2 = noise(p * 2.6 + vec2(-uTime * .3, uTime * .4) + 7.);
-    float caustic = step(abs(c1 - c2), .045) * (1. - smoothstep(.2, 1.4, d)) * uDay;
-    float lit = uLight * (.82 + .18 * max(dot(n, uSunDir), 0.));
-    vec3 col = (body + caustic * vec3(.3, .34, .26)) * lit;
-    float alpha = mix(.38, .95, k);
+    float caustic = step(abs(c1 - c2), .04) * (1. - smoothstep(.15, .9, d)) * uDay * (1. - vMurk) * still;
+    col += caustic * vec3(.16, .18, .14) * uLight; alpha = max(alpha, caustic * .35);
     // Haze falls on the water itself, not on the sky it mirrors (the sky is never fogged either).
     #ifdef USE_FOG
       col = mix(col, fogColor, 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth));
     #endif
-    // The sky in the water, more of it the flatter you look; in a few steps, like the palette.
-    float fresnel = (.02 + .98 * pow(1. - clamp(dot(n, v), 0., 1.), 5.)) * .72;
-    fresnel = floor(fresnel * 6. + dither * .99) / 6.;
+    // The sky in the water, more of it the flatter you look, in a few steps like the palette. Low in the
+    // mirror sit the far banks and trees, so the reflection darkens toward its horizon; near the bank the
+    // trees and reeds overhead shade it too.
+    float fresnel = (.02 + .98 * pow(1. - clamp(dot(normalize(mix(vec3(0., 1., 0.), n, .35)), v), 0., 1.), 5.)) * .8;
+    // Even looking straight down some sky lies on the water, more on a ripple's crest: the surface always
+    // reads as water, never as a dark hole.
+    fresnel = max(fresnel, .08 + .05 * l / 4. + gust * .04);
+    fresnel = floor(fresnel * 8. + dither * .99) / 8.;
     vec3 r = reflect(-v, n); r.y = abs(r.y);
-    col = mix(col, sky(r) * .82, fresnel);
+    vec3 refl = sky(r);
+    refl = mix(refl, refl * vec3(.42, .5, .45), (1. - smoothstep(0., .06, r.y)) * .55);
+    refl *= mix(.72, 1., smoothstep(.04, .9, d)) * mix(1., .62, vMurk);
+    col = mix(col, refl, fresnel);
     alpha = mix(alpha, 1., fresnel);
     // Glitter where a ripple turns the sun (or the moon) toward you, in single pixels.
-    float sunUp = smoothstep(-.02, .08, uSunDir.y);
-    float glint = pow(max(dot(r, uSunDir), 0.), 160.) * sunUp + pow(max(dot(r, uMoonDir), 0.), 260.) * .5 * (1. - sunUp);
-    float sparkle = hash(cell + floor(uTime * 7.));
-    if (glint * (.6 + l * .2) > .25 + sparkle * .6) { col = mix(uSunColor, vec3(.85, .9, 1.), 1. - sunUp) * 1.4; alpha = 1.; }
-    // Still shallows grow duckweed in clumps near the bank.
-    if (speed < .05 && d < .9 && hash(floor(p * 2.0)) > .72 && hash(cell) > .35) { col = (hash(cell + 3.0) > .5 ? vec3(.33, .48, .2) : vec3(.42, .56, .24)) * uLight; alpha = .95; }
-    // Foam: a thin, broken line lapping at the bank, drifting along it.
-    float lap = .02 + .03 * (sin(uTime * 1.3 + dot(cell, vec2(.023, .017))) * .5 + .5);
-    if (d < lap && noise(p * 3. + vec2(uTime * .6, 0.)) > .56) { col = vec3(.78, .85, .82) * uLight; alpha = .75; }
+    float glint = pow(max(dot(r, uSunDir), 0.), 200.) * sunUp + pow(max(dot(r, uMoonDir), 0.), 300.) * .5 * (1. - sunUp);
+    float sparkle = hash(cell + floor(uTime * 6.));
+    if (glint * (.5 + l * .2 + gust * .4) > .3 + sparkle * .6) { col = mix(uSunColor, vec3(.85, .9, 1.), 1. - sunUp) * 1.25; alpha = 1.; }
+    // The water's edge: a thin wet sheen where it meets the bank, broken and drifting; on open, clear water a
+    // soft lap a little further out comes and goes with the swell. Nothing white.
+    float edge = (1. - smoothstep(0., .03, d)) * step(.45, noise(p * 2.4 + vec2(uTime * .25, 0.)));
+    col = mix(col, refl * 1.1 + .03 * uLight, edge * .45); alpha = max(alpha, edge * .45);
+    float lap = .05 + .035 * (sin(uTime * 1.25 + dot(cell, vec2(.021, .017))) * .5 + .5);
+    float band = step(abs(d - lap), .007) * step(.55, noise(p * 3. + vec2(uTime * .5, 0.))) * still * (1. - vMurk);
+    col = mix(col, vec3(.62, .7, .7) * uLight, band * .35); alpha = max(alpha, band * .4);
     // Wakes around the player.
     vec2 wuv = (cell - uWakeOrigin + .5) / ${N}.0;
     if (wuv.x > 0. && wuv.y > 0. && wuv.x < 1. && wuv.y < 1.) {
@@ -162,19 +181,29 @@ function framesTexture() {
   texture.magFilter = texture.minFilter = THREE.NearestFilter; texture.wrapS = THREE.RepeatWrapping; texture.needsUpdate = true;
   return texture;
 }
-// Little things on the water, as 16×16 cutouts.
+// Little things on the water. A lily pad: a round leaf with a narrow notch to its centre, a darker rim,
+// veins running out from the stalk and a few light texels where it catches the sky.
 registerPixelTexture('lilyPad', p => {
   p.clear();
+  const body = ['#2c5024', '#37602a', '#426e31', '#4e7c38'];
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const dx = x - 7.5, dy = y - 7.5, r = Math.hypot(dx, dy), notch = dx > 0 && Math.abs(dy) < 1.2;
-    if (r < 6.6 && !notch) p.set(x, y, r > 5.6 ? '#2f5a2a' : (x + y) % 5 === 0 ? '#5a8a3e' : p.random() < .3 ? '#3f6e32' : '#4a7c38');
+    const dx = x - 7.5, dy = y - 7.5, r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+    if (r > 7.4 || (Math.abs(a) < .3 && r > .8)) continue;
+    p.set(x, y, r > 6.5 ? '#23421d' : body[Math.min(3, Math.floor(p.random() * 1.8 + (7.4 - r) / 3.2))]);
   }
-  for (let i = 0; i < 6; i++) p.set(7 - i, 7 + Math.round(i * .4), '#3a6430');
+  for (let k = 0; k < 7; k++) {
+    const a = .45 + k * (Math.PI * 2 - .9) / 6;
+    for (let t = 1.2; t < 6.2; t += .7) p.set(Math.round(7.5 + Math.cos(a) * t), Math.round(7.5 + Math.sin(a) * t), '#2a4c22');
+  }
+  for (let i = 0; i < 5; i++) { const a = Math.PI + (p.random() - .5) * 2.4, t = 2 + p.random() * 3.5; p.set(Math.round(7.5 + Math.cos(a) * t), Math.round(7.5 + Math.sin(a) * t), '#64944a'); }
 }, { cutout: true });
-registerPixelTexture('lilyFlower', p => {
-  p.clear();
-  for (const [x, y, c] of [[7, 5, '#f2eee4'], [8, 5, '#f2eee4'], [6, 6, '#e8d0dc'], [9, 6, '#e8d0dc'], [7, 6, '#f6d86a'], [8, 6, '#f6d86a'], [6, 7, '#f2eee4'], [9, 7, '#f2eee4'], [7, 7, '#e8d0dc'], [8, 7, '#e8d0dc'], [7, 8, '#f2eee4'], [8, 8, '#f2eee4']]) p.set(x, y, c);
-}, { cutout: true });
+// Bleached driftwood: silver-grey, long cracks along the grain.
+registerPixelTexture('driftwood', p => {
+  const ramp = ['#5c5850', '#736e66', '#8a857b', '#a29c90', '#b8b1a3'];
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) p.set(x, y, ramp[1 + Math.floor(p.random() * 3)]);
+  for (let s = 0; s < 7; s++) { const x = Math.floor(p.random() * 16); for (let y = 0; y < 16; y++) if (p.random() < .85) p.set(x, y, s % 2 ? ramp[4] : ramp[0]); }
+  for (let c = 0; c < 3; c++) { const x = Math.floor(p.random() * 16), y = Math.floor(p.random() * 12); for (let k = 0; k < 4; k++) p.set(x, y + k, '#3e3a34'); }
+});
 registerPixelTexture('floatLeaf', p => {
   p.clear();
   const c = ['#a5521f', '#c98a34', '#7a5a2a', '#8a3f1d'][Math.floor(p.random() * 4)];
@@ -210,64 +239,176 @@ export function createWater(field) {
     return depth > 0 ? { surface: WATER_LEVEL, depth, flow: flowAt(x, z) } : null;
   }
   const hash = (x, z, k = 0) => { const s = Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453; return s - Math.floor(s); };
+  const smooth = t => t * t * (3 - 2 * t);
+  /** Value noise from the hash: coherent patches (reed beds, lily bays) instead of speckle. */
+  const patchNoise = (x, z, size, k) => {
+    const gx = x / size, gz = z / size, i = Math.floor(gx), j = Math.floor(gz), u = smooth(gx - i), w = smooth(gz - j);
+    return (hash(i, j, k) * (1 - u) + hash(i + 1, j, k) * u) * (1 - w) + (hash(i, j + 1, k) * (1 - u) + hash(i + 1, j + 1, k) * u) * w;
+  };
+  /** How dark and peaty the water is: clear in the lake and the river, brown-green in the marsh and in
+   *  forest ponds. */
+  function murkAt(x, z) {
+    const w = biomeWeights(x, z);
+    const lake = Math.max(0, ...LAKES.map(l => 1 - smooth(Math.min(1, Math.max(0, (Math.hypot(x - l.x, z - l.z) - l.radius) / 60)))));
+    const river = field.riverAt(x, z), inRiver = river ? 1 - smooth(Math.min(1, Math.max(0, (river.distance - river.line.width / 2) / 10))) : 0;
+    const peat = Math.min(1, w.marsh + w.autumn * .7 + w.forest * .5 + w.taiga * .6 + .25);
+    return peat * (1 - lake) * (1 - inRiver);
+  }
   // Stones standing in the stream: each keeps throwing a small wake while the sim covers it.
   const rocks = [];
-  const lily = pixelMaterial('lilyPad'), flower = pixelMaterial('lilyFlower');
-
-  /** The water mesh for one chunk (with its lily pads and stream stones), or null if the chunk is dry. */
-  function chunkMesh(cx, cz) {
-    const x0 = cx * CHUNK, z0 = cz * CHUNK, n = CELLS + 1, depth = new Float32Array(n * n);
-    let wet = false;
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-      const d = WATER_LEVEL - field.heightAt(x0 + i * STEP, z0 + j * STEP);
-      depth[j * n + i] = d; if (d > -.3) wet = true;
-    }
-    if (!wet) return null;
-    const positions = [], depths = [], flows = [], index = [], vertex = new Map();
-    const v = (i, j) => {
-      const k = j * n + i;
-      if (vertex.has(k)) return vertex.get(k);
-      const x = x0 + i * STEP, z = z0 + j * STEP, f = flowAt(x, z);
-      positions.push(x, WATER_LEVEL, z); depths.push(depth[k]); flows.push(f[0], f[1]);
-      vertex.set(k, positions.length / 3 - 1); return positions.length / 3 - 1;
+  const padMaterial = new THREE.MeshLambertMaterial({ map: pixelTexture('lilyPad'), alphaTest: .5, side: THREE.DoubleSide });
+  const flowerMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
+  // Pads and blossoms ride the same swell as the water under them.
+  for (const m of [padMaterial, flowerMaterial]) m.onBeforeCompile = shader => {
+    shader.uniforms.uTime = uniforms.uTime;
+    shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      vec3 floatAt = (modelMatrix * instanceMatrix * vec4(0., 0., 0., 1.)).xyz;
+      transformed.y += (sin(uTime * 1.1 + floatAt.x * .35 + floatAt.z * .2) * .5 + sin(uTime * .73 - floatAt.x * .13 + floatAt.z * .31) * .5) * .03;`);
+  };
+  const padGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  // A water-lily blossom in blocks: six white petals opening round a yellow heart, two inner ones upright.
+  const flowerGeometry = (() => {
+    const parts = [], T = 1 / 16;
+    const add = (w, h, d, x, y, z, rx, ry, color) => {
+      const g = new THREE.BoxGeometry(w, h, d); g.rotateX(rx); g.rotateY(ry); g.translate(x, y, z);
+      const c = new THREE.Color(color), n = g.attributes.position.count, cols = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) cols.set([c.r, c.g, c.b], i * 3);
+      g.setAttribute('color', new THREE.BufferAttribute(cols, 3)); parts.push(g.toNonIndexed());
     };
-    for (let j = 0; j < CELLS; j++) for (let i = 0; i < CELLS; i++) {
-      const ds = [depth[j * n + i], depth[j * n + i + 1], depth[(j + 1) * n + i], depth[(j + 1) * n + i + 1]];
-      if (Math.max(...ds) < -.05) continue;
-      const a = v(i, j), b = v(i + 1, j), c = v(i, j + 1), d = v(i + 1, j + 1);
-      index.push(a, c, b, b, c, d);
+    for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; add(1.5 * T, .5 * T, 3 * T, Math.sin(a) * 1.6 * T, .8 * T, Math.cos(a) * 1.6 * T, -.55, a, k % 2 ? '#f3efe4' : '#e9e2d6'); }
+    for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2 + .5; add(1.2 * T, .5 * T, 2.2 * T, Math.sin(a) * .8 * T, 1.6 * T, Math.cos(a) * .8 * T, -1.05, a, '#fbf8f0'); }
+    add(1.4 * T, 1.2 * T, 1.4 * T, 0, 1.2 * T, 0, 0, 0, '#e6b83a');
+    const merged = new THREE.BufferGeometry(), pos = [], col = [], nor = [];
+    for (const g of parts) { pos.push(...g.attributes.position.array); col.push(...g.attributes.color.array); nor.push(...g.attributes.normal.array); }
+    merged.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); merged.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); merged.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    return merged;
+  })();
+  const driftMaterial = pixelMaterial('driftwood');
+
+  /** The water mesh for one chunk with everything that grows and lies at its banks, or null if dry. */
+  function chunkMesh(cx, cz) {
+    const g = field.grid(cx, cz), C = field.CELLS, S = field.STEP, n = C + 1, heights = g.heights;
+    let any = false;
+    for (let k = 0; k < heights.length && !any; k++) if (heights[k] < WATER_LEVEL + 1.2) any = true;
+    if (!any) return null;
+    const positions = [], depths = [], flows = [], murks = [], index = [], vmap = new Int32Array(n * n).fill(-1);
+    const murkGrid = new Float32Array(n * n).fill(-1);
+    const murkOf = (i, j) => { const k = j * n + i; if (murkGrid[k] < 0) murkGrid[k] = murkAt(g.x0 + i * S, g.z0 + j * S); return murkGrid[k]; };
+    const vtx = (i, j) => {
+      const k = j * n + i;
+      if (vmap[k] >= 0) return vmap[k];
+      const x = g.x0 + i * S, z = g.z0 + j * S, f = flowAt(x, z);
+      positions.push(x, WATER_LEVEL, z); depths.push(WATER_LEVEL - heights[k]); flows.push(f[0], f[1]); murks.push(murkOf(i, j));
+      return (vmap[k] = positions.length / 3 - 1);
+    };
+    // The same cells and the same diagonal as the terrain mesh, wherever any corner lies under water.
+    for (let j = 0; j < C; j++) for (let i = 0; i < C; i++) {
+      const a = j * n + i;
+      if (Math.min(heights[a], heights[a + 1], heights[a + n], heights[a + n + 1]) > WATER_LEVEL + .04) continue;
+      const va = vtx(i, j), vb = vtx(i + 1, j), vc = vtx(i, j + 1), vd = vtx(i + 1, j + 1);
+      index.push(va, vc, vb, vb, vc, vd);
     }
-    if (!index.length) return null;
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('depth', new THREE.Float32BufferAttribute(depths, 1));
-    geometry.setAttribute('flow', new THREE.Float32BufferAttribute(flows, 2));
-    geometry.setIndex(index); geometry.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.renderOrder = 3; mesh.name = 'chunk water';
-    // Decorations on a 2-unit lattice, decided by hash so chunks always rebuild the same.
-    for (let z = z0 + 1; z < z0 + CHUNK; z += 2) for (let x = x0 + 1; x < x0 + CHUNK; x += 2) {
-      const d = WATER_LEVEL - field.heightAt(x, z);
-      if (d < .25) continue;
-      const f = flowAt(x, z), still = Math.hypot(f[0], f[1]) < .05, r = hash(x, z);
-      if (still && d < 1.3 && r < .12) {
-        // A raft of lily pads, now and then a white flower.
-        for (let k = 0; k < 2 + Math.floor(hash(x, z, 1) * 4); k++) {
-          const px = x + (hash(x, z, k + 2) - .5) * 1.6, pz = z + (hash(x, z, k + 9) - .5) * 1.6, s = .45 + hash(x, z, k + 5) * .35;
-          const pad = block(mesh, s, .01, s, lily, px, WATER_LEVEL + .012 + k * .001, pz, 0, hash(x, z, k) * 6.3, 0, { shadow: false });
-          pad.renderOrder = 4;
-          if (hash(x, z, k + 20) < .18) { const bloom = block(mesh, .4, .01, .4, flower, px, WATER_LEVEL + .06, pz, 0, 0, 0, { shadow: false }); bloom.renderOrder = 4; }
+    const group = new THREE.Group(); group.name = 'water chunk';
+    let mesh = null;
+    if (index.length) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('depth', new THREE.Float32BufferAttribute(depths, 1));
+      geometry.setAttribute('flow', new THREE.Float32BufferAttribute(flows, 2));
+      geometry.setAttribute('murk', new THREE.Float32BufferAttribute(murks, 1));
+      geometry.setIndex(index); geometry.computeBoundingSphere();
+      mesh = new THREE.Mesh(geometry, material);
+      mesh.renderOrder = 3; mesh.name = 'chunk water';
+      group.add(mesh);
+    }
+    // ── The banks. Every 2-unit grid point near the waterline decides what grows or lies there, by hash
+    // and by coherent patch noise, so chunks always rebuild the same and plants come in beds, not speckle.
+    const plants = [], pads = [], blooms = [];
+    let seed = (cx * 73856093 ^ cz * 19349663) >>> 0;
+    const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+    const groundAt = (x, z) => field.heightAt(x, z);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const h = heights[j * n + i], d = WATER_LEVEL - h;
+      if (d < -.9 || d > 1.7) continue;
+      if (Math.abs(g.x0 + i * S - SITES.jetty.x + 8) < 15 && Math.abs(g.z0 + j * S - SITES.jetty.z) < 7) continue;
+      const x = g.x0 + i * S, z = g.z0 + j * S, f = flowAt(x, z), fast = Math.hypot(f[0], f[1]) > .25, murk = murkOf(i, j);
+      const bed = patchNoise(x, z, 9, 31), bay = patchNoise(x, z, 14, 47), r = hash(x, z, 5);
+      const put = (name, count, size, spread = 1) => {
+        for (let c = 0; c < count; c++) {
+          const px = x + (random() - .5) * 2 * spread, pz = z + (random() - .5) * 2 * spread, py = groundAt(px, pz);
+          if (WATER_LEVEL - py > .85) continue;
+          plants.push([px, py, pz, name, size * (.8 + random() * .45), random() * Math.PI, .82 + random() * .26]);
         }
-      } else if (!still && d > .5 && d < 2.4 && r < .035) {
-        // A stone in the stream; its wake comes from the simulation.
-        const s = .7 + hash(x, z, 3) * .8, top = WATER_LEVEL + .15 + hash(x, z, 4) * .35;
-        block(mesh, s, top - (WATER_LEVEL - d), s * .8, 'cobbleMossy', x, (top + WATER_LEVEL - d) / 2, z, 0, hash(x, z, 6) * 3, 0);
-        block(mesh, s * .7, .2, s * .55, 'stoneLight', x, top + .05, z, 0, hash(x, z, 6) * 3 + .4, 0);
-        rocks.push({ x, z, r: s * .5, chunk: `${cx},${cz}`, phase: hash(x, z, 8) * 6 });
+      };
+      if (d > .02 && d < .8 && !fast) {
+        // Reed beds standing in the shallows: tall reeds with plumes, cattails among them.
+        if (bed > .5 - murk * .12) put(random() < .35 + murk * .3 ? 'cattail' : 'reedPlume', 2 + Math.floor((bed - .4) * 9), 1.55);
+      } else if (d > -.28 && d <= .02) {
+        // The waterline: rushes and sedge, now and then a clump of yellow iris or a cattail.
+        if (bed > .32) put(r < .12 ? 'iris' : r < .3 ? 'cattail' : r < .65 ? 'rush' : 'sedge', 2 + Math.floor(bed * 3), r < .3 ? 1.25 : .95);
+      } else if (d <= -.28) {
+        if (bed > .45 && r < .5) put(r < .2 ? 'rush' : 'sedge', 1 + Math.floor(bed * 2), .85);
+      }
+      // Lily colonies in still, sheltered water, most in peaty ponds and marsh bays.
+      if (!fast && d > .3 && d < 1.5 && i % 3 === 0 && j % 3 === 0 && bay > .55 && hash(x, z, 9) < .2 + murk * .35) {
+        const count = 9 + Math.floor(hash(x, z, 10) * 16), radius = 1.5 + hash(x, z, 11) * 2;
+        for (let c = 0; c < count; c++) {
+          const a = random() * Math.PI * 2, rr = Math.sqrt(random()) * radius, px = x + Math.cos(a) * rr, pz = z + Math.sin(a) * rr, pd = WATER_LEVEL - groundAt(px, pz);
+          if (pd < .12 || pd > 1.7) continue;
+          const size = .3 + random() * .32;
+          pads.push([px, pz, size, random() * Math.PI * 2, random()]);
+          if (random() < .12) blooms.push([px + (random() - .5) * size * .4, pz + (random() - .5) * size * .4, random()]);
+        }
+      }
+      // At the waterline of lakes and rivers: rounded stones, now and then bleached driftwood.
+      if (d > -.35 && d < .3) {
+        const open = 1 - murk, stone = hash(x, z, 13), wood = hash(x, z, 14);
+        if (stone < .035 + open * .05) {
+          const kind = stone < .02 ? 'boulderPair' : 'boulderBig', sc = .22 + hash(x, z, 15) * .35;
+          rockModule(group, kind, x + (random() - .5), h - .08 * sc, z + (random() - .5), random() * 6.3, sc, random, biomeWeights(x, z), false, random() < .5, 'none');
+        } else if (wood < .006 + open * .012) driftwood(group, x, h, z, random);
+      }
+      // A stone standing in the stream throws a wake (the simulation draws it).
+      if (fast && d > .5 && d < 2.4 && hash(x, z, 1) < .035) {
+        const sz = .7 + hash(x, z, 3) * .8, top = WATER_LEVEL + .15 + hash(x, z, 4) * .35;
+        rockModule(group, 'boulderBig', x, h - .1, z, hash(x, z, 6) * 6.3, Math.max(.4, (top - h) / 1.3), random, biomeWeights(x, z), false, false, 'none');
+        rocks.push({ x, z, r: sz * .5, chunk: `${cx},${cz}`, phase: hash(x, z, 8) * 6 });
       }
     }
-    mesh.userData.dispose = () => { for (let i = rocks.length - 1; i >= 0; i--) if (rocks[i].chunk === `${cx},${cz}`) rocks.splice(i, 1); };
-    return mesh;
+    if (!mesh && !plants.length) return null;
+    const shore = spriteInstances(plants); if (shore) group.add(shore);
+    if (pads.length) {
+      const padMesh = new THREE.InstancedMesh(padGeometry, padMaterial, pads.length), m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+      pads.forEach(([x, z, size, turn, tone], k) => {
+        padMesh.setMatrixAt(k, m.compose(new THREE.Vector3(x, WATER_LEVEL + .008 + k * .0002, z), q.setFromAxisAngle(UP, turn), new THREE.Vector3(size, 1, size)));
+        // Most pads green, some yellowing or flushed red at the edge of summer.
+        padMesh.setColorAt(k, tone < .78 ? c.setRGB(.92 + tone * .12, .95 + tone * .08, .9) : tone < .9 ? c.setRGB(1.18, 1.08, .72) : c.setRGB(1.2, .86, .74));
+      });
+      padMesh.name = 'Lily pads'; padMesh.receiveShadow = true; padMesh.computeBoundingSphere(); group.add(padMesh);
+    }
+    if (blooms.length) {
+      const bloomMesh = new THREE.InstancedMesh(flowerGeometry, flowerMaterial, blooms.length), m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+      blooms.forEach(([x, z, tone], k) => {
+        bloomMesh.setMatrixAt(k, m.compose(new THREE.Vector3(x, WATER_LEVEL + .01, z), q.setFromAxisAngle(UP, tone * 6.3), new THREE.Vector3(1, 1, 1)));
+        bloomMesh.setColorAt(k, tone < .7 ? c.setRGB(1, 1, 1) : c.setRGB(1, .8, .88));
+      });
+      bloomMesh.name = 'Water lilies'; bloomMesh.computeBoundingSphere(); group.add(bloomMesh);
+    }
+    group.userData.dispose = () => {
+      for (let i = rocks.length - 1; i >= 0; i--) if (rocks[i].chunk === `${cx},${cz}`) rocks.splice(i, 1);
+      group.traverse(o => { if (o.isInstancedMesh) o.dispose?.(); if (o === mesh || o.name === 'Shore plants') o.geometry.dispose(); });
+    };
+    return group;
+  }
+  // Bleached driftwood at the waterline: a crooked trunk with a stub or two, half on the bank.
+  function driftwood(parent, x, y, z, random) {
+    const g = new THREE.Group(); g.position.set(x, y + .06, z); g.rotation.set((random() - .5) * .12, random() * 6.3, (random() - .5) * .08); parent.add(g);
+    const len = 1.3 + random() * 1.6, t = .16 + random() * .1;
+    block(g, len, t, t, driftMaterial, 0, 0, 0, 0, 0, (random() - .5) * .1, { shadow: true });
+    beam(g, [len * .3, 0, 0], [len * .3 + .35, .28 + random() * .2, .25], t * .55, driftMaterial);
+    if (random() < .6) beam(g, [-len * .35, 0, 0], [-len * .35 - .2, .05, -.45], t * .5, driftMaterial);
+    block(g, t * 1.5, t * 1.4, t * 1.4, driftMaterial, -len / 2, .02, 0, 0, 0, .3);
+    return g;
   }
 
   // ── Wave simulation: height and velocity on an N×N grid of 1/16-unit cells around the player.
@@ -333,7 +474,7 @@ export function createWater(field) {
 
   // Splash drops (pixel cubes) and drifting leaves.
   const root = new THREE.Group(); root.name = 'water effects';
-  const drops = [], dropGeometry = new THREE.BoxGeometry(1 / 16 * 1.5, 1 / 16 * 1.5, 1 / 16 * 1.5), dropMaterial = new THREE.MeshBasicMaterial({ color: 0xb8dcd6 });
+  const drops = [], dropGeometry = new THREE.BoxGeometry(1 / 16 * 1.2, 1 / 16 * 1.2, 1 / 16 * 1.2), dropMaterial = new THREE.MeshLambertMaterial({ color: 0xc4dcd8 });
   for (let i = 0; i < 40; i++) { const m = new THREE.Mesh(dropGeometry, dropMaterial); m.visible = false; root.add(m); drops.push({ mesh: m, v: new THREE.Vector3(), life: 0 }); }
   const leaves = [], leafMaterial = pixelMaterial('floatLeaf'), leafGeometry = new THREE.PlaneGeometry(.38, .38).rotateX(-Math.PI / 2);
   for (let i = 0; i < 22; i++) { const m = new THREE.Mesh(leafGeometry, leafMaterial); m.visible = false; m.renderOrder = 4; root.add(m); leaves.push({ mesh: m, life: 0, spin: 0 }); }
@@ -350,10 +491,37 @@ export function createWater(field) {
       d.v.set((Math.random() - .5) * 2.4, 2 + Math.random() * 2.6 * strength, (Math.random() - .5) * 2.4); d.life = .9; d.mesh.visible = true;
     }
   }
+  const fish = new THREE.Group(); fish.name = 'Leaping fish'; fish.visible = false; root.add(fish);
+  {
+    const scale = new THREE.MeshLambertMaterial({ color: 0x9aa6a0 }), back = new THREE.MeshLambertMaterial({ color: 0x55645c }), fin = new THREE.MeshLambertMaterial({ color: 0x6e7a70 });
+    const part = (w, h, d, m, x, y, z, rx = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.x = rx; fish.add(b); };
+    part(.07, .08, .3, scale, 0, 0, 0); part(.06, .03, .26, back, 0, .045, 0); part(.02, .06, .08, fin, 0, .08, -.02);
+    part(.02, .1, .07, fin, 0, 0, .18, .5); part(.02, .1, .07, fin, 0, 0, .18, -.5);
+  }
+  let fishTimer = 6, leap = null;
+  /** A fish leaping somewhere in deep water within sight (every few seconds while you are near water). */
+  function leapFish(focus, dt) {
+    if (leap) {
+      leap.t += dt; const k = Math.min(1, leap.t / leap.dur);
+      const y = WATER_LEVEL - .1 + 4 * leap.h * k * (1 - k), slope = 4 * leap.h * (1 - 2 * k) / leap.len;
+      fish.position.set(leap.x + leap.dx * leap.len * k, y, leap.z + leap.dz * leap.len * k);
+      fish.rotation.set(0, Math.atan2(-leap.dx, -leap.dz), 0); fish.rotateX(Math.atan(slope));
+      if (k >= 1) { splash(fish.position.x, fish.position.z, .45); fish.visible = false; leap = null; }
+      return;
+    }
+    if ((fishTimer -= dt) > 0) return;
+    fishTimer = 5 + Math.random() * 10;
+    const a = Math.random() * Math.PI * 2, r = 5 + Math.random() * 16, x = focus.x + Math.cos(a) * r, z = focus.z + Math.sin(a) * r;
+    if (WATER_LEVEL - field.heightAt(x, z) < .8) return;
+    const turn = Math.random() * Math.PI * 2;
+    leap = { x, z, dx: Math.cos(turn), dz: Math.sin(turn), len: .8 + Math.random() * .7, h: .35 + Math.random() * .35, dur: .55 + Math.random() * .2, t: 0 };
+    fish.position.set(x, WATER_LEVEL - .1, z); fish.visible = true; splash(x, z, .3);
+  }
   function update(dt, light = 1, focus = null) {
     uniforms.uTime.value += dt; uniforms.uLight.value = light;
     if (focus) {
       recenter(focus.x, focus.z);
+      leapFish(focus, dt);
       for (acc += Math.min(dt, .1); acc >= WAKE_STEP; acc -= WAKE_STEP) simulate();
       // Leaves and twigs come down the river past the player and float off downstream.
       for (const leaf of leaves) {

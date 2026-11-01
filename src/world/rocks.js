@@ -151,8 +151,8 @@ function rock(parent, kind, sx, sy, sz, x, y, z, rx, ry, rz, material, random, s
   return mesh;
 }
 /** Builds one module into `parent` at (x, y, z), turned by ry, uniformly scaled; returns the group. */
-export function rockModule(parent, name, x, y, z, ry, scale, random, w = null, high = false, mirror = false) {
-  const spec = MODULES[name], g = new THREE.Group(), material = rockMaterial(TONES[Math.floor(random() * TONES.length)], capFor(w, high), tintFor(w)), f = mirror ? -1 : 1;
+export function rockModule(parent, name, x, y, z, ry, scale, random, w = null, high = false, mirror = false, cap = null) {
+  const spec = MODULES[name], g = new THREE.Group(), material = rockMaterial(TONES[Math.floor(random() * TONES.length)], cap ?? capFor(w, high), tintFor(w)), f = mirror ? -1 : 1;
   g.position.set(x, y, z); g.rotation.y = ry; parent.add(g);
   for (const [kind, sw, sh, sd, px, py, pz, rx = 0, rry = 0, rz = 0] of spec.parts)
     rock(g, kind, sw * scale, sh * scale, sd * scale, px * f * scale, py * scale, pz * scale, rx, rry * f + (random() - .5) * .3, rz * f, material, random);

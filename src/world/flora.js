@@ -114,7 +114,65 @@ registerPixelTexture('flowerPurple', p => {
 }, { cutout: true });
 registerPixelTexture('flowerPink', p => bloom(p, ['#c25a86', '#d873a0', '#e88fb6'], '#f2d24a', 4), { cutout: true });
 registerPixelTexture('daisy', p => bloom(p, ['#f2f0e8', '#e6e2d6', '#ffffff'], '#f0c23a', 5), { cutout: true });
-const SPRITES = ['tallGrass', 'fern', 'flowerRed', 'flowerYellow', 'flowerBlue', 'flowerWhite', 'reeds', 'deadGrass', 'grassShort', 'flowerPurple', 'flowerPink', 'daisy'];
+// Plants of the banks (placed by water.js): reeds with feathery plumes, cattails with their brown spikes,
+// dark rushes, arching sedge and yellow flag iris.
+registerPixelTexture('reedPlume', p => {
+  p.clear();
+  const stalk = ['#6d6a3c', '#7e7a44', '#8f8a4e', '#a39d5c'], plume = ['#5c4a38', '#6f5a44', '#857052', '#9a8462'], leaf = ['#5c6c34', '#6e8040'];
+  for (let s = 0; s < 6; s++) {
+    let x = 1 + Math.floor(p.random() * 14); const top = 1 + Math.floor(p.random() * 5), lean = p.random() < .5 ? -1 : 1;
+    for (let y = 15; y >= top + 3; y--) { p.set(x, y, stalk[Math.min(3, Math.floor((15 - y) / 4))]); if (y < 8 && p.random() < .18) x = Math.max(0, Math.min(15, x + lean)); }
+    for (let y = top; y < top + 4; y++) { p.set(x, y, plume[(y + s) % 4]); if (y > top && x + lean >= 0 && x + lean <= 15) p.set(x + lean, y, plume[(y + s + 1) % 4]); }
+    const ly = 8 + Math.floor(p.random() * 5);
+    for (let k = 1; k < 4; k++) { const lx = x - lean * k; if (lx >= 0 && lx <= 15) p.set(lx, ly - Math.floor(k / 2), leaf[k % 2]); }
+  }
+}, { cutout: true });
+registerPixelTexture('cattail', p => {
+  p.clear();
+  const green = ['#4a602e', '#586e36', '#677e40', '#768e4a'], head = ['#3a2416', '#553620', '#6a4426'];
+  for (let b = 0; b < 6; b++) {
+    let x = 1 + Math.floor(p.random() * 14); const lean = p.random() < .5 ? -1 : 1, h = 6 + Math.floor(p.random() * 6);
+    for (let j = 0; j < h; j++) { p.set(x, 15 - j, green[Math.min(3, Math.floor(j / h * 4))]); if (j > h * .55) x += lean; if (x < 0 || x > 15) break; }
+  }
+  for (let s = 0; s < 4; s++) {
+    const x = 2 + Math.floor(p.random() * 11), top = 1 + Math.floor(p.random() * 4);
+    for (let y = top; y < 16; y++) p.set(x, y, green[(y + s) % 4]);
+    for (let y = top + 1; y < top + 5; y++) { p.set(x, y, head[(y + s) % 3]); p.set(x + 1, y, head[(y + s + 1) % 3]); }
+    p.set(x, top, '#8a7a4a');
+  }
+}, { cutout: true });
+registerPixelTexture('rush', p => {
+  p.clear();
+  const ramp = ['#243c21', '#2e4927', '#3a592e', '#486b36'];
+  for (let s = 0; s < 13; s++) {
+    const x = 1 + Math.floor(p.random() * 14), h = 5 + Math.floor(p.random() * 7);
+    for (let j = 0; j < h; j++) p.set(x, 15 - j, ramp[Math.min(3, Math.floor(j / h * 4))]);
+    if (p.random() < .35) p.set(x, 16 - h, '#7a5a30');
+  }
+}, { cutout: true });
+registerPixelTexture('sedge', p => {
+  p.clear();
+  for (let s = 0; s < 12; s++) {
+    let x = 1 + Math.floor(p.random() * 14); const h = 5 + Math.floor(p.random() * 6), lean = p.random() < .5 ? -1 : 1;
+    const ramp = p.random() < .4 ? ['#5e6634', '#6e763c', '#7e8644', '#8e944c'] : ['#465e2e', '#526c34', '#5e7a3a', '#6a8840'];
+    for (let j = 0; j < h; j++) { p.set(x, 15 - j, ramp[Math.min(3, Math.floor(j / h * 4))]); if (j > h * .5 && p.random() < .45) x += lean; if (x < 0 || x > 15) break; }
+  }
+}, { cutout: true });
+registerPixelTexture('iris', p => {
+  p.clear();
+  const leaf = ['#3c6230', '#497438', '#578640'];
+  for (let b = 0; b < 7; b++) {
+    let x = 2 + Math.floor(p.random() * 12); const h = 7 + Math.floor(p.random() * 5), lean = p.random() < .5 ? -1 : 1;
+    for (let j = 0; j < h; j++) { p.set(x, 15 - j, leaf[j % 3]); if (j > h * .7 && p.random() < .5) x += lean; if (x < 0 || x > 15) break; }
+  }
+  for (let f = 0; f < 2; f++) {
+    const x = 3 + Math.floor(p.random() * 10), y = 2 + Math.floor(p.random() * 3);
+    for (let yy = y + 3; yy < 16; yy++) p.set(x, yy, '#497438');
+    for (const [dx, dy, c] of [[0, 0, '#f4da62'], [-1, 1, '#e8c23a'], [1, 1, '#e8c23a'], [0, 1, '#a8781e'], [-1, 2, '#d6a82a'], [1, 2, '#d6a82a'], [0, 2, '#e8c23a']]) p.set(x + dx, y + dy, c);
+  }
+}, { cutout: true });
+const SPRITES = ['tallGrass', 'fern', 'flowerRed', 'flowerYellow', 'flowerBlue', 'flowerWhite', 'reeds', 'deadGrass', 'grassShort', 'flowerPurple', 'flowerPink', 'daisy',
+  'reedPlume', 'cattail', 'rush', 'sedge', 'iris'];
 const FLOWERS = ['flowerRed', 'flowerYellow', 'flowerBlue', 'flowerWhite', 'flowerPurple', 'flowerPink', 'daisy'];
 const SPRITE = Object.fromEntries(SPRITES.map((n, i) => [n, i]));
 let atlasTexture = null;
@@ -152,6 +210,21 @@ function groundMaterial() {
   spriteGeometry = crossGeometry(1, 1);
   return spriteMaterial;
 }
+/** Ground sprites at given spots: items are [x, y, z, sprite name, scale, turn, shade] (shore plants). */
+export function spriteInstances(items) {
+  if (!items.length) return null;
+  const material = groundMaterial(), mesh = new THREE.InstancedMesh(spriteGeometry.clone(), material, items.length);
+  const sprites = new Float32Array(items.length), dummy = new THREE.Object3D(), tint = new THREE.Color();
+  items.forEach(([x, y, z, name, s, turn, shade], i) => {
+    dummy.position.set(x, y - .04, z); dummy.rotation.set(0, turn, 0); dummy.scale.set(s, s, s); dummy.updateMatrix();
+    mesh.setMatrixAt(i, dummy.matrix); mesh.setColorAt(i, tint.setScalar(shade)); sprites[i] = SPRITE[name];
+  });
+  mesh.geometry.setAttribute('aSprite', new THREE.InstancedBufferAttribute(sprites, 1));
+  mesh.receiveShadow = true; mesh.castShadow = false;
+  mesh.computeBoundingSphere(); mesh.boundingSphere.radius += 2;
+  mesh.name = 'Shore plants';
+  return mesh;
+}
 export let groundDensity = .75;
 export function setGroundDensity(quality) { groundDensity = quality === 'low' ? .4 : quality === 'medium' ? .75 : 1; }
 
@@ -165,11 +238,12 @@ export function groundCoverChunk(field, biomeWeights, waterLevel, x0, z0, size, 
     const x = x0 + random() * size, z = z0 + random() * size, h = field.heightAt(x, z);
     if (h > 44 || field.roadClearance(x, z) < 1 || avoid(x, z)) continue;
     const w = biomeWeights(x, z), roll = random();
-    const shore = h < waterLevel + 1.1 && h > waterLevel - .5;
-    if (h < waterLevel + .2 && !shore) continue;
+    // The waterline and the shallows are planted by water.js (reed beds, rushes, iris); here only the land.
+    if (h < waterLevel + .6) continue;
     if (Math.abs(field.heightAt(x + 1, z) - h) + Math.abs(field.heightAt(x, z + 1) - h) > 1.2) continue;
     let sprite;
-    if (shore || (w.marsh > .5 && roll < .5)) sprite = SPRITE.reeds;
+    if (w.marsh > .5 && roll < .5) sprite = roll < .12 ? SPRITE.cattail : roll < .3 ? SPRITE.rush : SPRITE.sedge;
+    else if (h < waterLevel + 1.6 && roll < .35) sprite = roll < .12 ? SPRITE.rush : SPRITE.sedge;
     else if (w.taiga > .5) sprite = roll < .35 ? SPRITE.fern : roll < .6 ? SPRITE.deadGrass : SPRITE.tallGrass;
     else if (w.autumn > .5) sprite = roll < .4 ? SPRITE.deadGrass : roll < .55 ? SPRITE.fern : roll < .6 ? SPRITE.flowerYellow : SPRITE.tallGrass;
     else if (w.forest > .6 && roll < .3) sprite = SPRITE.fern;

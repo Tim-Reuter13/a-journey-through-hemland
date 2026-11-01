@@ -13,7 +13,7 @@ import { treeMeshes, showTreeDetail } from './trees.js';
 const seeded = seed => { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 const inside = (cx, cz) => cx * CHUNK + CHUNK > BOUNDS.minX && cx * CHUNK < BOUNDS.maxX && cz * CHUNK + CHUNK > BOUNDS.minZ && cz * CHUNK < BOUNDS.maxZ;
 
-export function createChunkStreamer({ scene, field, collision, water = null, avoidTrees = () => false, avoidGround = () => false, radius = 3 }) {
+export function createChunkStreamer({ scene, field, collision, water = null, avoidTrees = () => false, avoidGround = () => false, radius = 3, onTerrain = null }) {
   const chunks = new Map();
   let physics = null;
   const root = new THREE.Group(); root.name = 'streamed terrain'; scene.add(root);
@@ -30,7 +30,7 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
     terrain(c, lod) {
       const mesh = buildChunkMesh(field, c.cx, c.cz, lod);
       if (c.mesh) { root.remove(c.mesh); c.mesh.geometry.dispose(); }
-      c.mesh = mesh; c.lod = lod; root.add(mesh);
+      c.mesh = mesh; c.lod = lod; root.add(mesh); onTerrain?.(c.cx, c.cz, true);
     },
     scatter(c) {
       const group = new THREE.Group(); group.name = `scatter ${c.cx},${c.cz}`;
@@ -71,8 +71,8 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
   }
   function drop(c) {
     dropScatter(c); dropGround(c); if (physics) dropPhysics(c);
-    if (c.mesh) { root.remove(c.mesh); c.mesh.geometry.dispose(); }
-    if (c.water && c.water !== 'dry') { root.remove(c.water); c.water.geometry.dispose(); c.water.userData.dispose?.(); }
+    if (c.mesh) { root.remove(c.mesh); c.mesh.geometry.dispose(); onTerrain?.(c.cx, c.cz, false); }
+    if (c.water && c.water !== 'dry') { root.remove(c.water); c.water.userData.dispose?.(); }
     chunks.delete(key(c.cx, c.cz));
   }
 

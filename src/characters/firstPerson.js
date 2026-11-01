@@ -64,7 +64,7 @@ function makeSword(parent) {
       const item = heldItem(key); if (!item) return;
       model?.removeFromParent(); model = item; equipped = key;
       // The hand closes just below the guard.
-      item.scale.setScalar(.72); item.rotation.set(0, 0, 0); item.position.set(0, -.05, 0);
+      item.scale.setScalar(.64); item.rotation.set(0, 0, 0); item.position.set(0, -.05, 0);
       sword.add(item);
     },
   };
@@ -72,8 +72,8 @@ function makeSword(parent) {
 
 function potion(parent, trim) {
   const bottle = new THREE.Group(); parent.add(bottle); bottle.name = 'Box potion';
-  const glass = painted('glass', ['#18382c', '#294d3a', '#63876a'], (x, y) => x === 1 ? 2 : (x + y) % 5 === 0 ? 0 : 1).clone();
-  glass.transparent = true; glass.opacity = .42; glass.depthWrite = false;
+  const glass = painted('glass', ['#35584a', '#5c8474', '#cfe8dc'], (x, y) => x === 1 ? 2 : (x + y) % 5 === 0 ? 0 : 1).clone();
+  glass.transparent = true; glass.opacity = .3; glass.depthWrite = false;
   const shell = block(bottle, 6 * T, 7 * T, 6 * T, glass); shell.renderOrder = 5;
   const shoulder = block(bottle, 4 * T, T, 4 * T, glass, 0, .25, 0); shoulder.renderOrder = 5;
   const neck = block(bottle, 2 * T, 2 * T, 2 * T, glass, 0, .34375, 0); neck.renderOrder = 5;
@@ -88,7 +88,7 @@ function potion(parent, trim) {
   // walls rise to meet it; a little see-through, so the bubbles show inside. Darker toward the floor.
   const HALF = .171875, BOTTOM = -.203125, TOP = .203125, FULL = .045;
   const liquid = createLiquid({ cells: 6, half: HALF }), N = liquid.cells + 1, step = 2 * HALF / liquid.cells;
-  const liquidMaterial = painted('liquid', ['#4b1426', '#842337', '#ab3a45'], (x, y) => (x + y * 3) % 5 === 0 ? 2 : y % 4 === 0 ? 0 : 1).clone();
+  const liquidMaterial = painted('liquid', ['#5a0d1e', '#9c1c30', '#d4464c'], (x, y) => (x + y * 3) % 5 === 0 ? 2 : y % 4 === 0 ? 0 : 1).clone();
   Object.assign(liquidMaterial, { transparent: true, opacity: .86, depthWrite: false, side: THREE.DoubleSide, vertexColors: true });
   const positions = [], uvs = [], colors = [], indices = [];
   const vertex = (x, y, z, u, v, shade) => { positions.push(x, y, z); uvs.push(u, v); colors.push(shade, shade, shade); return positions.length / 3 - 1; };
@@ -114,7 +114,7 @@ function potion(parent, trim) {
   const surfaceMesh = new THREE.Mesh(liquidGeometry, liquidMaterial); surfaceMesh.renderOrder = 3; bottle.add(surfaceMesh);
   const vertices = liquidGeometry.attributes.position;
   // Bubbles rise inside; foam floats on top while the potion is churned up. Both fade with the agitation.
-  const bubbleMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffc4cc, transparent: true, opacity: .8, depthWrite: false }), liquid.bubbles.length);
+  const bubbleMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffe2d6, transparent: true, opacity: .9, depthWrite: false, blending: THREE.AdditiveBlending }), liquid.bubbles.length);
   const FOAM = 18, foam = Array.from({ length: FOAM }, (_, k) => ({ u: Math.random() * 2 - 1, v: Math.random() * 2 - 1, size: .018 + Math.random() * .02, phase: k * 1.7 }));
   const foamMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0xf2c6c6, transparent: true, opacity: .9, depthWrite: false }), FOAM);
   bubbleMesh.renderOrder = foamMesh.renderOrder = 4; bubbleMesh.frustumCulled = foamMesh.frustumCulled = false; bottle.add(bubbleMesh, foamMesh);
@@ -135,7 +135,7 @@ function potion(parent, trim) {
     let count = 0;
     for (const b of liquid.bubbles) {
       if (!b.alive || b.y > level + liquid.surface(b.x, b.z)) continue;
-      m4.compose(p0.set(b.x, b.y, b.z), q0, s0.setScalar(b.size * 2)); bubbleMesh.setMatrixAt(count++, m4);
+      m4.compose(p0.set(b.x, b.y, b.z), q0, s0.setScalar(b.size * 1.1)); bubbleMesh.setMatrixAt(count++, m4);
     }
     bubbleMesh.count = count; bubbleMesh.instanceMatrix.needsUpdate = true;
     const froth = Math.min(1, liquid.state.agitation * 1.6);
@@ -190,9 +190,9 @@ function potion(parent, trim) {
 // tip). The forearm always runs from a shoulder below and right of the view to the fist, so the arm comes in
 // from the lower right like a body's would; the wrist bends, so at rest and in guard the blade crosses the
 // forearm almost at right angles, as a hand holds a sword. Neither pose covers the screen centre.
-const SHOULDER = new THREE.Vector3(.42, -.62, .2);
-const SWORD_REST = { at: [.95, -.6, .95], blade: [-.32, 1, -.08] };
-const SWORD_GUARD = { at: [.3, -.48, .8], blade: [.55, .8, -.25] };
+const SHOULDER = new THREE.Vector3(.72, -.98, .12);
+const SWORD_REST = { at: [1.02, -.66, .95], blade: [-.12, .78, -.62] };
+const SWORD_GUARD = { at: [.92, -.58, .86], blade: [-.94, .33, -.18] };
 // Strikes: wind-up, two keys through the cut (the blade sweeps through the front, never past the face),
 // follow-through, then back. Times are fractions of the attack; the hit lands near the third key.
 const STRIKES = [
@@ -260,8 +260,8 @@ export function createFirstPerson() {
   const glove = painted('glove', ['#c4c4c4', '#d8d8d8', '#b0b0b0'], (x, y) => (x * 3 + y) % 6 === 0 ? 2 : 1);
   const arms = [arm(right, skin, sleeve, bracer, glove), arm(left, skin, sleeve, bracer, glove)];
   const weapon = makeSword(right), sword = weapon.sword, flask = potion(right, trim);
-  flask.bottle.position.set(0, .16, -.15);
-  flask.bottle.scale.setScalar(.64);
+  flask.bottle.position.set(0, .13, -.06);
+  flask.bottle.scale.setScalar(.7);
   const spell = new THREE.Group(); left.add(spell); spell.position.set(0, .11, -.1);
   // Funken ready: a small fire burns in the palm. Glowing blocks rise from it, swell and burn down from
   // white-yellow to red; a warm light flickers on the hand and arm, so the hand itself glows.
@@ -333,10 +333,10 @@ export function createFirstPerson() {
   // view, beside the eye) along the line of sight, so it points at the reticle; the string hand stays at
   // the cheek like in Skyrim, only the bow hand shows. A kick forward on release.
   const HALF = Math.tan(THREE.MathUtils.degToRad(31));
-  const REST = { sx: -1.25, sy: -1.15, z: .9, cant: .55 }, DRAWN = { sx: -.36, sy: -.24, z: .95, cant: -.16 }, SHOULDER = new THREE.Vector3(-.85, -.8, -.4);
+  const REST = { sx: -.74, sy: -.5, z: .9, cant: .3 }, DRAWN = { sx: -.36, sy: -.24, z: .95, cant: -.16 }, SHOULDER = new THREE.Vector3(-.85, -.8, -.4);
   const place = (out, o, wide) => out.set(o.sx * wide * HALF * o.z, o.sy * HALF * o.z, -o.z);
   const restPos = new THREE.Vector3(), drawnPos = new THREE.Vector3(), anchor = new THREE.Vector3();
-  const restAim = new THREE.Vector3(-.12, .32, -1).normalize(), arrowLine = new THREE.Vector3(), qRest = new THREE.Quaternion(), qRaised = new THREE.Quaternion();
+  const restAim = new THREE.Vector3(-.2, .55, -1).normalize(), arrowLine = new THREE.Vector3(), qRest = new THREE.Quaternion(), qRaised = new THREE.Quaternion();
   function poseBow(bow, bob, sway, dip) {
     held ??= createHeldBow(scene, { thickness: .0024, arrowScale: .5 });
     if (!held || !bow.equipped) { hideBow(); return; }
@@ -451,7 +451,7 @@ export function createFirstPerson() {
     time += dt;
     weapon.equip(player.equipment?.weapon);
     // Keep the drinking silhouette below 18% width, including narrow windows.
-    flask.bottle.scale.setScalar(.64 * Math.min(1, worldCamera.aspect / (4 / 3)));
+    flask.bottle.scale.setScalar(.7 * Math.min(1, worldCamera.aspect / (4 / 3)));
     const tool = (action ? { drink: 2, cast: 1, sword: 0 }[action.kind] : player.tool) ?? player.tool ?? 0;
     if (currentTool !== tool) { currentTool = tool; switchDip = .15; motion.swap = .35; }
     switchDip = Math.max(0, switchDip - dt);
@@ -466,9 +466,8 @@ export function createFirstPerson() {
     weapon.hilt.quaternion.identity();
     left.position.set(-.34 - sway, -.32 + breathe - bob - dip, -.92);
     left.rotation.set(.1, .18, .15 - sway * .6);
-    right.visible = tool !== 1; left.visible = tool === 1 || guard || guarding > .01;
+    right.visible = tool !== 1; left.visible = tool === 1;
     sword.visible = tool === 0; flask.bottle.visible = tool === 2; spell.visible = tool === 1;
-    left.position.lerp(new THREE.Vector3(-.22, -.2, -.72), guarding);
     if (tool === 0) poseSword(action, { x: sway, y: breathe + bob - dip });
     if (action) {
       const p = clamp(action.progress, 0, 1);

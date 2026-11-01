@@ -183,10 +183,11 @@ export function createHeightfield() {
     // River and lake slopes stay green instead of turning to bare rock.
     const grassy = Math.max(river ? ss(river.line.width / 2 + 40, river.line.width / 2 + 30, river.distance) : 0, lakeBank);
     const bank = Math.max(riverBank, lakeBank), wet = ss(WATER_LEVEL + .75, WATER_LEVEL + .1, h) * bank;
-    const sand = ss(WATER_LEVEL + 1.7, WATER_LEVEL + .25, h) * bank * (.5 + patches * .7) * (1 - wet);
+    const under = ss(WATER_LEVEL + .05, WATER_LEVEL - .35, h), damp = ss(WATER_LEVEL + .55, WATER_LEVEL + .02, h) * (1 - bank);
+    const sand = Math.max(ss(WATER_LEVEL + 1.7, WATER_LEVEL + .25, h) * bank * (.5 + patches * .7) * (1 - wet), under * bank * (.55 + patches * .5));
     return {
       a: [roadW * (1 - paved) * (1 - streets), Math.max(ss(.72, .95, patches) * .7 + w.plains * ss(.5, .7, patches) * .5, nearCity < 1 ? .35 + patches * .3 : 0) * (1 - streets), Math.min(1, ss(18, 34, h) * .7 + ss(.55, 1.05, slope) * (1 - grassy * .75)), ss(46, 58, h + fbm(x * .03, z * .03, 2, 8) * 5)],
-      b: [(w.autumn * .8 * (.72 + patches * .38) + w.taiga * .3 * (.55 + patches * .6)) * (1 - streets), w.marsh * .95 * ss(WATER_LEVEL + 3, WATER_LEVEL + .5, h) + shore * .25 + wet * .85, sand, Math.max(roadW * paved, streets)],
+      b: [(w.autumn * .8 * (.72 + patches * .38) + w.taiga * .3 * (.55 + patches * .6)) * (1 - streets) * (1 - under) * (1 - damp * .7), w.marsh * .95 * ss(WATER_LEVEL + 3, WATER_LEVEL + .5, h) + shore * .25 + wet * .85 + damp * .75 + under * (1 - bank) * .95, sand, Math.max(roadW * paved, streets)],
       tint: [1 - w.taiga * .1 + w.autumn * .05 + w.plains * .03, 1 - w.autumn * .12 - w.marsh * .08, 1 - w.autumn * .35 - w.plains * .12 + w.taiga * .02],
     };
   }

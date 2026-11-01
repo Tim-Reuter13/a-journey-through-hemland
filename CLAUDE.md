@@ -48,7 +48,8 @@ Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobi
 - src/systems/motion/ — HUMANITY MOTION (rig adapter, IK, foot IK, balance, falls and get-ups, grappling); see its README.
 - src/systems/combat.js, archery.js, spellFx.js, combatEffects.js — fighting, arrows, fire, particles.
 - src/world/ — terrain (heightfield.js), sites, flora and Blockbench trees (trees.js, with a crown grid), rocks, water
-  (water.js, mirrors the atmosphere's sky uniforms), sky (atmosphere.js, clouds.js), ambient effects (ambientFx.js:
+  (water.js: surface on the terrain grid, mirrors the atmosphere's sky uniforms, and all shore content — reeds,
+  lily colonies, stones, driftwood, leaping fish), sky (atmosphere.js, clouds.js), ambient effects (ambientFx.js:
   leaves from crowns, light shafts, fireflies), footprints (tracks.js, world.groundAt), Funken-style fires (fire.js).
 - art/blockbench/ — models and characters built in Blockbench via MCP (needs the local Blockbench app; not available
   in cloud sessions). Exports land in public/models.
