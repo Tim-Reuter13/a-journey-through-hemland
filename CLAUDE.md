@@ -14,6 +14,10 @@ Skyrim-like RPG in Three.js + Vite, German UI. Hemland is a continent that grows
 - Sky: plain gradient with square sun and moon, no painted clouds; clouds are 3D voxels (src/world/clouds.js).
   The owner loves the god rays (post pass in src/systems/graphics.js; the sky writes alpha 0 as open-sky mask).
 - Controls: W runs (5.6 m/s), Shift sprints, Caps Lock walks, G grabs, E interacts/takes down, F first/third person.
+  Horses: T reins (lead/let go), E mount/dismount/tie at a rail or tree, H whistle; riding W trots, Shift taps spur
+  (hold keeps the pace), S reins in, Caps Lock walks, Space jumps (standing: rears).
+  Goblin caves: walk down the sunken way to its dark end (the Eisengrube: E at the shaft's rim climbs down); inside,
+  walk up the exit tunnel (or E at the rope); held by a Lauerer or Würger, Space struggles free.
 - Story tone: serious, Game-of-Thrones-level dialogue, blood, death, tragedy (src/data/hemland/story.js).
 - Record new feedback and finished work in ROADMAP.md.
 
@@ -31,7 +35,11 @@ bridge `window.__ASHEN_TEST__` has `start()`, `skip()`, `resume()`, `move(x, z)`
 `setHour(h)`, `tool(i)`, `keys([...])`, `camera(pos, target)`, `snapshot(name)` (needs `node art/blockbench/receiver.mjs`
 on :5299, writes work/screens/*.png), `dev()` (world, player, enemies, motion, ai, …), `ai()`, `aiDays(n)`, `motion()`,
 `body(i|'player')`, `push(i, force, dx, dz)`, `grabEnemy(i)`, `grip(cmd)`, `knock(i)`, `ambient()`, `killEnemy(i)`, `save()`,
-`load()`. In a hidden tab set `dev().camera` directly before `snapshot`. Any src edit reloads the page (HMR).
+`load()`, `horses()`, `mount(name)`, `dismount()`, `reins()`, `whistle()`, `spur()`, `cave(id)` (no id: leave),
+`caveState()`, `give(id, n)`, `flags()`, `gold()`. After `start()` call `skip()`, or the intro cinematic puts the player
+back in the village. Inside a cave do not use `move()` (it drops you onto the land below); set
+`dev().player.position` instead. In a hidden tab the game pauses:
+call `resume()` before driving it, set `dev().camera` directly before `snapshot`. Any src edit reloads the page (HMR).
 
 Hosting: every push to main runs .github/workflows/pages.yml (tests, `npm run build -- --base=/<repo>/`, GitHub Pages).
 Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobile check: Playwright with
@@ -47,7 +55,17 @@ Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobi
 - src/systems/ai/ — HUMANITY AI (perception, beliefs, emotions, utility actions, groups, camp life); see its README.
 - src/systems/motion/ — HUMANITY MOTION (rig adapter, IK, foot IK, balance, falls and get-ups, grappling); see its README.
 - src/systems/combat.js, archery.js, spellFx.js, combatEffects.js — fighting, arrows, fire, particles.
-- src/world/ — terrain (heightfield.js), sites, flora and Blockbench trees (trees.js, with a crown grid), rocks, water
+- src/systems/horses.js — horses: tie points, leading, tying, whistling, the riding controller (rideStep), road rider
+  groups; src/characters/horseAnimator.js (gaits, idles, spring mane/tail) and rider.js (seating, mount/dismount, IK
+  to stirrups and reins). Horse models load as one rigidly skinned mesh each (characters/models.js).
+- src/systems/goblins.js — goblin AI (hearing, light, alarms, Ukhai barks, ring fighting with lunging thrusts, the
+  specials: Lauerer leap and pin, Speier spores, Würger hook, Brecher charge, Trommler summons). src/systems/caves.js —
+  the cave interiors built from Codex's floor plans (data/goblins/caves.js) at CAVE_SKY above each hole: grid
+  colliders, stairs, drops, puzzles, nav, Blockbench props (world/props.js CAVE_PROPS); the rock itself is
+  systems/caveRock.js (density field → surface nets, baked vertex light and grime). Keep caves gloomy and filthy. Lore, tribes, the Ukhai language and the
+  Grubenwacht: data/goblins/lore.js; Brenna Rußhand's dialogue is guildTalk() in main.js. The holes themselves are
+  terrain: heightfield.js burrows (a rise plus a pit added in heightAt), drawn on a finer grid by terrain.js pitPatch.
+- src/world/ — terrain (heightfield.js), sites (hitching rails register tie points: world.ties), flora and Blockbench trees (trees.js, with a crown grid), rocks, water
   (water.js: surface on the terrain grid, mirrors the atmosphere's sky uniforms, and all shore content — reeds,
   lily colonies, stones, driftwood, leaping fish), sky (atmosphere.js, clouds.js), ambient effects (ambientFx.js:
   leaves from crowns, light shafts, fireflies), footprints (tracks.js, world.groundAt), Funken-style fires (fire.js).

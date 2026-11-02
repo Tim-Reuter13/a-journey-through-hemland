@@ -309,6 +309,27 @@ export function makeCart(scene, heightAt, x, z, ry) {
   return g;
 }
 
+/** A hitching rail: two posts with a bar worn smooth between them, rope wound round it, and a water trough
+ *  past one end. Returns the bar as a tie point for horses (systems/horses.js): (x, z) → (x2, z2) at height y. */
+export function makeHitchingRail(scene, heightAt, x, z, ry, { length = 3.4, trough = 1 } = {}) {
+  const base = heightAt(x, z), g = group(scene, x, base, z, ry), half = length / 2, c = Math.cos(ry), s = Math.sin(ry);
+  for (const side of [-1, 1]) {
+    const lx = side * half, gy = heightAt(x + lx * c, z - lx * s) - base;
+    blockOn(g, .24, 1.55 - gy, .24, 'timber', lx, gy - .3, 0, 0, { solid: true });
+    blockOn(g, .3, .1, .3, 'darkPlanks', lx, 1.25, 0);
+  }
+  blockOn(g, length + .24, .17, .17, 'bark', 0, 1.0, 0);
+  for (const lx of [-half * .55, half * .3]) blockOn(g, .22, .24, .22, pixelMaterial('clothLinen', { tint: 0x8a6e48 }), lx, .97, 0);
+  if (trough) {
+    const tx = trough * (half + 1.25), ty = heightAt(x + tx * c, z - tx * s) - base;
+    const t = group(g, tx, ty, 0, PI / 2);
+    blockOn(t, 1.9, .55, .7, 'darkPlanks', 0, 0, 0, 0, { solid: true });
+    blockOn(t, 1.7, .06, .5, pixelMaterial('water', { emissive: .12 }), 0, .44, 0, 0, { shadow: false });
+    for (const sx of [-1, 1]) blockOn(t, .14, .62, .82, 'timber', sx * .9, -.04, 0);
+  }
+  return { kind: 'rail', x: x - half * c, z: z + half * s, x2: x + half * c, z2: z - half * s, y: base + 1.08 };
+}
+
 export function makeFence(scene, heightAt, points) {
   for (let i = 0; i < points.length; i++) {
     const [x, z] = points[i], y = heightAt(x, z);

@@ -87,6 +87,11 @@ export function createAtmosphere(scene, sun, ambient) {
     }
   }
   const direction = new THREE.Vector3();
+  // Underground (a cave, systems/caves.js): no sun, no sky. The rock carries its own baked light (caveRock.js); this
+  // ambient lights the goblins, props and you, and the fog is a coloured haze rather than black.
+  let underground = 0;
+  const caveFog = new THREE.Color(0x0e0d0b), caveAmbient = new THREE.Color(0xb3a796), caveGround = new THREE.Color(0x4a4038);
+  function setUnderground(k, fog = null) { underground = k; if (fog !== null && fog !== undefined) caveFog.setHex(fog); }
   function update(dt, hour, camera, focus) {
     uniforms.uTime.value += dt;
     const angle = (hour - 6) / 24 * Math.PI * 2;
@@ -115,11 +120,19 @@ export function createAtmosphere(scene, sun, ambient) {
     ambient.groundColor.setHex(0x6f7848);
     scene.fog.color.copy(nightFog).lerp(dayFog, daylight).lerp(duskFog, sunset * .6);
     scene.fog.density = .0025 + (1 - daylight) * .0026;
+    if (underground > 0) {
+      const u = underground;
+      sun.intensity *= 1 - u; moon.intensity *= 1 - u;
+      ambient.intensity = THREE.MathUtils.lerp(ambient.intensity, .7, u);
+      ambient.color.lerp(caveAmbient, u); ambient.groundColor.lerp(caveGround, u);
+      scene.fog.color.lerp(caveFog, u); scene.fog.density = THREE.MathUtils.lerp(scene.fog.density, .034, u);
+      sky.visible = u < .5;
+    } else sky.visible = true;
     for (const { light, base, halo } of localLights) {
       const flicker = 1 + Math.sin(uniforms.uTime.value * 7 + light.id) * .075;
       light.intensity = base * (.5 + (1 - daylight) * 1.1) * flicker;
       halo.material.opacity = (.13 + (1 - daylight) * .32) * flicker;
     }
   }
-  return { update, collectLights, moon, uniforms };
+  return { update, collectLights, setUnderground, moon, uniforms };
 }

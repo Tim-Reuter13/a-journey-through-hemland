@@ -41,6 +41,11 @@ import { createMenu, loadSettings, saveSettings, setBarVisibility, SETTINGS_KEY 
 import { createTouchControls, prefersTouch, toggleFullscreen } from './ui/touchControls.js';
 import { createCharacterCreator, randomAppearance } from './ui/characterCreator.js';
 import { createWildlife } from './systems/wildlife.js';
+import { createHorses, RIDE_SPEEDS } from './systems/horses.js';
+import { createGoblins } from './systems/goblins.js';
+import { createCaves, CAVE_STYLE } from './systems/caves.js';
+import { CAVE_MOUTHS, caveMouth } from './world/sites/caveMouths.js';
+import { GUILD, GOBLIN_LORE, TRIBES } from './data/goblins/lore.js';
 import { createTracks } from './world/tracks.js';
 import { createAIManager } from './systems/ai/manager.js';
 import { campSchedule } from './systems/ai/camp.js';
@@ -233,6 +238,9 @@ const NAMED = [
     appearance: { body: 'female', build: 'slim', skin: 0, hair: 'long', hairColor: 6, eyes: 4, face: 'calm' }, equipment: { armor: 'aeltestenrobe', feet: 'lederschuhe' }, tints: { robe: '#d8d2c0', shawl: '#4a5a6a' } },
   { id: 'steward', name: 'Severin', role: 'KÖNIGLICHER VOGT', at: (seat => seat && { x: seat.x + 2.2, z: seat.z + 1.4, facing: seat.facing })(poiIn(roomNear(['keep'], SITES.castle), ['seat'])),
     appearance: { body: 'male', build: 'slim', skin: 1, hair: 'ponytail', hairColor: 0, beard: 'moustache', eyes: 1, face: 'calm' }, equipment: { armor: 'aeltestenrobe', feet: 'lederschuhe' }, tints: { robe: '#2f2a3a', shawl: '#8a6a2a' } },
+  // The Grubenwacht's master keeps her table in the king's guard barracks; the Crown pays her, she pays for ears.
+  { id: 'brenna', name: GUILD.master, role: GUILD.masterRole, at: poiIn(roomNear(['barracks'], SITES.city), ['workstation', 'table']),
+    appearance: { body: 'female', build: 'strong', skin: 3, hair: 'short', hairColor: 0, eyes: 3, face: 'weathered' }, equipment: { weapon: 'waechterklinge', armor: 'wachpanzer', hands: 'lederhandschuhe', feet: 'wanderstiefel' }, tints: {} },
   { id: 'king', name: 'Albrecht', role: 'KÖNIG', at: poiIn(roomNear(['keep'], SITES.castle), ['seat']), pose: 'sit',
     appearance: { body: 'male', build: 'strong', skin: 2, hair: 'long', hairColor: 7, beard: 'full', eyes: 0, face: 'weathered' }, equipment: { armor: 'aeltestenrobe', feet: 'wanderstiefel', cloak: 'roter_umhang' }, tints: { robe: '#5e2224', shawl: '#c9a24a' } },
 ];
@@ -378,6 +386,34 @@ for (const npc of npcs) {
   scene.add(npc.model);
 }
 
+// ── HORSES (systems/horses.js): Asche, the dapple grey at the village rail, is the wanderer's to lead, tie,
+// ride and whistle for; travellers' horses wait at the inn and the outposts; riders keep the king's road busy.
+const horses = createHorses({ scene, world, createCharacter, sound: (...args) => horseSound(...args), print: (x, z, yaw, y) => tracks.stamp(x, z, yaw, 'horseshoe', 1, y),
+  bark: (model, line) => { if (model.position.distanceTo(player.position) < 34) barks.say(model, line); } });
+for (const t of world.ties) horses.addTie(t);
+const tieById = id => world.ties.find(t => t.id === id);
+const asche = horses.add({ variant: 'grey', name: 'Asche', owner: 'player', x: 7.6, z: -1.6, tie: tieById('village_rail') });
+for (const [id, variant, name] of [['inn_rail', 'chestnut', 'Fuchs'], ['outpost_west_rail', 'black', 'Rabe'], ['outpost_east_rail', 'bay', 'Brandt']]) {
+  const t = tieById(id); if (t) horses.add({ variant, name, tie: t });
+}
+/** A rider for the roads: dressed like the people on foot, seated by characters/rider.js. */
+function roadRider(id, name, body, equipment, extras = []) {
+  const model = dressed({ appearance: { ...randomAppearance(`rider-${id}`), name, body }, equipment, extras, tints: {} });
+  scene.add(model);
+  return { id, name, model, animator: createAnimator(model) };
+}
+const GUARD_KIT = { armor: 'wachpanzer', head: 'wachhelm', feet: 'wanderstiefel' };
+horses.addGroup({ name: 'Königliche Streife', route: KING_ROAD, pace: RIDE_SPEEDS[1], start: .04, dir: 1, spacing: 4,
+  members: [['wulf', 'Wulf', 'male', 'black'], ['ilka', 'Ilka', 'female', 'bay'], ['gerd', 'Gerd', 'male', 'chestnut']].map(([id, name, body, variant]) => ({ ...roadRider(id, name, body, GUARD_KIT), horse: horses.add({ variant, name: `Pferd von ${name}`, x: 14, z: 3 }) })),
+  lines: { greet: ['Sichere Straße, Wanderer.', 'Halt dich an die Straße, da draußen sind Plünderer.', 'Für König und Krone.'], block: 'Platz da, die Wache reitet!' } });
+horses.addGroup({ name: 'Königsbote', route: KING_ROAD, pace: RIDE_SPEEDS[2], start: .62, dir: -1,
+  members: [{ ...roadRider('bote', 'Lenz', 'male', { armor: 'reisekleidung', feet: 'wanderstiefel', cloak: 'reiseumhang' }, ['satchel']), horse: horses.add({ variant: 'palomino', name: 'Goldhuf', x: 14, z: 3 }) }],
+  lines: { greet: ['Botschaft für Dämmerwald, ich hab es eilig!', 'Kronwacht grüßt!'], block: 'Aus dem Weg, Botschaft des Königs!' } });
+horses.addGroup({ name: 'Händler mit Bedeckung', route: KING_ROAD, pace: RIDE_SPEEDS[0], start: .3, dir: 1, spacing: 0,
+  members: [{ ...roadRider('odo', 'Odo', 'male', { armor: 'bauernkleidung', feet: 'lederschuhe', cloak: 'reiseumhang' }, ['satchel']), horse: horses.add({ variant: 'paint', name: 'Flecke', x: 14, z: 3 }) },
+    { ...roadRider('hagen', 'Hagen', 'male', GUARD_KIT), beside: true, horse: horses.add({ variant: 'bay', name: 'Pferd von Hagen', x: 14, z: 3 }) }],
+  lines: { greet: ['Tuch aus Kronwacht, Salz, Nadeln! Komm nach Dämmerwald, da pack ich aus.', 'Gute Reise.'], block: 'Vorsicht, die Pferde!' } });
+
 const enemies = [
   // The plunderers' camp lies far west in the autumn forest (hemland.js SITES.camp); wolves roam the woods.
   { kind: 'bandit', name: 'Aschenplünderer', x: -325.8, z: 151.9, hp: 80, maxHp: 80, shield: true },
@@ -398,6 +434,82 @@ for (const e of enemies) {
   e.animator = createAnimator(e.model);
   e.cooldown = Math.random() * 1.5; e.stride = 0; e.dead = false;
 }
+// ── GOBLINS and their CAVES (systems/goblins.js, systems/caves.js; lore in data/goblins/lore.js). A cave's inside is
+// built the first time you go in; its goblins live while you are inside; what you opened and whom you killed is kept.
+const caveMouthAt = Object.fromEntries(Object.entries(CAVE_MOUTHS).map(([id, site]) => [id, caveMouth(SITES[site], world.terrainHeightAt)]));
+const caves = createCaves({ scene, world, physics, mouths: caveMouthAt });
+const goblins = createGoblins({ scene, enemies, createCharacter, createAnimator, equipItem, player, hurt: amount => hurt(amount), guard: () => combat.guarding,
+  noise: () => perceivablePlayer(), sound: (...args) => goblinSound(...args), effects: { spray: (...args) => combat.effects.spray(...args) },
+  bark: (model, ukhai, gloss) => { if (model.position.distanceTo(player.position) < 30) barks.say(model, game.flags.guild_joined ? `${ukhai} (${gloss})` : ukhai); },
+  knockDown: (dir, force) => motion.knockDown(playerModel, dir, force), fireNear: (p, r) => p.distanceTo(player.position) < r && (player.tool === 1 || combat.action?.kind === 'cast') });
+goblins.setSummon((drummer, n) => {
+  // The drum wakes whoever still sleeps or works in this cave; if none are left, more come out of the dark.
+  let called = 0;
+  for (const o of goblins.list) if (called < n && o !== drummer && !o.dead && o.cave === drummer.cave && o.state !== 'fight') { o.wakeIn = .4 + called * .3; called++; }
+  const cave = inCave;
+  if (cave && called < n) for (const spot of cave.goblins) {
+    if (called >= n) break;
+    if (spot.at.distanceTo(player.position) < 16 || spot.at.distanceTo(drummer.model.position) > 40) continue;
+    const g = goblins.spawn({ at: spot.at.clone(), tribe: cave.plan.tribe, kind: Math.random() < .5 ? 'dolch' : 'speer', group: 'horde', state: 'guard' }, cave.nav, { cave: cave.id });
+    g.transient = true; g.wakeIn = .3; called++;
+  }
+  return called;
+});
+let inCave = null, caveLamp = null;
+const fade = Object.assign(document.createElement('div'), { id: 'cave-fade' });
+Object.assign(fade.style, { position: 'fixed', inset: '0', background: '#000', opacity: '0', pointerEvents: 'none', transition: 'opacity .45s', zIndex: '40' });
+document.body.append(fade);
+const caveFlag = c => `cave_${c.index}`, killFlag = c => `cavek_${c.index}`;
+// Save state as compact bitmasks over the plan's entity indices (flags hold short strings).
+const toBits = (indices, size) => { const b = new Array(Math.ceil(size / 5)).fill(0); for (const i of indices) b[Math.floor(i / 5)] |= 1 << (i % 5); return b.map(v => v.toString(32)).join(''); };
+const fromBits = text => { const out = []; [...String(text || '')].forEach((ch, k) => { const v = parseInt(ch, 32); for (let i = 0; i < 5; i++) if (v & 1 << i) out.push(k * 5 + i); }); return out; };
+function saveCaveState(cave) {
+  const ids = cave.plan.entities.map((e, i) => cave.opened.has(e.id) ? i : -1).filter(i => i >= 0);
+  game.flags[caveFlag(cave)] = toBits(ids, cave.plan.entities.length);
+  const lit = [...cave.opened].filter(id => id.startsWith('lit:')).map(id => id.slice(4)).join(',');
+  if (lit) game.flags[`cavel_${cave.index}`] = lit.slice(0, 60);
+}
+function enterCave(id, { fromSave = false } = {}) {
+  if (horses.riding) { horses.dismount(player, true); playerModel.rotation.set(0, player.yaw, 0); }
+  if (horses.led) horses.dropReins(horses.led);
+  fade.style.opacity = '1';
+  const cave = caves.build(id);
+  const opened = fromBits(game.flags[caveFlag(cave)]).map(i => cave.plan.entities[i]?.id).filter(Boolean);
+  const lit = String(game.flags[`cavel_${cave.index}`] || '').split(',').filter(Boolean).map(g => `lit:${g}`);
+  cave.restore([...opened, ...lit]);
+  const killed = new Set(fromBits(game.flags[killFlag(cave)]));
+  cave.goblins.forEach((def, i) => { if (killed.has(i)) return; const g = goblins.spawn({ ...def, at: def.at.clone(), tribe: cave.plan.tribe, chief: def.type === 'chief' }, cave.nav, { cave: id }); g.caveIndex = i; });
+  player.position.copy(cave.spawnAt); player.yaw = cave.spawnYaw; player.pitch = -.08; player.velocityY = 0; snapPlayerView();
+  world.setUnderground(1, CAVE_STYLE[id].fog);
+  // Your own eyes get used to the dark: a faint warm light around you that only the caves need.
+  caveLamp?.(); caveLamp = world.lights.follow(playerModel, { color: 0xffd6a0, intensity: 2.4, distance: 10 });
+  inCave = cave; game.flags.in_cave = id;
+  setTimeout(() => { fade.style.opacity = '0'; }, 250);
+  if (!fromSave) toast(`${cave.plan.name.toUpperCase()} · ${cave.plan.summary}`, 7000, 'lore');
+}
+function leaveCave({ teleport = true } = {}) {
+  const cave = inCave; if (!cave) return;
+  saveCaveState(cave);
+  goblins.despawn(g => g.cave === cave.id);
+  inCave = null; delete game.flags.in_cave;
+  world.setUnderground(0); caveLamp?.(); caveLamp = null;
+  if (teleport) {
+    fade.style.opacity = '1';
+    const m = caveMouthAt[cave.id], out = v3(m.exit.x, 0, m.exit.z);
+    player.position.set(out.x, world.heightAt(out.x, out.z), out.z); player.yaw = m.facing + Math.PI; snapPlayerView();
+    setTimeout(() => { fade.style.opacity = '0'; }, 250);
+  }
+  saveGame(false);
+}
+function caveLoot(tier) {
+  const goods = tier >= 3 ? { heiltrank: 2, ausdauertrank: 1, bernstein: 2 } : tier === 2 ? { heiltrank: 1, knochenamulett: 1, pfeil: 6 } : { reisefladen: 1, pfeil: 4 };
+  const gold = tier >= 3 ? 120 + Math.floor(Math.random() * 40) : tier === 2 ? 35 + Math.floor(Math.random() * 20) : 8 + Math.floor(Math.random() * 12);
+  const got = [];
+  for (const [item, n] of Object.entries(goods)) if (inventory.add(item, n)) got.push(`${ITEMS[item].name}${n > 1 ? ` × ${n}` : ''}`);
+  player.gold += gold; inventoryChanged();
+  return `${gold} Kronen${got.length ? ' · ' + got.join(' · ') : ''}`;
+}
+
 // ── HUMANITY AI (systems/ai): every enemy is a person (or a wolf) with senses, a temperament, fears
 // and a day. Camp members keep a routine and warn before they fight; road thieves may ask for a toll;
 // whoever yields can be robbed or let go, and a spared face may turn up again on the road.
@@ -448,7 +560,13 @@ const tracks = createTracks(scene, { heightAt: world.terrainHeightAt, groundAt: 
 const PAWS = { wolf: 'paw', fox: 'paw', hare: 'paw', deer: 'hoof' };
 function leaveTracks(dt) {
   const near = p => Math.abs(p.x - player.position.x) < 40 && Math.abs(p.z - player.position.z) < 40;
-  if (!player.fly) tracks.step(player, player.position.x, player.position.y, player.position.z, 'boot');
+  // In the saddle the horse prints its hooves (horses.js); the rider leaves no boots.
+  if (inCave) {
+    tracks.step(player, player.position.x, player.position.y, player.position.z, 'boot', 1, inCave.softAt(player.position.x, player.position.z, player.position.y));
+    for (const g of goblins.list) if (!g.dead) tracks.step(g, g.model.position.x, g.model.position.y, g.model.position.z, 'goblin', 1, inCave.softAt(g.model.position.x, g.model.position.z, g.model.position.y));
+    tracks.update(dt); return;
+  }
+  if (!player.fly && !horses.riding) tracks.step(player, player.position.x, player.position.y, player.position.z, 'boot'); else tracks.forget(player);
   for (const n of npcs) if (n.model.visible && near(n.model.position)) tracks.step(n, n.model.position.x, n.model.position.y, n.model.position.z, 'boot');
   for (const e of enemies) if (!e.dead && e.model.visible && near(e.model.position)) tracks.step(e, e.model.position.x, e.model.position.y, e.model.position.z, PAWS[e.kind] || 'boot'); else tracks.forget(e);
   for (const an of wildlife.animals) if (!an.dead && PAWS[an.kind] && near(an.group.position)) tracks.step(an, an.group.position.x, an.group.position.y, an.group.position.z, PAWS[an.kind]); else tracks.forget(an);
@@ -666,8 +784,24 @@ function changeQuest(id) {
   game.quest = id; objective(); updateJournal(); saveGame(false);
   toast(id ? `${stageOf(id).title.toUpperCase()} · ${stageOf(id).objective}` : 'KAPITEL ABGESCHLOSSEN · A JOURNEY THROUGH HEMLAND', 5300);
 }
+// Asche in the save: where she stands, which way, and whether she is tied (to which rail or tree).
+function horseSave() {
+  const h = asche, mode = h.rider === 'player' ? 'ridden' : h.mode === 'tied' ? 'tied' : 'free';
+  return [h.pos.x.toFixed(1), h.pos.z.toFixed(1), h.yaw.toFixed(2), mode, h.tie?.point.id || ''].join('|');
+}
+function horseLoad(text) {
+  if (horses.riding) { horses.dismount(player, true); playerModel.rotation.set(0, player.yaw, 0); }
+  const [x, z, yaw, mode, tie] = String(text || '').split('|');
+  const point = mode === 'tied' && horses.tieById(tie);
+  if (!text || !Number.isFinite(+x) || !Number.isFinite(+z)) horses.place(asche, { x: 7.6, z: -1.6, tie: tieById('village_rail') });
+  else if (point) horses.place(asche, { x: +x, z: +z, tie: point });
+  // Saved in the saddle: she waits beside you.
+  else if (mode === 'ridden') horses.place(asche, { x: player.position.x + Math.cos(player.yaw) * 2.2, z: player.position.z - Math.sin(player.yaw) * 2.2, yaw: player.yaw });
+  else horses.place(asche, { x: +x, z: +z, yaw: +yaw || 0 });
+}
 function saveGame(notify = true) {
   try {
+    game.flags.horse = horseSave();
     localStorage.setItem(saveKey, encodeSave(player, game, enemies, relationship, worldClock.hour, rpg.state));
     game.lastSave = performance.now(); show('continue', true);
     if (notify) toast('SPIEL GESPEICHERT');
@@ -683,6 +817,9 @@ function loadGame() {
     player.position.y = world.heightAt(player.position.x, player.position.z);
     player.yaw = data.yaw; player.pitch = data.pitch; player.mode = data.perspective; snapPlayerView();
     game.quest = data.quest; game.flags = data.flags; worldClock.hour = data.hour; life.skipTo(data.hour);
+    horseLoad(game.flags.horse);
+    if (inCave) leaveCave({ teleport: false });
+    if (game.flags.in_cave && caveMouthAt[game.flags.in_cave]) enterCave(game.flags.in_cave, { fromSave: true });
     Object.assign(relationship, data.relationships);
     rpg.restore(data.rpg); rpg.state.level = player.level; rpg.state.xp = player.xp;
     data.enemies.forEach((state, i) => { const e = enemies[i]; if (!e) return; e.hp = Math.min(e.maxHp, state.hp); e.dead = state.dead || e.hp <= 0; e.loot = e.dead ? state.loot ?? corpseLoot(e) : null; if (state.ai) ai.restore(e, state.ai); });
@@ -708,7 +845,8 @@ function resetGame(clearSave = true) {
     if (e.look && e.model.userData.corpseKey) { const { parts, tints } = outfitFor(e.look.equipment); restyleCharacter(e.model, { outfit: [...parts, ...(e.look.extras || [])], tints }); e.model.userData.corpseKey = null; if (e.look.equipment.weapon) equipItem(e.model, WEAPON_MODELS[e.look.equipment.weapon]); }
   }
   physics.release();
-  resetCharacter(player); rpg.reset(); keys.clear(); combat.reset(); firstPerson.reset(); talkingNPC=null;
+  if (inCave) leaveCave({ teleport: false });
+  resetCharacter(player); rpg.reset(); keys.clear(); combat.reset(); firstPerson.reset(); talkingNPC=null; horseLoad(null);
   syncDropBags();
   if (game.modal === 'inventory') inventoryUI.open();
   stopVoice(); game.cinematic = null; game.cinematicTime = 0;
@@ -915,9 +1053,60 @@ function speakTo(npc) {
   const close = () => setModal(null);
   // People outside the village (Rauk) get their entry on first meeting.
   (relationship[npc.id] ??= { trust: 0, met: false, gifts: 0, memories: [] }).met = true;
+  if (npc.id === 'brenna') { guildTalk(npc); return; }
   const node = dialogue.start(npc.storyId);
   if (node?.text) { showNode(npc, node, true); return; }
   dialogLine(npc, npc.lines[0] || '…', [...(npc.trader ? [['Handeln · Waren ansehen', () => openInventory('merchant')]] : []), ['Leb wohl.', close]]);
+}
+// ── The Grubenwacht (data/goblins/lore.js GUILD). Brenna Rußhand buys goblin ears, pays the bounty on a chief for the
+// token taken from the body, and hands out the extermination contracts. Joining also teaches you what the goblins'
+// shouts mean (their barks get a gloss). Flags: guild_joined; gw_<contract> 1 = taken, 2 = paid; gw_ears = ears sold.
+const CHIEF_TOKENS = { schaedelsaenger: 'voshs_horn', pilzmuetter: 'ghasts_krone', kettenbrecher: 'ulgraks_kette' };
+const COUNTING = ['Gezählt.', 'Frisch. Gut.', 'Die Krone dankt. Ich auch, ein bisschen.', 'Riecht nach Höhle. Also echt.', 'Mehr davon.'];
+function guildTalk(npc, text) {
+  const f = game.flags, counts = inventory.counts(), ears = counts.goblinohr || 0, again = line => guildTalk(npc, line);
+  const say = (line, options) => { dialogLine(npc, line, options); $('dialog-line').style.whiteSpace = 'pre-line'; };
+  if (!f.guild_joined) {
+    say(text || GUILD.pitch, [
+      ['Ich bin dabei. Was gibt es zu tun?', () => {
+        f.guild_joined = 1; for (const c of GUILD.contracts) f[`gw_${c.id}`] ??= 1;
+        toast(`${GUILD.name.toUpperCase()} · AUFTRÄGE ERHALTEN`, 3600);
+        again('Gut. Hier sind die Aufträge. Und hör hin, wenn sie brüllen: Ich bring dir bei, was ihr Gebrüll heißt. Wer versteht, was sie rufen, lebt länger.');
+      }],
+      ['Wer sind diese Goblins?', () => again(`${GOBLIN_LORE.summary}
+
+${GOBLIN_LORE.change}`)],
+      ['Leb wohl.', () => setModal(null)]]);
+    return;
+  }
+  const options = [];
+  if (ears) options.push([`${ears} ${ears === 1 ? 'Ohr' : 'Ohren'} abgeben · ${ears * GUILD.earPrice} Kronen`, () => {
+    for (let k = 0; k < ears; k++) inventory.remove('goblinohr');
+    player.gold += ears * GUILD.earPrice; f.gw_ears = (f.gw_ears || 0) + ears;
+    let line = `${ears} ${ears === 1 ? 'Ohr' : 'Ohren'}, ${ears * GUILD.earPrice} Kronen. ${COUNTING[f.gw_ears % COUNTING.length]}`;
+    const ten = GUILD.contracts.find(c => c.id === 'c_ears');
+    if (f.gw_ears >= 10 && f.gw_c_ears === 1) { f.gw_c_ears = 2; player.gold += ten.reward; toast(`AUFTRAG ERFÜLLT · ${ten.title}`, 3600); line += ` Und das sind zehn. ${ten.reward} obendrauf, wie versprochen.`; }
+    inventoryChanged(); again(line);
+  }]);
+  for (const c of GUILD.contracts) {
+    const token = CHIEF_TOKENS[c.chief];
+    if (c.chief && f[`gw_${c.id}`] === 1 && counts[token]) options.push([`Kopfgeld: ${ITEMS[token].name} · ${c.reward} Kronen`, () => {
+      inventory.remove(token); player.gold += c.reward; f[`gw_${c.id}`] = 2; inventoryChanged(); toast(`AUFTRAG ERFÜLLT · ${c.title}`, 3600);
+      again(`${TRIBES[c.chief].chief}. Tot. Ich schreib's ins Buch, und die Krone schreibt dir ${c.reward} Kronen gut. Ihre Leute werden einen neuen wählen. Das tun sie immer.`);
+    }]);
+  }
+  options.push(['Welche Aufträge gibt es?', () => again(GUILD.contracts.map(c => `${f[`gw_${c.id}`] === 2 ? '✓' : '•'} ${c.title}: ${c.objective}${c.id === 'c_ears' && f.gw_c_ears !== 2 ? ` (${Math.min(10, f.gw_ears || 0)}/10)` : ''} · ${c.reward} Kronen`).join('\n'))]);
+  options.push(['Erzähl mir von den Stämmen.', () => say('Drei Stämme hausen in der Aschmark. Welcher?', [
+    ...Object.values(TRIBES).map(t => [`${t.name}`, () => again(`${t.name}, bei ihnen ${t.ukhai}. Häuptling: ${t.chief}. Sie hausen in ${SITES[CAVE_MOUTHS[t.cave]].name}.
+
+${t.look}
+
+${t.way}
+
+${t.weapons}`)]),
+    ['Zurück.', () => again()]])]);
+  options.push(['Leb wohl.', () => setModal(null)]);
+  say(text || 'Die Grubenwacht zahlt. Was hast du für mich?', options);
 }
 // The story's state lives in game.flags, relationships, the inventory and the quest stage.
 const dialogue = createDialogue({ story: STORY, state: {
@@ -1020,9 +1209,10 @@ function updateJournal() {
   }
 }
 function updateHUD() {
-  setBarVisibility(player.hp, player.maxHp, player.stamina, player.maxStamina, 1, 1);
+  const steed = horses.mounted ? horses.ride.horse.ride : null, stamina = steed ? steed.stamina : player.stamina, maxStamina = steed ? 100 : player.maxStamina;
+  setBarVisibility(player.hp, player.maxHp, stamina, maxStamina, 1, 1);
   $('health-fill').style.width = `${100 * player.hp / player.maxHp}%`; $('health-text').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
-  $('stamina-fill').style.width = `${100 * player.stamina / player.maxStamina}%`; $('stamina-text').textContent = `${Math.ceil(player.stamina)} / ${player.maxStamina}`;
+  $('stamina-fill').style.width = `${100 * stamina / maxStamina}%`; $('stamina-text').textContent = steed ? `${horses.ride.horse.name} · ${Math.ceil(stamina)}` : `${Math.ceil(stamina)} / ${maxStamina}`;
   $('level').textContent = `STUFE ${player.level} · WANDERER`;
   const hour = Math.floor(worldClock.hour), minute = Math.floor(worldClock.hour % 1 * 60);
   const period = hour < 6 || hour >= 21 ? 'Nacht' : hour < 10 ? 'Morgen' : hour < 17 ? 'Tag' : 'Abend';
@@ -1036,6 +1226,7 @@ function updateHUD() {
   touch?.setTool(player.tool);
 }
 function nearestInteraction() {
+  if (horses.riding) return horses.mounted ? { type: 'ride', horse: horses.ride.horse } : null;
   let best = null, distance = 3.8;
   for (const npc of npcs) { if (npc.dead) continue; const d = Math.hypot(player.position.x - npc.x, player.position.z - npc.z); if (d < distance) { best = { type: 'npc', npc }; distance = d; } }
   const rauk = enemies.find(e => e.storyId && e.calm && !e.dead);
@@ -1087,11 +1278,19 @@ function nearestInteraction() {
   // An arrow you look at within reach (in the ground, a wall, a corpse) comes before everything else.
   const arrow = combat.archery?.nearestArrow(player.position, camera.position, camera.getWorldDirection(v3(0, 0, 0)));
   if (arrow) best = { type: 'arrow', arrow };
+  // Cave mouths outside; inside, levers, chains, pillars, braziers, idols, chests, notes, cages and the way out.
+  if (!inCave) for (const [id, m] of Object.entries(caveMouthAt)) { const d = Math.hypot(player.position.x - m.door.x, player.position.z - m.door.z); if (d < Math.min(distance, m.hole + 1.5)) { best = { type: 'cave', id }; distance = d; } }
+  else { const c = inCave.nearest(player.position); if (c && (!best || best.type === 'npc')) best = { type: 'cavething', choice: c }; }
+  // Horses: with the reins in hand a rail or a tree in reach ties it up; otherwise E mounts whatever horse is near.
+  const led = horses.led, tiePoint = led && horses.tieNear(player.position.x, player.position.z, 2.4);
+  if (tiePoint) best = { type: 'tie', horse: led, point: tiePoint };
+  else { const h = led || horses.nearest(player.position.x, player.position.z, 3.2); if (h && h.pos.distanceTo(player.position) < Math.min(distance + .6, 3.6)) best = { type: 'horse', horse: h }; }
   return best;
 }
 function interact() {
   if (player.mode === 'first') firstPerson.reach();
   if (game.cinematic) { endCinematic(); return; }
+  if (horses.riding) { horses.dismount(player); return; }
   const target = nearestInteraction();
   if (!target) { toast('HIER GIBT ES NICHTS ZU INTERAGIEREN'); return; }
   if (target.type === 'npc') speakTo(target.npc);
@@ -1113,6 +1312,61 @@ function interact() {
   else if (target.type === 'story') {
     if (inventory.add(target.pickup.item)) { toast(`${ITEMS[target.pickup.item].name} genommen`, 2400); inventoryChanged(); storyEvent({ type: 'item', item: target.pickup.item }); }
   }
+  else if (target.type === 'horse') mountHorse(target.horse);
+  else if (target.type === 'cave') enterCave(target.id);
+  else if (target.type === 'cavething') {
+    const r = inCave.use(target.choice, player);
+    if (r.exit) { leaveCave(); return; }
+    if (r.sound) combat.effects.sound(r.sound === 'lever' || r.sound === 'stone' ? 'impact' : 'parry');
+    if (r.loot) toast(`TRUHE · ${caveLoot(r.loot)}`, 4200);
+    if (r.free) { toast(`BEFREIT · ${r.free}`, 7000, 'lore'); awardXP(30); }
+    if (r.toast) toast(r.toast, r.lore ? 11000 : 2600, r.lore ? 'lore' : '');
+    if (r.solved) awardXP(20);
+    saveCaveState(inCave);
+  }
+  else if (target.type === 'tie') { horses.tie(target.horse, target.point); player.tieT = .9; toast(`${target.horse.name.toUpperCase()} ANGEBUNDEN`, 1600); }
+}
+// ── The wanderer and the horses: reins (T), whistle (H), mounting (E), riding (systems/horses.js).
+const rideKeys = { spur: false, jump: false, padSprint: false };
+let lastLook = 0;
+function mountHorse(h) {
+  if (combat.action || motion.locked(playerModel) || motion.heldBy(playerModel) || motion.holding(playerModel) || physics.holding) return;
+  if (!horses.mount(h, player)) return;
+  player.walkMode = false; combat.setGuard(false); combat.archery?.cancel();
+  if (!game.flags.horse_hint) { game.flags.horse_hint = true; toast(tip('REITEN · W TRAB · SHIFT TIPPEN: SCHNELLER, HALTEN: TEMPO HALTEN · S ZÜGELN · FESTSTELLTASTE SCHRITT · LEERTASTE SPRINGEN · E ABSITZEN', 'REITEN · STICK LENKT · WEIT DRÜCKEN: GALOPP · NUTZEN: ABSITZEN'), 7000); }
+}
+function horseReins() {
+  if (horses.riding || game.paused || game.cinematic) return;
+  const led = horses.led;
+  if (led) { horses.dropReins(led); toast(`ZÜGEL LOSGELASSEN · ${led.name.toUpperCase()} BLEIBT STEHEN`, 1800); return; }
+  const h = horses.nearest(player.position.x, player.position.z, 3.2);
+  if (!h) return;
+  horses.lead(h); toast(`${h.name.toUpperCase()} AM ZÜGEL · AN EINEM BALKEN ODER BAUM MIT E ANBINDEN`, 2800);
+}
+function horseWhistle() {
+  if (horses.riding || game.paused || game.cinematic) return;
+  player.whistleT = .8;
+  const r = horses.whistle(player);
+  if (r === 'tied') toast(`${asche.name.toUpperCase()} IST ANGEBUNDEN UND WIEHERT NUR`, 2000);
+}
+/** One simulation step in the saddle: the keys become the rider's aids (horses.control). */
+function updateRider(dt) {
+  const pad = touchMode && touch.stick.mag > 0 ? touch.stick : null;
+  const forward = clamp((keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + (pad?.y ?? 0), -1, 1);
+  const strafe = clamp((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + (pad?.x ?? 0), -1, 1);
+  const shift = keys.has('ShiftLeft') || keys.has('ShiftRight') || !!pad?.sprint;
+  horses.control({ forward, strafe, cameraYaw: player.yaw, spur: rideKeys.spur || !!pad?.sprint && !rideKeys.padSprint, hold: shift, walk: !!player.walkMode || !!(pad && pad.mag < .5),
+    jump: rideKeys.jump, mouseMoved: performance.now() - lastLook < 150 }, dt, player);
+  rideKeys.spur = false; rideKeys.jump = false; rideKeys.padSprint = !!pad?.sprint;
+  player.velocity ??= v3(0, 0, 0); player.velocityY = 0; player.grounded = true; player.swimming = false; player.sneaking = false;
+  const h = horses.ride?.horse;
+  if (h) { player.velocity.set(-Math.sin(h.yaw) * h.speed, 0, -Math.cos(h.yaw) * h.speed); player.moveSpeed = 0; player.modelYaw = h.yaw; }
+  if (!combat.action && !combat.guarding) player.stamina = Math.min(player.maxStamina, player.stamina + 18 * dt);
+  if (!horses.riding) {
+    // Down from the saddle this step: standing beside the horse, facing the way it faces.
+    player.velocity.set(0, 0, 0); player.moveSpeed = 0; player.pace = 0; player.heading = player.modelYaw;
+    playerModel.rotation.set(0, player.modelYaw, 0); playerModel.position.copy(player.position);
+  }
 }
 function raukSpeaker(e) {
   e.speaker ??= { id: 'bandit_captain', storyId: 'bandit_captain', name: 'Rauk', role: 'HAUPTMANN DES WESTLAGERS', model: e.model, lines: [] };
@@ -1128,6 +1382,13 @@ function corpseLoot(enemy) {
   if (enemy.archer) add('pfeil', 3 + Math.floor(Math.random() * 6));
   else add('leder', roll < .5 ? 2 : 1);
   if (enemy.storyId) { add('aschenrüstung'); if (!game.flags.captain_spared) add('payment_order'); }
+  if (enemy.goblin) {
+    for (const key of Object.keys(loot)) delete loot[key];
+    add('goblinohr', Math.random() < .2 ? 1 : 2);
+    if (enemy.gkind === 'speier' || enemy.tribe === 'pilzmuetter' && roll < .3) add('sporenbeutel');
+    if (enemy.gkind === 'trommler' || enemy.tribe === 'schaedelsaenger' && roll < .25) add('knochenamulett');
+    if (enemy.chief) add({ schaedelsaenger: 'voshs_horn', pilzmuetter: 'ghasts_krone', kettenbrecher: 'ulgraks_kette' }[enemy.tribe]);
+  }
   return loot;
 }
 // Looted corpses lose the clothes and weapons that were taken from them.
@@ -1160,12 +1421,14 @@ function damageEnemy(enemy, amount, magic = false) {
   // Striking someone you let go, or who yielded: they turn on you (or run), and it is not forgotten.
   if (yielding) { enemy.calm = false; enemy.ai.hostility = enemy.ai.traits.aggression > .6 ? 'hostile' : 'fleeing'; enemy.ai.disarmed = false; }
   const stats = itemStats();
+  if (enemy.goblin) { amount *= goblins.damageScale(enemy, { magic, from: player.position }); goblins.struck(enemy); }
   amount = Math.round(amount);
   enemy.hp -= amount;
   const pos = enemy.model.position.clone().add(v3(0, 1.9, 0));
 
   if (enemy.hp <= 0) {
-    enemy.dead = true; enemy.model.visible = true; player.kills++; player.gold += enemy.kind === 'bandit' ? 17 : 7;
+    enemy.dead = true; enemy.model.visible = true; player.kills++; player.gold += enemy.kind === 'bandit' ? 17 : enemy.goblin ? 0 : 7;
+    if (enemy.goblin) { goblinDied(enemy, magic); return; }
     ai.died(enemy, { cruel: yielding });
     if (enemy.ai?.group === 'camp' && !enemy.storyId) game.flags.camp_loss_day = game.flags.ai_day || 0;
     if (enemy.settler !== undefined) game.flags.camp_lost = (game.flags.camp_lost || 0) | 1 << enemy.settler;
@@ -1183,6 +1446,25 @@ function damageEnemy(enemy, amount, magic = false) {
     saveGame(false);
   }
 }
+/** A goblin dies: a ragdoll, its ears and spoils, experience; a chief's death is told, its token taken. */
+function goblinDied(enemy, magic) {
+  goblins.died(enemy);
+  const from = enemy.model.position.clone().sub(player.position).setY(0).normalize();
+  enemy.ragdoll = createRagdoll(physics, enemy.model, { impulse: from.multiplyScalar(magic ? 30 : 20).add(v3(0, 8, 0)), point: enemy.model.position.clone().add(v3(0, 1, 0)) });
+  const xp = enemy.chief ? 150 : ['brecher', 'speier', 'wuerger', 'schleicher', 'trommler'].includes(enemy.gkind) ? 40 : 15;
+  awardXP(xp); enemy.loot = corpseLoot(enemy);
+  if (inCave && enemy.caveIndex !== undefined) { const killed = new Set(fromBits(game.flags[killFlag(inCave)])); killed.add(enemy.caveIndex); game.flags[killFlag(inCave)] = toBits([...killed], inCave.goblins.length); }
+  if (enemy.chief) { game.flags[`chief_${enemy.tribe}`] = true; toast(`${enemy.name.toUpperCase()} IST TOT · +${xp} EP`, 6000); }
+  else toast(`${enemy.name.toUpperCase()} · +${xp} EP`, 1800);
+}
+function goblinSound(kind, at, strength = 1) {
+  if (!game.started || game.paused) return;
+  if (kind === 'hit' || kind === 'crash') { combat.effects.sound('impact'); return; }
+  if (kind === 'block') { combat.effects.sound('parry'); return; }
+  _earRight.set(1, 0, 0).applyQuaternion(camera.quaternion); _toSound.copy(at).sub(camera.position);
+  const d = _toSound.length(); if (d > 40) return;
+  ambience.goblin(kind, strength * Math.max(0, 1 - d / 40), clamp(_toSound.normalize().dot(_earRight), -1, 1) * .7);
+}
 const particles = [];
 const burstGeometry = new THREE.IcosahedronGeometry(.075, 0);
 function spawnBurst(position, color, amount = 12) {
@@ -1193,7 +1475,7 @@ function spawnBurst(position, color, amount = 12) {
   }
 }
 function attack() {
-  if(!game.started||game.paused||game.cinematic)return;
+  if(!game.started||game.paused||game.cinematic||horses.riding&&!horses.mounted)return;
   if(motion.locked(playerModel))return;
   if(motion.holding(playerModel)){motion.command(playerModel,'shove');return;}
   if(motion.heldBy(playerModel)){if(player.stamina>=12){player.stamina-=12;motion.command(playerModel,'wrench');motion.command(playerModel,'wrench');combat.effects.sound('impact');}return;}
@@ -1219,6 +1501,8 @@ function hurt(amount) {
   player.hp = Math.max(0, player.hp - amount); player.invuln = .65;
   $('damage-flash').style.opacity = '.22'; setTimeout(() => { $('damage-flash').style.opacity = '0'; }, 170);
   if (player.hp <= 0) {
+    if (horses.riding) { horses.dismount(player, true); playerModel.rotation.set(0, player.yaw, 0); }
+    if (inCave) leaveCave({ teleport: false });
     toast('DU BIST GEFALLEN · DU ERWACHST IN DÄMMERWALD', 6500);
     player.position.set(3, world.heightAt(3, 0), 0); player.hp = player.maxHp; player.stamina = player.maxStamina; player.velocityY = 0; snapPlayerView();
     saveGame(false);
@@ -1226,6 +1510,7 @@ function hurt(amount) {
 }
 function updatePlayer(dt) {
   player.invuln = Math.max(0, player.invuln - dt);
+  if (horses.riding) { updateRider(dt); updatePlayerGear(); return; }
 
   // The touch stick adds an analogue direction; a light push walks, a full one runs, past the ring sprints.
   const pad = touchMode && touch.stick.mag > 0 ? touch.stick : null;
@@ -1234,7 +1519,7 @@ function updatePlayer(dt) {
   let movement = v3(-Math.sin(player.yaw) * walking + Math.cos(player.yaw) * strafing, 0, -Math.cos(player.yaw) * walking - Math.sin(player.yaw) * strafing);
   // HUMANITY MOTION: down or getting up you do not walk; held you barely move; holding, you drag.
   const bodyLocked = motion.locked(playerModel), heldBy = motion.heldBy(playerModel), holdingSomeone = motion.holding(playerModel);
-  if (bodyLocked) movement.set(0, 0, 0);
+  if (bodyLocked || goblins.held) movement.set(0, 0, 0);
   const active = movement.lengthSq() > .001;
   if (active) movement.normalize();
   // Hold C to creep (Ctrl would close the browser tab with W): slow and quiet, game lets you come close.
@@ -1336,6 +1621,9 @@ function updatePlayer(dt) {
   const turn = THREE.MathUtils.euclideanModulo(targetYaw - player.modelYaw + Math.PI, Math.PI * 2) - Math.PI;
   player.modelYaw += clamp(turn, -dt * 11, dt * 11);
   playerModel.rotation.y = player.modelYaw;
+  updatePlayerGear();
+}
+function updatePlayerGear() {
   const outfitKey = JSON.stringify([player.equipment, player.appearance]);
   if (playerModel.userData.outfitKey !== outfitKey) {
     player.sleeveColor = sleeveColor(player.equipment); player.handGear = handGear(player.equipment);
@@ -1449,7 +1737,7 @@ function updateEnemies(dt) {
   show('enemy-hud',!!nearest);
   if(nearest){
     $('enemy-name').textContent=nearest.name;$('enemy-fill').style.width=100*Math.max(0,nearest.hp)/nearest.maxHp+'%';
-    $('enemy-intent').textContent=MOOD[nearest.ai?.hostility]??(nearest.casting==='bolt'?'WIRKT FEUER · AUSWEICHEN ODER DECKUNG':nearest.casting==='heal'?'HEILT EINEN VERBÜNDETEN · UNTERBRECHEN':nearest.shieldUp?'SCHILD ERHOBEN · VON DER SEITE ANGREIFEN':nearest.windup>0&&nearest.archer?'SPANNT DEN BOGEN · DECKUNG HOCH ODER HINTER ETWAS':nearest.windup>0?'ANGRIFF · BLOCKEN ODER AUSWEICHEN':nearest.stagger>0?'TAUMELT':combat.guarding?'DECKUNG':tip('LINKSKLICK · ANGRIFF','ANGRIFF'));
+    $('enemy-intent').textContent=nearest.goblin?(goblins.intent(nearest)??tip('LINKSKLICK · ANGRIFF','ANGRIFF')):MOOD[nearest.ai?.hostility]??(nearest.casting==='bolt'?'WIRKT FEUER · AUSWEICHEN ODER DECKUNG':nearest.casting==='heal'?'HEILT EINEN VERBÜNDETEN · UNTERBRECHEN':nearest.shieldUp?'SCHILD ERHOBEN · VON DER SEITE ANGREIFEN':nearest.windup>0&&nearest.archer?'SPANNT DEN BOGEN · DECKUNG HOCH ODER HINTER ETWAS':nearest.windup>0?'ANGRIFF · BLOCKEN ODER AUSWEICHEN':nearest.stagger>0?'TAUMELT':combat.guarding?'DECKUNG':tip('LINKSKLICK · ANGRIFF','ANGRIFF'));
     $('enemy-hud').classList.toggle('threat',nearest.windup>0);
   }
 }
@@ -1495,8 +1783,19 @@ function updateCamera(dt) {
     camera.position.set(focus.x+Math.sin(angle)*13,world.heightAt(focus.x,focus.z)+7,focus.z+Math.cos(angle)*13);
     camera.lookAt(focus.x,world.heightAt(focus.x,focus.z)+2,focus.z);return;
   }
-  // Follow the interpolated position so 144 Hz frames never show 60 Hz steps.
-  const eye = (player.renderPosition || player.position).clone().add(v3(0, 2.30, 0));
+  // Follow the interpolated position so 144 Hz frames never show 60 Hz steps. In the saddle (and getting into
+  // or out of it) the eye is the rider's head, smoothed so the gait rocks the view without shaking it.
+  let eye = (player.renderPosition || player.position).clone().add(v3(0, 2.30, 0));
+  if (horses.riding && playerModel.userData.rig?.head) {
+    // Seated, the eye rides with the saddle (the gait's bob and pitch, not the rider's crouch), high enough to
+    // look over the horse's head; mounting and dismounting it follows the head.
+    const r = horses.ride, saddle = r.horse.model.userData.rig.saddle;
+    const head = playerModel.userData.rig.head.getWorldPosition(v3()).add(v3(0, .12, 0)), seat = saddle.localToWorld(v3(0, 1.55, .12));
+    const k = r.kind === 'ride' ? 1 : r.kind === 'mount' ? THREE.MathUtils.smoothstep(r.t, .6, 1) : 1 - THREE.MathUtils.smoothstep(r.t, 0, .5);
+    const want = head.lerp(seat, k);
+    cameraRig.riderEye = cameraRig.riderEye && dt < 1 ? cameraRig.riderEye.lerp(want, 1 - Math.exp(-dt * 16)) : want;
+    eye = cameraRig.riderEye.clone();
+  } else cameraRig.riderEye = null;
   const forward = v3(-Math.sin(player.yaw) * Math.cos(player.pitch), Math.sin(player.pitch), -Math.cos(player.yaw) * Math.cos(player.pitch));
   if (player.mode === 'first') {
     camera.position.copy(eye); camera.lookAt(eye.clone().add(forward)); return;
@@ -1504,11 +1803,11 @@ function updateCamera(dt) {
   // Over-the-shoulder pivot; vertical jitter from terrain is smoothed, horizontal follow is exact.
   const right = v3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
   // Aiming the bow, the camera moves out over the right shoulder so the reticle clears the head.
-  const pivot = eye.clone().add(v3(0, .12 - .55 * bowView.raise, 0)).addScaledVector(right, .42 + .95 * bowView.raise);
+  const pivot = eye.clone().add(v3(0, .12 - .55 * bowView.raise, 0)).addScaledVector(right, (horses.riding ? .15 : .42) + .95 * bowView.raise);
   cameraRig.pivotY = cameraRig.pivotY === null || dt >= 1 ? pivot.y : cameraRig.pivotY + (pivot.y - cameraRig.pivotY) * (1 - Math.exp(-dt * 14));
   pivot.y = cameraRig.pivotY;
   // Drawing the bow pulls the camera in over the shoulder.
-  const zoom = bowView.raise > .01 ? THREE.MathUtils.lerp(cameraRig.zoom, Math.min(cameraRig.zoom, 2.6), bowView.raise) : cameraRig.zoom;
+  const zoom = bowView.raise > .01 ? THREE.MathUtils.lerp(cameraRig.zoom, Math.min(cameraRig.zoom, 2.6), bowView.raise) : horses.riding ? cameraRig.zoom * 1.1 + .9 : cameraRig.zoom;
   cameraRig.distance += (zoom - cameraRig.distance) * (1 - Math.exp(-dt * 8));
   const elevation = clamp(.3 - .3 * bowView.raise - player.pitch * .85, -.45, 1.25);
   const boom = v3(Math.sin(player.yaw) * Math.cos(elevation), Math.sin(elevation), Math.cos(player.yaw) * Math.cos(elevation));
@@ -1525,6 +1824,9 @@ function updateCamera(dt) {
 function updateInteractions() {
   const target = nearestInteraction();
   show('interact', !!target && !game.paused);
+  if (target?.type === 'cave' || target?.type === 'cavething') { $('interact-text').textContent = target.type === 'cave' ? `${SITES[CAVE_MOUTHS[target.id]].name}: ${caveMouthAt[target.id].walkIn ? 'eintreten' : 'hinabsteigen'}` : target.choice.label; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
+  const horseLabel = h => `${h.name} · Aufsitzen  ${tip('[T]', '')} ${tip(h.mode === 'led' ? 'Zügel loslassen' : h.mode === 'tied' ? 'Losbinden und führen' : 'Am Zügel führen', '')}`.trim();
+  if (target?.type === 'horse' || target?.type === 'tie' || target?.type === 'ride') { $('interact-text').textContent = target.type === 'horse' ? horseLabel(target.horse) : target.type === 'tie' ? `${target.horse.name} ${target.point.kind === 'tree' ? 'an den Baum binden' : 'anbinden'}` : 'Absitzen'; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
   if (target) $('interact-text').textContent = target.type === 'npc' ? `Mit ${target.npc.name} sprechen` : target.type === 'stash' ? 'Reisetruhe öffnen' : target.type === 'drop' ? 'Beutel durchsuchen' : target.type === 'corpse' ? (target.enemy.prey ? `${target.enemy.name} ausnehmen` : `${target.enemy.name} durchsuchen · ${tip('[E halten]', '[Nutzen halten]')} Ziehen`) : target.type === 'pickup' ? `${ITEMS[target.prop.item].name} nehmen` : target.type === 'door' ? (target.door.target > .5 ? 'Tür schließen' : 'Tür öffnen') : target.type === 'furniture' ? (target.spot.kind === 'sleep' ? 'Schlafen bis zum Morgen' : 'Truhe öffnen') : target.type === 'story' ? target.pickup.label : target.type === 'lore' ? target.marker.readLabel : target.type === 'arrow' ? 'Pfeil ziehen' : target.type === 'yielded' ? (target.enemy.ai.robbed ? `${target.enemy.name} ziehen lassen` : 'Wertsachen fordern') : target.type === 'toll' ? `Wegzoll zahlen (${AI.toll} Gold)` : '';
   touch?.setInteract(target && !game.paused ? $('interact-text').textContent : null);
 }
@@ -1551,7 +1853,12 @@ window.addEventListener('keydown', (event) => {
   keys.add(event.code);
   if (event.repeat) return;
   if (event.code === 'KeyE') grabbing.pressed = performance.now();
-  if (event.code === 'KeyG' && game.started) playerGrab();
+  if (event.code === 'KeyG' && game.started && !horses.riding) playerGrab();
+  if (event.code === 'KeyT' && game.started) horseReins();
+  if (event.code === 'KeyH' && game.started) horseWhistle();
+  if ((event.code === 'ShiftLeft' || event.code === 'ShiftRight') && horses.mounted) rideKeys.spur = true;
+  if (event.code === 'Space' && horses.mounted) rideKeys.jump = true;
+  if (event.code === 'Space' && goblins.held) { const r = goblins.struggle(); toast(r === 'free' ? 'LOSGERISSEN' : 'WEHR DICH! LEERTASTE', 900); }
   if (event.code === 'CapsLock') { player.walkMode = !player.walkMode; toast(player.walkMode ? 'GEHEN' : 'LAUFEN', 900); }
   if (event.code === 'Space' && motion.heldBy(playerModel) && player.stamina >= 5) { player.stamina -= 5; motion.command(playerModel, 'wrench'); }
   if (event.code === 'F6') { aiDebug = !aiDebug; aiDebugPanel.hidden = !aiDebug; if (!aiDebug) barks.clear('debug'); toast(aiDebug ? 'KI-ANSICHT AN · F6' : 'KI-ANSICHT AUS', 1400); return; }
@@ -1567,7 +1874,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) suspe
 window.addEventListener('pagehide', () => { if (game.started) saveGame(false); });
 document.addEventListener('mousemove', (event) => {
   if (document.pointerLockElement !== renderer.domElement || game.paused) return;
-  player.yaw -= event.movementX * .0025 * settings.mouseSensitivity;
+  player.yaw -= event.movementX * .0025 * settings.mouseSensitivity; if (Math.abs(event.movementX) > 1) lastLook = performance.now();
   player.pitch = clamp(player.pitch - event.movementY * .0021 * settings.mouseSensitivity * (settings.invertY ? -1 : 1), -1.15, 1.18);
 });
 // Primary (left button / touch "Schlag") and secondary (right button / touch "Block") actions.
@@ -1580,7 +1887,7 @@ function primaryDown() {
 }
 function primaryUp() { if (player.tool === 3 && combat.archery?.release()) updateHUD(); }
 // With the potion in hand the block button shakes the flask instead (firstPerson.js, systems/liquid.js).
-function secondaryDown() { if (game.started && !game.paused && !game.cinematic) { if (player.tool === 3) combat.archery?.cancel(); else if (player.tool === 2) player.shaking = true; else combat.setGuard(true); } }
+function secondaryDown() { if (game.started && !game.paused && !game.cinematic && (!horses.riding || horses.mounted)) { if (player.tool === 3) combat.archery?.cancel(); else if (player.tool === 2) player.shaking = true; else combat.setGuard(true); } }
 function secondaryUp() { combat.setGuard(false); player.shaking = false; }
 renderer.domElement.addEventListener('mousedown', (event) => {
   if (!game.started) return;
@@ -1657,7 +1964,7 @@ function interpolateSimulation(models, alpha) {
     (u.renderPos ??= new THREE.Vector3()).copy(m.position);
   }
 }
-let prev = performance.now(), elapsed = 0, frame = 0, accumulator = 0, lastSlosh = 0;
+let prev = performance.now(), elapsed = 0, frame = 0, accumulator = 0, lastSlosh = 0, simAlpha = 1;
 const simulationStep = 1 / 60;
 const profile = { sections: {}, last: 0, worst: { total: 0 }, mark(name) { const t = performance.now(); this.sections[name] = (this.sections[name] || 0) + t - this.last; this.last = t; } };
 // Dev: ?timerLoop keeps the game running on a timer when the tab is not painted (hidden previews).
@@ -1681,13 +1988,18 @@ function animate(now) {
     const tracked = trackedActors();
     restoreSimulation(tracked);
     while (accumulator >= simulationStep) {
-      captureSimulation(tracked);
+      captureSimulation(tracked); horses.capture();
       updatePlayer(simulationStep); profile.mark('player'); updateEnemies(simulationStep, elapsed); profile.mark('enemies'); updateNPCSimulation(simulationStep); updateTravelers(simulationStep); updateBarriers(simulationStep); profile.mark('npcs');
+      horses.update(simulationStep, player); profile.mark('horses');
+      goblins.update(simulationStep);
+      if (inCave) { inCave.update(simulationStep, player, hurt); if (inCave.walkOut(player.position)) leaveCave(); else if (!inCave.contains(player.position)) leaveCave({ teleport: false }); }
+      // Walking down a sunken way to its black end takes you in.
+      else if (!horses.riding) for (const [id, m] of Object.entries(caveMouthAt)) if (m.walkIn && Math.hypot(player.position.x - m.door.x, player.position.z - m.door.z) < 1.2) { enterCave(id); break; }
       accumulator -= simulationStep;
     }
-    interpolateSimulation(tracked, accumulator / simulationStep);
+    interpolateSimulation(tracked, accumulator / simulationStep); simAlpha = accumulator / simulationStep;
     // Creeping (C) or standing still lets you get much closer to game than walking up to it.
-    const still = (player.moveSpeed || 0) < .3;
+    const still = (horses.riding ? Math.abs(horses.ride.horse.speed) : player.moveSpeed || 0) < .3;
     ambientFx.update(dt, player.position, worldClock.hour, camera, ambientSun.copy(world.sun.position).sub(world.sun.target.position).normalize());
     wildlife.update(dt, [player.position], player.fly ? 0 : player.sneaking ? (still ? 1 : .85) : still ? .6 : 0); updateEncounters(dt);
     if (++frame % 4 === 0) { updateHUD(); updateInteractions(); }
@@ -1725,7 +2037,7 @@ function animate(now) {
   combat.effects.update(game.paused?0:dt,camera);
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
   renderer.info.autoReset=false;renderer.info.reset();
-  const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first';
+  const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first'&&(!horses.riding||horses.mounted);
   if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
   aimZoom();
   profile.mark('effects'); graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
@@ -1741,7 +2053,7 @@ nextFrame(animate);
 const grabbing = { pressed: null };
 function updatePhysics(dt) {
   if (dt <= 0) return;
-  if (grabbing.pressed !== null && !physics.holding && performance.now() - grabbing.pressed > 320) {
+  if (grabbing.pressed !== null && !physics.holding && !horses.riding && performance.now() - grabbing.pressed > 320) {
     const origin = camera.position.clone(), dir = camera.getWorldDirection(v3(0, 0, 0));
     const hit = physics.raycast(origin, dir, player.mode === 'first' ? 3.2 : 7.5);
     if (hit && hit.point.distanceTo(player.position) < 3.4) physics.grab(hit, hit.point);
@@ -1837,7 +2149,7 @@ function registerBodies() {
     setYaw: y => { player.modelYaw = y; playerModel.rotation.y = y; },
     state: () => ({ armor: MOTION_ARMOR[player.equipment.armor] ?? .1, guard: combat.guarding, attacking: !!combat.action, running: (player.moveSpeed || 0) > 6 ? 1 : 0,
       stamina: player.stamina / player.maxStamina, hp: player.hp, maxHp: player.maxHp, dead: player.hp <= 0, handFree: !combat.archery?.bow && combat.action?.kind !== 'cast',
-      busy: !!combat.action, feet: player.grounded && !player.swimming && !player.fly ? 1 : 0, power: .55 }) });
+      busy: !!combat.action, feet: player.grounded && !player.swimming && !player.fly && !horses.riding ? 1 : 0, power: .55 }) });
   for (const e of enemies) if (e.kind === 'bandit' && !motion.get(e.model)) motion.add(e.model, { kind: 'enemy', ref: e, animator: e.animator, pos: () => e.model.position, grabbable: true,
     state: () => ({ armor: e.storyId ? .6 : e.shield ? .45 : .15, guard: e.blocking > 0 || !!e.shieldUp, attacking: e.windup > 0 || e.strikeT > 0, stamina: (e.ai?.stamina ?? 100) / 100,
       hp: e.hp, maxHp: e.maxHp, dead: e.dead || !!e.gone, handFree: !e.shield && !(e.archer && !e.ai?.meleeMode), busy: e.windup > 0 || !!e.casting, idle: e.calm && !e.ai?.alert,
@@ -1860,13 +2172,14 @@ function enemyImpact(e, { kind, from, combo = 0, amount = 0, shield = false, mag
   return motion.impact(e.model, { from: player.position, point, force: strength, damage: amount, dir });
 }
 function playerImpact(e, { damage = 0, heavy = false, blocked = false }) {
+  if (horses.riding) return { stage: 'none', zone: null };
   if (player.mode === 'first') firstPerson.hit(blocked ? .6 : heavy ? 1 : .6, blocked);
   if (blocked) return motion.impact(playerModel, { shield: true, force: .9 });
   return motion.impact(playerModel, { from: e.model.position, point: player.position.clone().add(v3(0, 1.5, 0)), force: heavy ? 1.7 : 1.05, damage });
 }
 /** A bandit's hands on the wanderer (HUMANITY AI asks, the body decides). */
 function enemyGrapple(e, kind) {
-  if (motion.holding(e.model) || motion.locked(e.model) || player.hp <= 0) return;
+  if (motion.holding(e.model) || motion.locked(e.model) || player.hp <= 0 || horses.riding) return;
   if (kind === 'grab') { const r = motion.grab(e.model, playerModel); if (r.ok) e.holdFor = 2.4 + Math.random() * 1.6; return; }
   const d = player.position.distanceTo(e.model.position);
   if (d > 1.6) return;
@@ -2043,7 +2356,10 @@ function handLight(dt) {
 // A slight zoom at full draw, in both views.
 function aimZoom() {
   if (game.cinematic) return;
-  const fov = settings.fov * (1 - .12 * bowView.draw * bowView.draw);
+  // A gallop pulls the view a little wider.
+  const gallop = horses.mounted ? clamp((Math.abs(horses.ride.horse.speed) - RIDE_SPEEDS[2]) / (RIDE_SPEEDS[3] - RIDE_SPEEDS[2]), 0, 1) : 0;
+  cameraRig.gallop = (cameraRig.gallop || 0) + (gallop - (cameraRig.gallop || 0)) * .06;
+  const fov = settings.fov * (1 - .12 * bowView.draw * bowView.draw) + 7 * cameraRig.gallop;
   if (Math.abs(camera.fov - fov) > .01) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }
 // The bow came after the first saves were made: an old save finds it (and arrows) in the pack once.
@@ -2058,7 +2374,7 @@ function grantBow(loaded) {
 }
 // ── Character animation, soundscape and compass (presentation only, per rendered frame).
 const playerHead = v3(0, 0, 0);
-let lastStep = 0;
+let lastStep = 0, riderBusy = 0;
 // RDR2-style: in third person the wanderer looks where the camera looks (neck and head share the turn),
 // up to over the shoulder; with the camera right behind them they look ahead.
 const playerLookPoint = v3(0, 0, 0), cameraForward = v3(0, 0, 0);
@@ -2071,14 +2387,22 @@ function playerLook() {
 }
 function animateActors(dt, voice) {
   if (dt <= 0) return;
+  // In the saddle the wanderer's hands still swing a blade, draw the bow, drink and cast (horses.animate seats them).
+  const busy = combat.action || combat.guarding || bowView.raise > .05 ? 1 : 0;
+  riderBusy += (busy - riderBusy) * (1 - Math.exp(-dt * 14));
+  horses.animate(dt, simAlpha, { player, playerModel, playerAnimator, camera, wind: HORSE_WIND, groundAt: world.heightAt,
+    rider: { input: { action: combat.action, guard: combat.guarding, bow: bowView.raise, bowPitch: player.pitch }, busy: riderBusy, armed: !!playerModel.userData.weapon, lookAt: playerLook() } });
   playerHead.copy(player.position).y += 2.2;
   const look = talkingNPC && game.modal === 'dialog' ? camera.position : playerHead;
   const cine = game.cinematic?.cine;
   updateBowView(cine ? 0 : dt);
-  if (!motion.isDown(playerModel)) playerAnimator.update(dt, cine ? { action: cine.action, activity: cine.poses.wanderer ?? null } : { ...motion.animInput(playerModel), lookAt: playerLook(), vy: player.velocityY || 0, action: combat.action, guard: combat.guarding, airborne: !player.grounded, stagger: Math.max(0, player.invuln - .25), activity: player.swimming ? 'swim' : player.sneaking ? 'sneak' : null, bow: bowView.raise, bowPitch: player.pitch });
+  // Tying a horse up and whistling for one are short gestures.
+  player.tieT = Math.max(0, (player.tieT || 0) - dt); player.whistleT = Math.max(0, (player.whistleT || 0) - dt);
+  const gesture = player.tieT > 0 ? 'operate' : player.whistleT > 0 ? 'salute' : null;
+  if (!motion.isDown(playerModel) && !horses.riding) playerAnimator.update(dt, cine ? { action: cine.action, activity: cine.poses.wanderer ?? null } : { ...motion.animInput(playerModel), lookAt: playerLook(), vy: player.velocityY || 0, action: combat.action, guard: combat.guarding, airborne: !player.grounded, stagger: Math.max(0, player.invuln - .25), activity: player.swimming ? 'swim' : player.sneaking ? 'sneak' : gesture, bow: bowView.raise, bowPitch: player.pitch });
   poseBow(cine);
   // Funken ready (tool 2): a flame burns in the left hand in third person (first person: firstPerson.js).
-  const handFire = player.tool === 1 && player.mode === 'third' && !cine && playerModel.visible && !motion.isDown(playerModel);
+  const handFire = player.tool === 1 && player.mode === 'third' && !cine && playerModel.visible && !motion.isDown(playerModel) && (!horses.riding || horses.mounted);
   combat.spellFx.handFlame(handFire ? playerModel.userData.rig.grip_left.getWorldPosition(v3()).add(v3(0, .08, 0)) : null, dt);
   playerModel.userData.face?.update(dt, { expression: player.invuln > .3 ? 'pain' : combat.action?.kind === 'sword' ? 'angry' : 'neutral' });
   for (const npc of npcs) {
@@ -2105,10 +2429,10 @@ function animateActors(dt, voice) {
   for (const e of enemies) {
     const near = !e.dead && e.model.position.distanceTo(player.position) < 17;
     const drawing = e.archer && !e.dead && e.windup > 0 && !e.ai?.meleeMode;
-    const pose = e.ai && !e.dead ? (e.shieldUp && e.ai.intent.pose !== 'surrender' ? 'shieldUp' : e.ai.intent.pose) : null, fighting = near && !e.calm && (!e.ai || e.ai.hostility === 'hostile');
+    const pose = e.ai && !e.dead ? (e.shieldUp && e.ai.intent.pose !== 'surrender' ? 'shieldUp' : e.ai.intent.pose) : e.goblin && !e.dead ? e.goblinPose : null, fighting = near && !e.calm && (!e.ai || e.ai.hostility === 'hostile');
     const spell = e.casting || e.castRelease > 0 ? { kind: 'cast', progress: e.casting ? .3 * (1 - e.windup / (e.windupTotal || 1)) : .3 + .7 * (1 - e.castRelease / .5) } : null;
     if (e.casting && near && Math.random() < .5) combat.effects.spray(e.model.userData.rig?.hand_left?.getWorldPosition(v3(0, 0, 0)) ?? e.model.position.clone().add(v3(0, 1.5, 0)), v3(0, .6, 0), e.casting === 'heal' ? 'heal' : 'ember', 1);
-    if (!e.ragdoll && !motion.isDown(e.model)) e.animator.update(dt, { ...motion.animInput(e.model), action: spell, windup: !drawing && !e.casting && e.windup > 0 ? 1 - e.windup / (e.kind === 'wolf' ? .5 : .7) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
+    if (!e.ragdoll && !motion.isDown(e.model)) e.animator.update(dt, { ...motion.animInput(e.model), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
     if (e.guardBroken > 0) e.guardBroken = Math.max(0, e.guardBroken - dt);
     if (e.ai && !e.dead) holdWeapons(e);
     if (e.archer) poseEnemyBow(e, drawing);
@@ -2123,12 +2447,20 @@ const ambience = createAmbience();
 const compass = createCompass($('world-compass'));
 function updateSoundscape(dt) {
   const fighting = enemies.some(e => !e.dead && e.model.position.distanceTo(player.position) < 13);
-  ambience.update(dt, { hour: worldClock.hour, position: player.position, fires: world.landmarks.fires, combat: game.started && fighting, paused: game.paused || !game.started });
+  ambience.update(dt, { hour: worldClock.hour, position: player.position, fires: world.landmarks.fires, combat: game.started && fighting, paused: game.paused || !game.started, underground: !!inCave });
   // Footsteps land on the gait's contact points.
   const phase = playerAnimator.phase, step = Math.floor(phase * 2);
-  if (game.started && !game.paused && player.grounded && playerAnimator.speed > .8 && step !== lastStep)
+  if (game.started && !game.paused && player.grounded && !horses.riding && playerAnimator.speed > .8 && step !== lastStep)
     ambience.footstep(world.nearRoad(player.position.x, player.position.z, 2.3) ? 'path' : 'grass', clamp(playerAnimator.speed / 9, .35, 1));
   lastStep = step;
+}
+// A light breeze for manes and tails (the same quarter the leaves drift from).
+const HORSE_WIND = [.6, .2];
+const _earRight = v3(), _toSound = v3();
+function horseSound(kind, at, strength = 1, extra = {}) {
+  if (!game.started || game.paused || game.cinematic) return;
+  _earRight.set(1, 0, 0).applyQuaternion(camera.quaternion); _toSound.copy(at).sub(camera.position).normalize();
+  ambience.horse(kind, strength, { road: !!extra.road, pan: clamp(_toSound.dot(_earRight), -1, 1) * .7 });
 }
 function compassMarkers() {
   const L = world.landmarks, elira = npcs.find(n => n.id === 'elira');
@@ -2171,7 +2503,7 @@ touch = createTouchControls($('touch-ui'), {
   onLook: (dx, dy) => {
     if (game.paused || game.cinematic) return;
     const k = .0055 * settings.mouseSensitivity;
-    player.yaw -= dx * k;
+    player.yaw -= dx * k; if (Math.abs(dx) > 1) lastLook = performance.now();
     player.pitch = clamp(player.pitch - dy * k * .85 * (settings.invertY ? -1 : 1), -1.15, 1.18);
   },
   onZoom: delta => { if (!game.paused) cameraRig.zoom = clamp(cameraRig.zoom + delta, 2, 7.5); },
@@ -2194,7 +2526,7 @@ window.__ASHEN_TEST__ = {
   ...(import.meta.env.DEV ? { save: () => saveGame(false), load: loadGame, reset: resetGame, awardXP,
     hour: value => { worldClock.hour = clamp(value, 0, 23.99); updateHUD(); },
     face: yaw => { player.yaw = yaw; updateCamera(1); },
-    resume: () => setModal(null), equip: equipLoot,
+    resume: () => setModal(null), equip: equipLoot, give: (id, n = 1) => { for (let k = 0; k < n; k++) inventory.add(id); inventoryChanged(); return inventory.counts()[id] || 0; }, flags: () => game.flags, gold: () => player.gold,
     tool: value=>{player.tool=value;},look:(yaw,pitch)=>{player.yaw=yaw;player.pitch=pitch;updateCamera(1);},
     injure:amount=>{player.hp=Math.max(1,player.hp-amount);},guard:combat.setGuard,
     navigation:()=>({routes:world.routePoints.map(r=>r.map(p=>[p.x,p.z])),colliders:world.colliders}),
@@ -2206,7 +2538,10 @@ window.__ASHEN_TEST__ = {
     lifeState:()=>npcs.map(n=>({id:n.id,activity:n.life?.activity,x:+n.model.position.x.toFixed(1),z:+n.model.position.z.toFixed(1),inside:n.life?.inside,bark:n.life?.bark})),
     snapshot:async(file='shot')=>{graphics.render(scene,camera,player.mode==='first'&&game.started&&!game.paused?firstPerson.render:null);const blob=await new Promise(r=>renderer.domElement.toBlob(r,'image/png'));return fetch('http://127.0.0.1:5299/save?file=work/screens/'+file+'.png',{method:'POST',body:blob}).then(r=>r.text());},
     rootPosition:()=>playerModel.position.toArray(),
-    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai}),ai:()=>ai.state(),aiDebug:()=>ai.debugLines(player.position,10),aiDays:n=>{game.flags.ai_day=(game.flags.ai_day||0)+n;campCheckAt=0;},introTime:()=>game.cinematic?.director?.time??null,
+    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses}),
+    horses:()=>horses.state(),mount:(name='Asche')=>{const h=horses.horses.find(o=>o.name===name);if(h){player.position.copy(h.pos).add(v3(-Math.cos(h.yaw)*1.4,0,Math.sin(h.yaw)*1.4));snapPlayerView();mountHorse(h);}return horses.state().ride;},
+    dismount:()=>horses.dismount(player),reins:horseReins,whistle:horseWhistle,
+    cave:id=>{if(id)enterCave(id);else leaveCave();return inCave?.id??null;},caveState:()=>inCave&&({id:inCave.id,opened:[...inCave.opened],goblins:goblins.list.map(g=>({name:g.name,kind:g.gkind,state:g.state,hp:g.hp,dead:g.dead,pos:g.model.position.toArray().map(v=>+v.toFixed(1))}))}),spur:()=>{rideKeys.spur=true;},jumpHorse:()=>{rideKeys.jump=true;},ai:()=>ai.state(),aiDebug:()=>ai.debugLines(player.position,10),aiDays:n=>{game.flags.ai_day=(game.flags.ai_day||0)+n;campCheckAt=0;},introTime:()=>game.cinematic?.director?.time??null,
     killEnemy:i=>damageEnemy(enemies[i],9999),
     motion:()=>motion.state(),ambient:()=>ambientFx.state(),body:i=>motion.debugActor(i==='player'?playerModel:enemies[i].model),
     push:(i,force=2,dx=1,dz=0)=>motion.impact(i==='player'?playerModel:enemies[i].model,{force,dir:v3(dx,0,dz)}),

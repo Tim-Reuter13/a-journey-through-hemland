@@ -4,6 +4,8 @@
 // patches, half-buried stones, pebbles, roots, puddles, fallen leaves, moss in the joints, cracked
 // and replaced bricks, patched plaster, odd shingles. Every painter gets the Painter (set, get,
 // random, shade) from pixelTextures.js.
+import { CAVE_SURFACES } from './caveSurfaces.js';
+
 const rgb = hex => { const n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -341,4 +343,5 @@ export const SURFACES = {
   planksWeathered: [64, p => boards(p, ['#5a5448', '#6a6355', '#7a7262', '#89806e', '#968d7a'], { weathered: .08 })],
   planksPainted: [64, p => boards(p, ['#2f4a52', '#365560', '#3e616c', '#476d78'], { weathered: .05 })],
   plasterRough: [64, p => plaster(p, ['#a08a62', '#ad976d', '#b9a378', '#c4ae83'], { bricks: 3 })],
+  ...CAVE_SURFACES,
 };

@@ -23,6 +23,14 @@ function AshenBuild(spec, options = {}) {
   for (const ch of spec.name) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
   const random = () => { seed += 0x6D2B79F5; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   const hash2 = (a, b) => { let h = Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  // Smooth value noise in model space (0..1), so a pattern runs on across the faces and boxes of a model.
+  const noise3 = (x, y, z) => {
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), s = t => t * t * (3 - 2 * t), u = s(x - xi), v = s(y - yi), w = s(z - zi);
+    const h = (i, j, k) => hash2(Math.imul(xi + i, 73856093) ^ Math.imul(zi + k, 19349663), yi + j), L = (a, b, t) => a + (b - a) * t;
+    return L(L(L(h(0, 0, 0), h(1, 0, 0), u), L(h(0, 1, 0), h(1, 1, 0), u), v), L(L(h(0, 0, 1), h(1, 0, 1), u), L(h(0, 1, 1), h(1, 1, 1), u), v), w);
+  };
+  // A ramp read in half steps: whole entries and the mix of two neighbours.
+  const halfStep = (ramp, t) => { const k = clamp(Math.round(t * 2) / 2, 0, ramp.length - 1), lo = Math.floor(k); return k === lo ? ramp[lo] : mixc(ramp[lo], ramp[lo + 1], .5); };
 
   // ── Pixel material styles. Each returns an [r,g,b] for face pixel (x, y).
   const STYLES = {
@@ -55,7 +63,11 @@ function AshenBuild(spec, options = {}) {
     },
     chain: (m, f, x, y) => m.ramp[((x + (y % 2)) % 2 ? 1 : 2) + (random() < .08 ? -1 : 0)],
     hair: (m, f, x, y) => {
-      const strand = ((x * 7 + f.cubeIndex * 3) % 5);
+      // Strands run down the face (or across it with m.across); m.ragged frays the lower ends into gaps.
+      const a = m.across ? y : x, b = m.across ? x : y, len = m.across ? f.w : f.h;
+      // Each strand ends at its own length (up to three texels short), so the edge breaks into points.
+      if (m.ragged && f.dir !== 'up' && f.dir !== 'down' && len >= 4 && b > len - 1 - Math.floor(hash2(a * 3 + f.cubeIndex * 13, 7) * 3.2)) return null;
+      const strand = ((a * 7 + f.cubeIndex * 3) % 5);
       return m.ramp[clamp(strand === 0 ? 0 : strand === 3 ? 2 : 1, 0, m.ramp.length - 1)];
     },
     fur: (m, f, x, y) => {
@@ -71,6 +83,28 @@ function AshenBuild(spec, options = {}) {
       if (f.dir === 'up' && random() < .25) i -= 1;
       if ((x * 3 + y * 5 + f.cubeIndex) % 11 === 0) i += 1;
       return m.ramp[clamp(i, 0, m.ramp.length - 1)];
+    },
+    // Horse coat: short glossy hair lying flat, painted in half steps of the ramp. A large soft light and shade
+    // that runs on across faces and boxes (noise in model space), a sheen on the topline, now and then a short
+    // stroke of lighter hair along the lie of the coat, hardly any speckle. Points darken the legs from the knee
+    // down, socks whiten them from the hoof up (both found from the texel's place in the model), greys get
+    // dapples (light rings in a darker net), paints big white patches that run on over the back.
+    coat: (m, f, x, y) => {
+      const [X, Y, Z] = f.at(x, y), sides = f.dir !== 'up' && f.dir !== 'down';
+      let t = .5 + (f.dir === 'up' ? .16 : f.dir === 'down' ? -.14 : 0) + (noise3(X / 7, Y / 7, Z / 7) - .5) * .32 + (random() - .5) * .1;
+      if (sides && hash2(Math.floor((x + (y % 3)) / 3) + f.cubeIndex * 17, y * 7 + f.seed) < .07) t += .12;
+      let ramp = m.ramp, plain = true;
+      const ragged = hash2(Math.round(X * 2) + 7, Math.round(Z * 2) + Math.round(Y)) * 1.6;
+      if (m.points && Y < m.points.top + ragged) { ramp = m.points.ramp.map(hex); plain = false; }
+      if (m.socks) { const top = m.socks[(Z < 2 ? 'front_' : 'rear_') + (X > 0 ? 'right' : 'left')]; if (top && Y < top + ragged) { ramp = m.sockRamp.map(hex); plain = false; } }
+      let c = halfStep(ramp, t * (ramp.length - 1));
+      if (plain && m.dapples) {
+        const ox = x + f.seed * 2 + f.cubeIndex * 5, oy = y + f.cubeIndex * 3 + (Math.floor((x + f.seed * 2 + f.cubeIndex * 5) / 4) % 2) * 2, gx = Math.floor(ox / 4), gy = Math.floor(oy / 4);
+        const dd = Math.hypot(ox - (gx * 4 + 1.5 + (hash2(gx, gy) - .5) * 1.2), oy - (gy * 4 + 1.5 + (hash2(gy + 31, gx) - .5) * 1.2));
+        if (Y > 17 && hash2(gx + 3, gy + 9) < m.dapples[2]) { if (dd < 1.25) c = mixc(c, hex(m.dapples[1]), .55); else if (dd > 2) c = mixc(c, hex(m.dapples[0]), .4); }
+      }
+      if (plain && m.patches && noise3(X / 9 + 17, Y / 8, Z / 9) + (Y < 30 ? .1 : 0) - (Y > 44 ? .4 : 0) > m.patches[1]) c = halfStep(m.patches[0].map(hex), t * (m.patches[0].length - 1));
+      return c;
     },
     feathers: (m, f, x, y) => {
       // Overlapping rows of feathers: each row lighter at its edge, a blue-black sheen now and then.
@@ -173,6 +207,22 @@ function AshenBuild(spec, options = {}) {
   const canvas = document.createElement('canvas'); canvas.width = atlasWidth; canvas.height = atlasHeight;
   const ctx = canvas.getContext('2d'), image = ctx.createImageData(atlasWidth, atlasHeight);
   const put = (x, y, c, a = 255) => { const i = (y * atlasWidth + x) * 4; image.data[i] = c[0]; image.data[i + 1] = c[1]; image.data[i + 2] = c[2]; image.data[i + 3] = a; };
+  // Where texel (x, y) of a face sits in the model (the cube's own rotation left out), so styles can paint by
+  // place: Blockbench lays u to the viewer's right and v downward on every side face.
+  function texelAt(cube, dir, w, h) {
+    const [x0, y0, z0] = [0, 1, 2].map(k => Math.min(cube.from[k], cube.to[k])), [x1, y1, z1] = [0, 1, 2].map(k => Math.max(cube.from[k], cube.to[k]));
+    return (x, y) => {
+      const u = (x + .5) / w, v = (y + .5) / h, Y = y1 - v * (y1 - y0);
+      switch (dir) {
+        case 'north': return [x1 - u * (x1 - x0), Y, z0];
+        case 'south': return [x0 + u * (x1 - x0), Y, z1];
+        case 'east': return [x1, Y, z1 - u * (z1 - z0)];
+        case 'west': return [x0, Y, z0 + u * (z1 - z0)];
+        case 'up': return [x0 + u * (x1 - x0), y1, z0 + v * (z1 - z0)];
+        default: return [x0 + u * (x1 - x0), y0, z1 - v * (z1 - z0)];
+      }
+    };
+  }
   const materialOf = name => {
     const m = spec.materials[name];
     if (!m) throw new Error(`Unknown material ${name}`);
@@ -183,7 +233,7 @@ function AshenBuild(spec, options = {}) {
       if (!face || face.u === undefined || face.shared) continue;
       const matName = cube.faceMat?.[dir] || cube.mat;
       const m = materialOf(matName), style = STYLES[m.style || 'flat'];
-      const info = { w: face.w, h: face.h, dir, cubeIndex: cube.index, seed: (face.u * 3 + face.v * 5) % 17 };
+      const info = { w: face.w, h: face.h, dir, cubeIndex: cube.index, seed: (face.u * 3 + face.v * 5) % 17, at: texelAt(cube, dir, face.w, face.h) };
       for (let y = 0; y < face.h; y++) for (let x = 0; x < face.w; x++) {
         let c = style(m, info, x, y);
         if (!c) { put(face.u + x, face.v + y, [0, 0, 0], 0); continue; }

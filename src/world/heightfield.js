@@ -100,6 +100,14 @@ export function createHeightfield() {
       if (d > s.blend) continue;
       const w = 1 - ss(0, s.blend, d);
       if (s.mode === 'soften') h = lerp(h, 1 + fbm(x * .02, z * .02, 3, 13) * 2.6, w);
+      else if (s.mode === 'burrow') {
+        // Eased towards the level of the hole, then a lumpy rise of earth a little uphill of it.
+        const b = burrowById.get(s.id);
+        if (!siteCentres.has(s.id)) siteCentres.set(s.id, natural(s.x, s.z));
+        h = lerp(h, siteCentres.get(s.id), w * .6);
+        const ma = Math.atan2(x - b.mx, z - b.mz), mr = Math.hypot(x - b.mx, z - b.mz) / (b.moundR * (1 + .16 * Math.sin(2 * ma + b.seed) + .1 * Math.sin(5 * ma - b.seed)));
+        if (mr < 1) h += b.mound * (1 - mr * mr) ** 2 * (.82 + .18 * fbm(x * .3, z * .3, 1, 7));
+      }
       else if (s.mode === 'terraces') h = lerp(h, kronwachtLevel(Math.max(s.x - s.halfX, Math.min(s.x + s.halfX, x)), Math.max(s.z - s.halfZ, Math.min(s.z + s.halfZ, z))), w);
       else {
         if (!siteCentres.has(s.id)) siteCentres.set(s.id, s.mode === 'level' ? s.height : natural(s.x, s.z) + (s.offset || 0));
@@ -117,6 +125,54 @@ export function createHeightfield() {
     }
     return h;
   }
+  // Goblin burrows (SITES mode 'burrow'): a hole dropping into the dark on the downhill flank of a rise of earth — a
+  // shaft, or (walkIn) a sunken way sloping down into the hill, ending in black. The rise is part of the heights; the
+  // hole is far narrower than the 2-unit grid, so heightAt() adds it on top and the chunk mesh (terrain.js) draws the
+  // cells round it on a finer grid (pitCell).
+  const burrows = siteList.filter(s => s.mode === 'burrow').map(s => {
+    let facing = 0, best = -Infinity;
+    for (let k = 0; k < 16; k++) {
+      const a = k / 16 * Math.PI * 2, drop = natural(s.x, s.z) - natural(s.x + Math.sin(a) * 22, s.z + Math.cos(a) * 22);
+      if (drop > best) { best = drop; facing = a; }
+    }
+    const R = s.hole || 2, walkIn = !!s.walkIn, length = walkIn ? 10 : 0, seed = hash(Math.round(s.x), Math.round(s.z), 5) * 6.28;
+    const fx = Math.sin(facing), fz = Math.cos(facing), back = walkIn ? 3.2 : 1.8;
+    // Everything the hole touches lies in this box (the shaft's ragged ring, or the way from its end to its mouth).
+    const ext = walkIn ? [[-2.2, 0], [length + .8, 0]].flatMap(([u]) => [-1, 1].map(sv => [u * fx + sv * (R + 1.6) * fz, u * fz - sv * (R + 1.6) * fx])) : [[-R * 1.65, -R * 1.65], [R * 1.65, R * 1.65]];
+    const xs = ext.map(p => s.x + p[0]), zs = ext.map(p => s.z + p[1]), reach = walkIn ? length + R + 2.4 : R * 1.65;
+    return { id: s.id, x: s.x, z: s.z, facing, R, reach, seed, depth: walkIn ? 4.6 : 5, mound: s.mound ?? 1.4, walkIn, length, moundR: walkIn ? 8 : 6.2,
+      mx: s.x - fx * back, mz: s.z - fz * back,
+      i0: Math.floor((Math.min(...xs) - 1) / STEP), i1: Math.ceil((Math.max(...xs) + 1) / STEP), j0: Math.floor((Math.min(...zs) - 1) / STEP), j1: Math.ceil((Math.max(...zs) + 1) / STEP) };
+  });
+  const burrowById = new Map(burrows.map(b => [b.id, b]));
+  /** The hole at (x, z): dh below the ground round it (a small lip above at the rim), shade 0..1 (black at the
+   *  bottom), r = distance over the (ragged) rim radius. null away from every hole. */
+  function pit(x, z) {
+    for (const b of burrows) {
+      const dx = x - b.x, dz = z - b.z;
+      if (dx * dx + dz * dz >= b.reach * b.reach) continue;
+      // Darker the further below the rim, as little light reaches down into the earth.
+      const shade = dh => Math.min(.985, 1 - Math.exp(Math.min(0, dh) / 1.1));
+      if (b.walkIn) {
+        // Along the way (u, 0 at its black end, length at its mouth) and across it (v): a floor sloping up to the
+        // land, steep earthen sides with a lip, a ragged edge; the end closes in a steep wall under the rise.
+        const u = dx * Math.sin(b.facing) + dz * Math.cos(b.facing), v = dx * Math.cos(b.facing) - dz * Math.sin(b.facing);
+        const half = b.R * (1 + .1 * Math.sin(u * 1.3 + b.seed) + .06 * Math.sin(u * 3.1 - b.seed)) * (1 + .12 * u / b.length);
+        const end = u < 0 ? 1 + -u / 1.4 : u > b.length ? 1 + (u - b.length) / 1.2 : 0, r = Math.max(Math.abs(v) / half, end);
+        if (r > 1.45) return null;
+        const floor = b.depth * ss(b.length, .4, u) ** .85, across = ss(1, .62, Math.abs(v) / half), ends = u < 0 ? ss(-1.4, 0, u) : 1;
+        const lip = r > .95 && r < 1.4 ? .25 * (1 - ((r - 1.17) / .23) ** 2) ** 2 : 0, dh = lip - floor * across * ends;
+        return { dh, shade: shade(dh), r, rock: Math.max(ss(.55, .85, Math.abs(v) / half) * ss(.3, 1.2, floor), ss(1.2, -.2, u) * (r < 1.2 ? 1 : 0)) };
+      }
+      const a = Math.atan2(dx, dz), r = Math.hypot(dx, dz) / (b.R * (1 + .13 * Math.sin(3 * a + b.seed) + .07 * Math.sin(5 * a + b.seed * 2)));
+      const lip = r > .92 && r < 1.36 ? .3 * (1 - ((r - 1.14) / .22) ** 2) ** 2 : 0;
+      const dh = lip - b.depth * ss(1, .45, r) ** 1.2;
+      return { dh, shade: shade(dh), r, rock: ss(1.02, .8, r) };
+    }
+    return null;
+  }
+  const pitCell = (i, j) => burrows.some(b => i >= b.i0 && i < b.i1 && j >= b.j0 && j < b.j1);
+
   // Roads follow a smoothed centre-line height (or a straight ramp) and blend into the land.
   const rampEnds = new Map();
   function roadTarget(hit) {
@@ -157,8 +213,14 @@ export function createHeightfield() {
     return g;
   }
   const vertex = (g, i, j) => g.heights[j * (CELLS + 1) + i];
-  /** Height of the rendered terrain surface (same triangle split as the chunk mesh). */
+  /** Height of the rendered terrain surface (same triangle split as the chunk mesh), goblin holes included. */
   function heightAt(x, z) {
+    const h = gridHeightAt(x, z);
+    for (const b of burrows) { const dx = x - b.x, dz = z - b.z; if (dx * dx + dz * dz < b.reach * b.reach) return h + (pit(x, z)?.dh || 0); }
+    return h;
+  }
+  /** The 2-unit grid's surface alone (no holes). */
+  function gridHeightAt(x, z) {
     const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK), g = grid(cx, cz);
     const fx = (x - g.x0) / STEP, fz = (z - g.z0) / STEP;
     const i = Math.min(CELLS - 1, Math.max(0, Math.floor(fx))), j = Math.min(CELLS - 1, Math.max(0, Math.floor(fz)));
@@ -195,5 +257,5 @@ export function createHeightfield() {
   const riverAt = (x, z) => nearest(riverBuckets, x, z);
   /** Distance to the nearest road edge (negative on the road). */
   function roadClearance(x, z) { const r = roadAt(x, z); return r ? r.distance - r.line.width / 2 : Infinity; }
-  return { heightAt, computeHeight, grid, surface, roadAt, riverAt, roadClearance, natural, siteDistance: (id, x, z) => siteDistance({ ...SITES[id] }, x, z), STEP, CELLS };
+  return { heightAt, gridHeightAt, computeHeight, grid, surface, roadAt, riverAt, roadClearance, natural, siteDistance: (id, x, z) => siteDistance({ ...SITES[id] }, x, z), burrows, pit, pitCell, STEP, CELLS };
 }

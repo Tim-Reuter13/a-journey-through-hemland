@@ -258,6 +258,57 @@ Open: "brown things at the oven" not reproduced — needs a screenshot; chimney 
   iris, lily colonies with round notched pads and 3D blossoms, rounded stones and bleached driftwood at the
   waterline, leaping fish, dragonflies. New POI: Fischersteg am Grausee (walkable jetty, moored rowboat, drying rack
   with fish, net, upturned boat, an inscription).
+- [x] Horses (2026-11-01), Red Dead Redemption 2 as the model for the feel: six coats modelled in Blockbench (bay
+  with black points and a star, black with a white sock, dapple grey, chestnut with a flaxen mane and a blaze,
+  palomino, tobiano paint), a heavy riding horse a little bigger than life, saddle, blanket, saddlebags, bedroll,
+  bridle; the coat paints in half steps with soft light that runs on across boxes, points and socks by height,
+  dapples, patches over the back; mane on the crest with locks of uneven length, a full frayed tail, eyes under a
+  brow. One rigidly skinned mesh per horse (one draw call). Animation (characters/horseAnimator.js): walk, trot,
+  canter, gallop with their own footfalls, legs that fold and reach crisply; standing it breathes, flicks its ears,
+  swishes its tail, rests a hind leg, paws, shakes, grazes; rears; jumps; mane, forelock, tail and stirrups swing on
+  springs. Play (systems/horses.js): Asche, the dapple grey at the new hitching rail by the east road, is yours —
+  T takes the reins and leads her, E at a rail or a tree ties her up, E mounts from the side you stand on (keyed
+  mount and dismount), H whistles her over; riding: W trots, a Shift tap spurs a step (canter, gallop), holding Shift
+  keeps the pace while her stamina lasts (the stamina bar is hers while mounted), S reins in and backs up, Caps Lock
+  walks, Space jumps (standing: she rears), the camera drifts back behind her at speed, a gallop widens the view;
+  first person sees over her ears. Sword, bow, Funken and potions work from the saddle. Reins are leather straps
+  that sag. Horses at the inn and both outposts; riders on the king's road: a patrol of three in a column, the
+  king's courier at a canter, a merchant with a guard beside him; they keep right, stop for whoever blocks the road
+  and call out. Hoofbeats (road or grass), snorts, whinnies, the whistle. Asche's place is saved.
+  Feedback round 1 (same day): legs no longer "spaghetti" (smaller, crisper joint angles), reins as straps instead of
+  lines, eyes no longer hidden by the jowls, the mane rebuilt, items usable in the saddle.
+Open (horses): mounted combat feel (sword reach from the saddle, enemies reacting to riders), horse fear and injury,
+buying or naming horses, brushing and feeding, more tie points (fences), riders for the shrine and camp roads, touch
+buttons for reins and whistle.
+### Goblins and their caves (2026-11-01)
+Roads got wheel ruts, a grass ridge, mud holes and puddles, verges overhanging the edge; prints sink into soft ground
+(square boots, horseshoes). Three goblin tribes (the Ukhai, data/goblins/lore.js) with chiefs, a language and lore;
+models and spears/daggers by Claude in Blockbench; specials that fight differently (Lauerer, Speier, Würger, Brecher,
+Trommler). Three caves from Codex's multi-storey floor plans (docs/goblin_caves/), each with its own puzzles.
+Feedback 2026-11-01: the first cave mouths (rock kitbash in front of a cliff) looked awful; the owner wants small holes
+in the ground with at most a slight rise, made from the world's own mesh. Done: the holes are terrain (heightfield
+burrows, a finer grid in the chunk mesh, darker down the shaft), each tribe leaves only a small sign; inside, the
+walls and ceilings became one rough rock skin instead of boxes, and you arrive at the foot of a daylight shaft with a
+rope. Goblin thrusts now lunge (they used to miss from the edge of their reach). The Grubenwacht: Brenna Rußhand in
+the king's guard barracks buys ears (5 Kronen), pays chiefs' bounties and keeps four contracts.
+Feedback 2026-11-02: goblins not green enough; caves "mega ass": entrances must slope so you can walk in (the one
+with the rope is cool as it is), the props round and in the caves looked awful, far too dark (look how other games do
+it) but then "not too bright or clean — dirty, disgusting, gloomy", walls not round, performance in caves, goblins
+died to one blow, many things in the world without (or with bad) hitboxes, and the new roads were not liked.
+Done: road wear rolled back (ruts, mud holes, puddles, verge; footprints stay). Green goblin skins. Codex painted six
+cave textures (src/art/caveSurfaces.js). The Klagende Grube and the Moderhöhle are sunken ways sloping into the hill
+(heightfield burrows walkIn) you walk down into; at the black end you are in, and inside you walk out up a tunnel to
+the daylight; the Eisengrube keeps its shaft and rope. Caves rebuilt (systems/caveRock.js): a density field (rounded
+plan, vaulted tunnels, stairs as ramps, drops, the exit tunnel, rock noise) turned into one smooth surface by surface
+nets, light baked into the vertices PS1-style (ambient that never goes fully black, occlusion, every torch/fire/
+mushroom/daylight with a sight check over the plan) plus grime (blotches, soot above fires, a wet band at the wall
+foot, muck); dark coloured fog. 33 Blockbench cave props (cave_props.gltf: totem, bones, cage, drums, altar, stake
+gates, torches, meat rack, stew pot, filth, …) replace every box, filth in every room. The surface world is hidden
+and not updated underground; goblin A* uses a heap. Goblins have about twice the hit points. Every solid-looking part
+of the sites without a collider now gets one automatically (world.js; scripts/audit_hitboxes.mjs lists them).
+Open (goblins): playtest every special and every puzzle in all three caves, saving and loading inside a cave, the
+contracts in the quest journal and on the map, a contract board with ears outside the barracks, more cave light
+(the dark rooms are very dark), goblin raids on the roads at night.
 Open (motion): townsfolk grips, surface footsteps, catching/supporting people, drawn IK debug, wolves.
 Open (AI): NPC potions, wounded posture, voiced callouts, shield bash, mage wards, an off-screen camp economy, drawn
 debug overlays (cones, cover points).
@@ -266,4 +317,4 @@ a screenshot); props in the castle ward beyond the stables and forge; the archer
 sheet yet; quarry floor patches look rectangular; crags round the castle look like stumps.
 
 ## Later
-Stealth (detection, sneaking, hidden bodies), crafting, dungeons, horses, more Hemland regions, coast and sea.
+Stealth (detection, sneaking, hidden bodies), crafting, dungeons, more Hemland regions, coast and sea.

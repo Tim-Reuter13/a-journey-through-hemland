@@ -714,6 +714,310 @@ function AshenModels() {
     return { name: 'trees', bones, cubes, materials: MATERIALS, atlasWidth: 512 };
   }
 
+  // ── Horses. A heavy riding horse, bigger than life like everything in Hemland (withers about 2.6 units, a
+  // rider's head near four): deep chest, broad hindquarters, a thick crested neck, feathered fetlocks on the
+  // heavier coats. Faces −Z like every model. The mane lies on the crest in four bones and the tail hangs in
+  // four more, so the game can swing them; stirrups hang in their own bones; 'bit' marks where the reins attach.
+  // Tack: a padded saddle with high pommel and cantle over a striped blanket, saddlebags, a bedroll, a bridle.
+  // Markings come from the coat material: points and socks by height, dapples, white patches (see builder.js).
+  const HORSE_WHITE = ['#d6d1c6', '#e2ded5', '#ebe8e0', '#f4f2ec'];
+  const HORSES = {
+    // Bay: red-brown, black mane, tail and legs from the knees down, a star, dark feathering.
+    bay: { coat: ['#40210f', '#57301b', '#6b3c23', '#7f4a2c', '#925a37'], belly: ['#3a1e10', '#4a2816', '#5a321d', '#683b23'],
+      points: { ramp: ['#141110', '#1c1815', '#25201b', '#2f2822'], top: 16.5 }, mane: ['#100d0b', '#1a1613', '#251f1b', '#302924'],
+      muzzle: ['#1c1715', '#262019', '#30291f'], feathers: ['#1d1916', '#26201c', '#2f2822', '#3a332c'], darkEars: true, star: true, socks: {}, blanket: 'clothCrimson' },
+    // Black: a heavy black with a long mane and tail, feathering, one white sock behind.
+    black: { coat: ['#101014', '#18181d', '#222228', '#2e2e36', '#3e3e48'], belly: ['#0c0c0f', '#121215', '#18181c', '#1e1e23'],
+      mane: ['#08080a', '#0f0f12', '#17171b', '#202026'], muzzle: ['#141416', '#1c1c1f', '#252528'], feathers: ['#0c0c0e', '#141417', '#1c1c20', '#26262b'],
+      darkEars: true, socks: { rear_right: 6.5 }, blanket: 'clothBlue' },
+    // Dapple grey: light rings in a darker grey net, dark lower legs, a silver mane.
+    grey: { coat: ['#6c6f73', '#7f8286', '#93969a', '#a7aaad', '#babcbe'], belly: ['#8d9093', '#9da0a2', '#adafb1', '#bcbdbe'], dapples: ['#5d6064', '#cbcccd', .8],
+      points: { ramp: ['#3a3b3f', '#46474b', '#535458', '#606165'], top: 12.5 }, mane: ['#b9bab9', '#cacac8', '#d9d9d6', '#e7e6e2'],
+      muzzle: ['#3a3a3c', '#46474a', '#545558'], socks: {}, blanket: 'clothGreen' },
+    // Chestnut: copper with a flaxen mane and tail, a blaze, two white legs behind.
+    chestnut: { coat: ['#5b2a10', '#713516', '#86411d', '#9a4e25', '#ac5b2e'], belly: ['#4e230e', '#622c12', '#723418', '#823d1e'],
+      mane: ['#9a7048', '#b4895c', '#c9a072', '#dcb688'], muzzle: ['#3a2622', '#4a302a', '#5a3a32'], blaze: true, socks: { rear_right: 6.5, rear_left: 10.5 }, blanket: 'clothLinen' },
+    // Palomino: gold with a cream mane, a blaze, odd socks.
+    palomino: { coat: ['#9a7232', '#b0883e', '#c29a4c', '#d2ac60', '#e0c07a'], belly: ['#a88446', '#bc9856', '#ccaa66', '#d8b878'],
+      mane: ['#d8cfb8', '#e5ddc9', '#efe9db', '#f8f5ed'], muzzle: ['#4a3a30', '#5a463a', '#6a5244'], blaze: true, socks: { front_left: 6.5, rear_right: 3.5 }, blanket: 'clothCrimson' },
+    // Paint: dark brown with big white patches over the back, white legs, a blaze, a two-coloured mane.
+    paint: { coat: ['#4a2814', '#5e341c', '#704024', '#844e2e', '#965c38'], belly: HORSE_WHITE, patches: [HORSE_WHITE, .56],
+      mane: ['#141110', '#1e1a17', '#28221e', '#332c26'], tail: ['#cfc9bd', '#ddd8ce', '#e8e4dc', '#f2efe8'], muzzle: ['#3a2a26', '#4a3630', '#5a423a'], feathers: HORSE_WHITE, blaze: true,
+      socks: { front_right: 12, front_left: 12, rear_right: 12.5, rear_left: 12.5 }, blanket: 'clothBlue' },
+  };
+  function horse(variant) {
+    const V = HORSES[variant];
+    const coat = { style: 'coat', points: V.points, socks: V.socks, sockRamp: HORSE_WHITE, dapples: V.dapples, patches: V.patches };
+    const materials = { ...MATERIALS,
+      coat: { ...coat, ramp: V.coat }, belly: { ...coat, ramp: V.belly },
+      mane: { style: 'hair', ramp: V.mane }, maneSide: { style: 'hair', ramp: V.mane, across: true, ragged: true }, tail: { style: 'hair', ramp: V.tail || V.mane, ragged: true }, tailRoot: { style: 'hair', ramp: V.tail || V.mane },
+      eye: { style: 'flat', ramp: ['#0b0706', '#120c09', '#1a120d'] },
+      feather: { style: 'hair', ramp: V.feathers || V.mane, ragged: true }, featherWhite: { style: 'hair', ramp: HORSE_WHITE, ragged: true },
+      muzzle: { style: 'flat', ramp: V.muzzle }, hoof: { style: 'flat', ramp: ['#2a2420', '#36302a', '#433b33'] }, hoofPale: { style: 'flat', ramp: ['#6e6250', '#7e705c', '#8e8068'] } };
+    // Points into a cube's turned frame: [y, z] about origin [oy, oz], degrees about X (Blockbench's sense).
+    const turnX = ([y, z], [oy, oz], deg) => { const a = deg * Math.PI / 180, dy = y - oy, dz = z - oz; return [oy + dy * Math.cos(a) - dz * Math.sin(a), oz + dy * Math.sin(a) + dz * Math.cos(a)]; };
+    const NECK = [
+      { name: 'neck_low', bone: 'neck_1', from: [-4.5, 32, -22], to: [4.5, 46, -13], tilt: -38, origin: [0, 37, -17], mane: [[39.5, 43], [43, 46.5]] },
+      { name: 'neck_high', bone: 'neck_2', from: [-4, 41, -28], to: [4, 52, -19], tilt: -28, origin: [0, 45, -23], mane: [[43, 47.5], [47.5, 52.6]] },
+    ];
+    const maneBones = [];
+    NECK.forEach(n => n.mane.forEach(([y0, y1]) => { const [py, pz] = turnX([y1, n.to[2] + .5], [n.origin[1], n.origin[2]], n.tilt); maneBones.push({ n, y0, y1, pivot: [0, +py.toFixed(2), +pz.toFixed(2)] }); }));
+    const bones = [
+      ['root', null, [0, 0, 0]], ['body', 'root', [0, 32, 2]], ['chest', 'body', [0, 32, -11]], ['hips', 'body', [0, 32, 13]],
+      ['neck_1', 'chest', [0, 37, -17]], ['neck_2', 'neck_1', [0, 45, -23]], ['head', 'neck_2', [0, 51, -28]],
+      ['bit', 'head', [0, 36.5, -30.8]], ['ear_right', 'head', [2.2, 52, -28.5]], ['ear_left', 'head', [-2.2, 52, -28.5]], ['forelock', 'head', [0, 51.6, -28.9]],
+      ...maneBones.map((m, k) => [`mane_${k + 1}`, m.n.bone, m.pivot]),
+      ['tail_1', 'hips', [0, 38, 20]], ['tail_2', 'tail_1', [0, 33.5, 22.1]], ['tail_3', 'tail_2', [0, 25.6, 23.2]], ['tail_4', 'tail_3', [0, 17.6, 23.6]],
+      ['saddle', 'body', [0, 38.6, -1]], ['stirrup_right', 'saddle', [7.3, 37.5, -1]], ['stirrup_left', 'saddle', [-7.3, 37.5, -1]],
+    ];
+    for (const [s, side] of [[1, 'right'], [-1, 'left']]) bones.push(
+      [`front_upper_${side}`, 'chest', [s * 4.4, 30, -13]], [`front_lower_${side}`, `front_upper_${side}`, [s * 4.4, 15.5, -13]], [`front_hoof_${side}`, `front_lower_${side}`, [s * 4.4, 5.5, -13]],
+      [`rear_upper_${side}`, 'hips', [s * 4.4, 31, 14.5]], [`rear_lower_${side}`, `rear_upper_${side}`, [s * 4.4, 15.5, 19.4]], [`rear_hoof_${side}`, `rear_lower_${side}`, [s * 4.4, 5.5, 19]]);
+    const cubes = [], add = (...c) => cubes.push(...c.flat());
+    const HEAD = { rotation: [-55, 0, 0], origin: [0, 51, -28] };
+    // Body: a barrel with sprung ribs, a deep chest and breast, withers, big hindquarters stepped out over the
+    // hips, the shoulder laid back along the shoulder blade.
+    add(box('barrel', 'body', [-6.4, 23, -9], [6.4, 38, 11], 'coat', { faceMat: { down: 'belly' } }),
+      box('chest', 'chest', [-6.2, 21.5, -19], [6.2, 38, -8], 'coat', { faceMat: { down: 'belly' } }),
+      box('breast', 'chest', [-5, 22.5, -21], [5, 34, -19], 'coat'),
+      box('withers', 'chest', [-3.8, 38, -17], [3.8, 41.2, -6.5], 'coat'),
+      box('belly', 'body', [-5.2, 21.5, -6], [5.2, 23, 8], 'belly'),
+      box('rump', 'hips', [-6.3, 22.5, 9], [6.3, 39, 20], 'coat', { faceMat: { down: 'belly' } }),
+      box('croup', 'hips', [-4.6, 39, 9.5], [4.6, 40.2, 18.5], 'coat'),
+      ...pair(box('haunch_right', 'hips', [6.3, 25, 10.5], [7, 36.5, 19.2], 'coat')),
+      ...pair(box('shoulder_right', 'chest', [6.2, 24.5, -17], [6.8, 37.5, -10.5], 'coat', { rotation: [22, 0, 0], origin: [6.5, 31, -13.75] })));
+    // Neck: two thick sections leaning forward to the poll; the crest is their back face.
+    for (const n of NECK) add(box(n.name, n.bone, n.from, n.to, 'coat', { rotation: [n.tilt, 0, 0], origin: n.origin }));
+    // Head (built level, nose to −Z, then tipped 55° down at the poll): skull with eyes, nasal bone, muzzle with
+    // nostrils and a lower lip, round jowls; ears in two steps; the forelock lies on the forehead.
+    const white = { w: '#ece9e1' };
+    const skullTop = V.blaze ? [{ face: 'up', palette: white, x: 0, y: 0, map: ['..www..', '..www..', '.wwwww.', '.wwwww.', '..www..', '...w...'] }]
+      : V.star ? [{ face: 'up', palette: white, x: 2, y: 1, map: ['.ww', 'www', '.w.'] }] : [];
+    add(box('skull', 'head', [-3.5, 45, -35], [3.5, 52, -28], 'coat', { ...HEAD, faceMat: { down: 'belly' }, decals: skullTop }),
+      // The eye: a dark, glossy box set into the side of the head under a bony brow, a glint at its top.
+      ...pair(box('eye_right', 'head', [3.5, 48.3, -33.9], [3.92, 50.3, -31.3], 'eye', { ...HEAD, decals: [{ face: 'east', palette: { w: '#cbbfae', g: '#3a2a20' }, x: 0, y: 0, map: ['gwg', '...'] }] })),
+      ...pair(box('brow_right', 'head', [3.5, 50.3, -34.3], [3.84, 51.1, -30.9], 'coat', HEAD)),
+      box('face', 'head', [-3, 46, -41], [3, 51, -35], 'coat', { ...HEAD, decals: V.blaze ? [{ face: 'up', palette: white, x: 2, y: 0, map: ['ww', 'ww', 'ww', 'ww', 'ww', 'ww'] }] : [] }),
+      box('muzzle', 'head', [-2.8, 44.6, -45], [2.8, 50, -41], 'muzzle', { ...HEAD, decals: [{ face: 'north', palette: { n: '#0a0807' }, x: 1, y: 2, map: ['n..n', 'n..n'] },
+        ...(V.blaze ? [{ face: 'up', palette: white, x: 0, y: 0, map: ['.wwww.', '..ww..', '..ww..', '..ww..'] }, { face: 'north', palette: white, x: 2, y: 0, map: ['ww'] }] : [])] }),
+      box('lip', 'head', [-2.4, 43.6, -44.6], [2.4, 44.6, -40.5], 'muzzle', HEAD),
+      box('chin', 'head', [-2, 43.4, -40.5], [2, 44.6, -36], 'muzzle', HEAD),
+      ...pair(box('jowl_right', 'head', [3.5, 44.8, -31.4], [4.05, 47.7, -28.6], 'coat', HEAD)));
+    for (const side of ['right', 'left']) {
+      const e = c => side === 'right' ? c : mirrorCube(c);
+      add(e(box('ear_right', 'ear_right', [1.3, 52, -29.6], [3.1, 55, -27.4], 'coat', { rotation: [14, 0, -14], origin: [2.2, 52, -28.5], decals: [{ face: 'north', palette: { p: '#2a1e18' }, x: 0, y: 0, map: ['.p', 'pp', 'pp'] }] })),
+        e(box('ear_tip_right', 'ear_right', [1.6, 55, -29.2], [2.8, 57, -27.8], V.darkEars ? 'mane' : 'coat', { rotation: [14, 0, -14], origin: [2.2, 52, -28.5] })));
+    }
+    add(box('forelock', 'forelock', [-1.6, 52, -31.2], [1.6, 52.9, -28.6], 'mane', HEAD),
+      box('forelock_tuft', 'forelock', [-1.2, 52, -29.6], [1.2, 53.8, -28.2], 'mane', HEAD));
+    // Mane: a ridge of hair standing along the crest and, on the right side, hair lying down the neck in two
+    // staggered layers per piece whose strands end in points of uneven length; every piece is turned with its
+    // neck section so it sits exactly on the crest, and overlaps the next.
+    const MANE_LENGTH = [[4.6, 3.6], [5.4, 4.4], [5, 4], [3.4, 2.6]];
+    maneBones.forEach(({ n, y0, y1 }, k) => {
+      const zb = n.to[2], xr = n.to[0], turned = { rotation: [n.tilt, 0, 0], origin: n.origin }, [la, lb] = MANE_LENGTH[k], mid = (a, t) => y0 + (y1 - y0) * t;
+      add(box(`mane_ridge_${k + 1}`, `mane_${k + 1}`, [-1.3, y0 - .4, zb - 1], [1.3, y1 + .4, zb + 1.9], 'mane', turned),
+        box(`mane_fall_${k + 1}`, `mane_${k + 1}`, [xr - .05, y0 - .4, zb - la], [xr + .7, mid(0, .62), zb + .4], 'maneSide', turned),
+        box(`mane_fall_${k + 1}b`, `mane_${k + 1}`, [xr - .05, mid(0, .38), zb - lb], [xr + .62, y1 + .4, zb + .4], 'maneSide', turned));
+    });
+    // Tail: a dock angled out from the croup, then long falls of hair reaching below the hocks, frayed at the end.
+    add(box('tail_dock', 'tail_1', [-1.6, 33, 18.5], [1.6, 38.6, 21.5], 'tailRoot', { rotation: [-25, 0, 0], origin: [0, 38, 20] }),
+      box('tail_fall_1', 'tail_2', [-2.3, 25.2, 20.4], [2.3, 34, 24], 'tailRoot', { rotation: [-8, 0, 0], origin: [0, 33.5, 22.1] }),
+      box('tail_fall_2', 'tail_3', [-2.6, 17.2, 21.4], [2.6, 26.2, 25], 'tailRoot', { rotation: [-3, 0, 0], origin: [0, 25.6, 23.2] }),
+      box('tail_fall_3', 'tail_4', [-2.2, 10.5, 21.8], [2.2, 18.2, 25.4], 'tail'),
+      box('tail_tip', 'tail_4', [-1.4, 8, 22.4], [1.4, 10.5, 24.8], 'tail'));
+    // Legs (right side given, mirrored): forearm tapering to the knee, a slim cannon, the fetlock joint, pastern and
+    // hoof; behind, the thigh, the gaskin slanting back to the point of the hock, then the cannon straight down.
+    for (const [s, side] of [[1, 'right'], [-1, 'left']]) {
+      const leg = (name, bone, from, to, mat, extra) => { const c = box(`${name}_right`, `${bone}_right`, from, to, mat, extra || {}); return s > 0 ? c : mirrorCube(c); };
+      const featherMat = set => V.socks[`${set}_${side}`] ? 'featherWhite' : 'feather', hoof = set => V.socks[`${set}_${side}`] ? 'hoofPale' : 'hoof';
+      add(leg('forearm', 'front_upper', [2.3, 21, -16], [6.5, 30.5, -10.5], 'coat'),
+        leg('forearm_low', 'front_upper', [2.6, 15.5, -15.4], [6.2, 21, -11], 'coat'),
+        leg('knee', 'front_lower', [2.5, 12.5, -15.5], [6.3, 16, -11.1], 'coat'),
+        leg('front_cannon', 'front_lower', [3, 5.5, -14.5], [5.8, 12.5, -11.6], 'coat'),
+        leg('front_fetlock', 'front_hoof', [2.8, 3.6, -14.8], [6, 6.2, -11.2], 'coat'),
+        leg('front_pastern', 'front_hoof', [3, 1.8, -15], [5.8, 3.8, -12], 'coat'),
+        leg('front_hoof', 'front_hoof', [2.6, 0, -15.6], [6.2, 2, -11.4], hoof('front')),
+        leg('thigh', 'rear_upper', [2, 21.5, 10.5], [6.6, 32, 19.5], 'coat'),
+        leg('gaskin', 'rear_upper', [2.7, 14.5, 15], [6.1, 23, 19], 'coat', { rotation: [-18, 0, 0], origin: [4.4, 23, 17] }),
+        leg('hock', 'rear_lower', [2.6, 12.5, 17.5], [6.1, 16.5, 21], 'coat'),
+        leg('hock_point', 'rear_lower', [3.4, 14.5, 21], [5.3, 16.8, 22], 'coat'),
+        leg('rear_cannon', 'rear_lower', [3, 5.5, 17.6], [5.8, 12.5, 20.4], 'coat'),
+        leg('rear_fetlock', 'rear_hoof', [2.8, 3.6, 17.3], [6, 6.2, 20.8], 'coat'),
+        leg('rear_pastern', 'rear_hoof', [3, 1.8, 16.7], [5.8, 3.8, 19.8], 'coat'),
+        leg('rear_hoof', 'rear_hoof', [2.6, 0, 16], [6.2, 2, 20.2], hoof('rear')));
+      if (V.feathers) add(leg('front_feather', 'front_hoof', [2.4, 1.2, -13.6], [6.4, 5.4, -10.6], featherMat('front')),
+        leg('rear_feather', 'rear_hoof', [2.4, 1.2, 18.6], [6.4, 5.4, 21.6], featherMat('rear')));
+    }
+    // Tack: blanket, saddle with pommel and cantle, flaps, girth, saddlebags, bedroll; stirrups; bridle.
+    const B = V.blanket;
+    add(box('blanket', 'saddle', [-7, 30, -6], [7, 38.6, 5], B, { decals: ['east', 'west'].map(face => ({ face, palette: { s: '#b39a62' }, x: 0, y: 6, map: ['sssssssssss', '...........', 'sssssssssss'] })) }),
+      box('seat', 'saddle', [-4, 38.6, -4], [4, 39.6, 4], 'leatherDark'),
+      box('pommel', 'saddle', [-2.5, 39.6, -5.5], [2.5, 42.5, -3.5], 'leather'),
+      box('cantle', 'saddle', [-3.5, 39.6, 3.5], [3.5, 42.5, 5.5], 'leather'),
+      ...pair(box('flap_right', 'saddle', [7, 31, -3.5], [7.6, 38.6, 2.5], 'leather')),
+      box('girth', 'saddle', [-7.2, 21.2, -1], [7.2, 30, 1], 'leatherDark'),
+      ...pair(box('saddlebag_right', 'saddle', [6.6, 31, 5.5], [8.2, 36, 9.5], 'leather', { decals: [{ face: 'east', palette: { b: '#a8a8a0' }, x: 1, y: 1, map: ['.b.'] }] })),
+      box('bedroll', 'saddle', [-5.5, 39, 5.5], [5.5, 41.5, 8], 'clothLinen', { decals: [{ face: 'up', palette: { l: '#2c1e15' }, x: 2, y: 0, map: ['l.....l', 'l.....l', 'l.....l'] }] }));
+    for (const side of ['right', 'left']) {
+      const st = c => side === 'right' ? c : mirrorCube(c);
+      add(st(box('stirrup_strap_right', 'stirrup_right', [7.1, 30.5, -1.4], [7.7, 37.5, -.6], 'leatherDark')),
+        st(box('stirrup_iron_right', 'stirrup_right', [6.7, 28.5, -2.2], [8.1, 30.5, .2], 'iron')));
+    }
+    add(box('noseband', 'head', [-3.1, 45.6, -40.4], [3.1, 50.4, -39.5], 'leatherDark', HEAD),
+      box('browband', 'head', [-3.7, 51.4, -30], [3.7, 52.4, -29], 'leatherDark', HEAD),
+      ...pair(box('headstall_right', 'head', [3.5, 46, -30.2], [3.9, 52.2, -29.2], 'leatherDark', HEAD)),
+      ...pair(box('cheekpiece_right', 'head', [3.1, 45.4, -41.6], [3.6, 46.4, -30], 'leatherDark', HEAD)),
+      ...pair(box('bitring_right', 'head', [2.8, 44.4, -42.6], [3.6, 45.8, -41.2], 'iron', HEAD)));
+    return { name: `horse_${variant}`, bones, cubes, materials, atlasWidth: 256 };
+  }
+
+  // ── Goblins (the Ukhai, src/data/goblins/lore.js). Small, hunched, grey, with bat ears wider than their
+  // shoulders, milky blind eyes, a hooked nose and an underbite of fangs; long arms down to the knees, short
+  // bowed legs on long clawed feet. The rig uses the humanoid bone names (plus jaw and ears), so the humanoid
+  // animator, IK and ragdolls work on them; the hunch is built into the boxes. Each tribe dresses and paints
+  // differently; the special kinds change the body itself (lanky stalker, bloated spore sack, wire-thin
+  // chain strangler, a hulking brute with one giant arm, a drummer), and the three chiefs are bigger still.
+  const GOBLIN_TRIBES = {
+    schaedelsaenger: { skin: ['#5a7848', '#688754', '#779760', '#87a76d'], paint: ['#c9c4b5', '#d8d4c6', '#e6e2d6'], cloth: 'leatherDark' },
+    pilzmuetter: { skin: ['#3b6a3c', '#467a46', '#528b51', '#5f9c5c'], paint: ['#3d5a2e', '#4a6b37', '#587c41'], cloth: 'clothGreen' },
+    kettenbrecher: { skin: ['#52682f', '#5f7838', '#6d8842', '#7c984c'], paint: ['#6e2a1c', '#843422', '#9a3f29'], cloth: 'leather' },
+  };
+  function goblin({ name, tribe = 'schaedelsaenger', kind = 'speer', chief = false }) {
+    const T = GOBLIN_TRIBES[tribe];
+    const materials = { ...MATERIALS,
+      gobSkin: { style: 'skin', ramp: T.skin }, gobDark: { style: 'flat', ramp: ['#2f2b28', '#3b3632', '#47413c'] },
+      gobInner: { style: 'flat', ramp: ['#5a4a3a', '#6a5844', '#7a654e'] }, gobPaint: { style: 'flat', ramp: T.paint },
+      gobEye: { style: 'flat', ramp: ['#aab6b8', '#bdc8c9', '#d0d9d9'] }, gobClaw: { style: 'flat', ramp: ['#1c1814', '#26201b', '#302822'] },
+      gobBone: { style: 'flat', ramp: ['#a89c82', '#bab096', '#cbc2aa', '#dbd4c0'] }, gobHide: { style: 'leather', ramp: ['#9a8064', '#ab9073', '#bba183'] },
+      capBrown: { style: 'flat', ramp: ['#6e3f22', '#83502d', '#986139'] }, capGlow: { style: 'glow', ramp: ['#3fa894', '#5cc4ae', '#86e0cc', '#b2f2e4'] },
+      spore: { style: 'glow', ramp: ['#7d9a3a', '#98b84a', '#b8d660', '#d4ec84'] } };
+    // Body shape by kind: k scales the whole goblin, the rest stretch or swell parts of it.
+    const brute = kind === 'brecher' || chief && tribe === 'kettenbrecher';
+    const shape = { k: brute ? 1.6 : chief ? 1.22 : kind === 'schleicher' ? 1.12 : 1, limb: kind === 'schleicher' ? 1.22 : kind === 'wuerger' ? 1.08 : 1,
+      width: kind === 'wuerger' ? .78 : kind === 'schleicher' ? .85 : chief && tribe === 'pilzmuetter' ? 1.3 : brute ? 1.35 : 1, neck: kind === 'wuerger' ? 2.2 : 0 };
+    const { k, limb, width, neck } = shape, W = v => v * width;
+    // Scale a point; the legs and arms take the limb factor on their lengths.
+    const P = ([x, y, z]) => [x * k, y * k, z * k];
+    const legTop = 11 * limb, hipY = legTop, chestY = hipY + 5;
+    const bones = [
+      ['root', null, [0, 0, 0]], ['hips', 'root', P([0, hipY, .5])], ['torso', 'hips', P([0, hipY + 2, .5])], ['chest', 'torso', P([0, chestY, 0])],
+      ['neck', 'chest', P([0, chestY + 3.2, -3])], ['head', 'neck', P([0, chestY + 4.4 + neck - (brute ? 1.6 : 0), -3.6 - neck * .3])], ['jaw', 'head', P([0, chestY + 5.2 + neck - (brute ? 1.6 : 0), -6.9 - neck * .3])],
+      ['ear_right', 'head', P([3.5, chestY + 7.9 + neck - (brute ? 3.2 : 0), -4.6 - neck * .3])], ['ear_left', 'head', P([-3.5, chestY + 7.9 + neck - (brute ? 3.2 : 0), -4.6 - neck * .3])], ['pack', 'chest', P([0, chestY + 2, 2.5])],
+    ];
+    const armLen = 4.8 * limb;
+    for (const [s, side] of [[1, 'right'], [-1, 'left']]) bones.push(
+      [`arm_upper_${side}`, 'chest', P([s * W(4.4), chestY + 3, -1.2])], [`arm_lower_${side}`, `arm_upper_${side}`, P([s * W(4.7), chestY + 3 - armLen, -1.4])],
+      [`hand_${side}`, `arm_lower_${side}`, P([s * W(4.9), chestY + 3 - armLen * 1.9, -1.6])], [`grip_${side}`, `hand_${side}`, P([s * W(4.9), chestY + 1.8 - armLen * 1.9 - 1.2, -2.3])],
+      [`leg_upper_${side}`, 'hips', P([s * 1.7 * width, hipY, .6])], [`leg_lower_${side}`, `leg_upper_${side}`, P([s * 2 * width, hipY - 5 * limb, .9])], [`foot_${side}`, `leg_lower_${side}`, P([s * 2.1 * width, 1.7, .6])]);
+    const cubes = [], add = (...c) => cubes.push(...c.flat());
+    // Boxes in goblin-space (scaled by k); right-side boxes mirrored with sym().
+    const g = (n, bone, from, to, mat, extra = {}) => box(n, bone, P(from), P(to), mat, { ...extra, ...(extra.origin ? { origin: P(extra.origin) } : {}) });
+    const sym = c => pair(c);
+    const head = chestY + 4.4 + neck - (brute ? 1.6 : 0), hz = -1 - neck * .3, H = v => v * (brute ? .78 : 1.15);
+    // Torso: pelvis, belly and a hunched chest with knobs of spine.
+    add(g('pelvis', 'hips', [W(-2.4), hipY - 1.2, -1.2], [W(2.4), hipY + 1.8, 2.2], 'gobSkin'),
+      g('belly', 'torso', [W(-2.6), hipY + 1.6, -1.6], [W(2.6), hipY + 5.2, 2.1], 'gobSkin', { rotation: [-12, 0, 0], origin: [0, hipY + 2, .5] }),
+      g('chest', 'chest', [W(-3.3), chestY - .6, -2.4], [W(3.3), chestY + 4, 2.3], 'gobSkin', { rotation: [-32, 0, 0], origin: [0, chestY, 0] }));
+    for (let i = 0; i < 3; i++) add(g(`spine_${i}`, 'chest', [-.5, chestY + i * 1.3, 2.1], [.5, chestY + i * 1.3 + .8, 2.8], 'gobSkin', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }));
+    add(g('neck', 'neck', [-1.2, chestY + 2.4, -4 - neck * .3], [1.2, head + .2, -1.8 - neck * .3], 'gobSkin', { rotation: [-38 + neck * 4, 0, 0], origin: [0, chestY + 3.2, -3] }));
+    // Head: skull, heavy brow, milky eyes, a long hooked nose, cheekbones, a jaw of fangs.
+    const eyes = { face: 'north', palette: { e: '#d4dcdc', m: '#a4b0b2', d: '#24201c' }, x: 0, y: 1, map: ['.dd.dd.', '.em.me.', '.......'] };
+    add(g('skull', 'head', [H(-3.4), head - .6, H(-6.4) + hz], [H(3.4), head + H(5.6) - .6, -.8 + hz], 'gobSkin', { decals: [eyes, ...(tribe === 'schaedelsaenger' ? [{ face: 'north', palette: { w: T.paint[2] }, x: 0, y: 3, map: ['w.....w', 'ww...ww'] }] : [])] }),
+      g('brow', 'head', [H(-3.5), head + 3.8, H(-6.8) + hz], [H(3.5), head + 4.8, H(-5.8) + hz], 'gobSkin'),
+      g('nose', 'head', [-.8, head + 1, H(-7.8) + hz], [.8, head + 3.7, H(-6.3) + hz], 'gobSkin'),
+      g('nose_tip', 'head', [-.7, head + .4, H(-8.5) + hz], [.7, head + 1.4, H(-7.5) + hz], 'gobSkin'),
+      ...sym(g('cheek_right', 'head', [2.6, head - .2, -6 + hz], [3.7, head + 1.6, -3.4 + hz], 'gobSkin')),
+      g('jaw', 'jaw', [H(-2.8), head - 1.5, H(-6.6) + hz], [H(2.8), head + .4, -2.4 + hz], 'gobSkin', { decals: [{ face: 'north', palette: { t: '#d6cdb6', d: '#2a1f1a' }, x: 0, y: 0, map: ['t.dd.t', 'dddddd'] }] }),
+      ...sym(g('fang_right', 'jaw', [1.5, head + .4, H(-6.5) + hz], [2.3, head + 1.5, H(-5.9) + hz], 'teeth')));
+    // Ears: bat-wide, swept up and back, a dark inside; some carry ritual notches.
+    for (const [s, side] of [[1, 'right'], [-1, 'left']]) {
+      const e = c => s > 0 ? c : mirrorCube(c), ey = head + (brute ? 1.9 : 3.5), ez = -3.6 + hz, sag = chief && tribe === 'pilzmuetter' ? -18 : 0, reach = brute ? 6.6 : 10;
+      add(e(g('ear_right', 'ear_right', [H(3) + .4, ey - 1.8, ez - .3], [reach, ey + 2.4, ez + .4], 'gobSkin', { rotation: [6, 32, 12 + sag], origin: [3.5, ey, ez],
+          decals: [{ face: 'north', palette: { i: '#5e4646', n: '#2f2b28' }, x: 0, y: 1, map: ['..iiii', '.iiiii', '..iii.'] }, { face: 'up', palette: { n: '#2f2b28' }, x: 3, y: 0, map: ['n'] }] })),
+        e(g('ear_tip_right', 'ear_right', [reach - .6, ey + .2, ez - .2], [reach + (brute ? 1.6 : 2), ey + 2.8, ez + .3], 'gobSkin', { rotation: [6, 32, 20 + sag], origin: [3.5, ey, ez] })));
+    }
+    // Arms: long and thin, a wrap at the wrist, clawed hands.
+    for (const [s, side] of [[1, 'right'], [-1, 'left']]) {
+      const e = c => s > 0 ? c : mirrorCube(c), x = W(4.4), top = chestY + 3, mid = top - armLen, low = top - armLen * 1.9;
+      const big = brute && s > 0 ? 1.9 : 1;
+      add(e(g('arm_upper_right', 'arm_upper_right', [x - .9 * big, mid - .4, -2.2 * big], [x + 1 * big, top + .6, -.2 + .4 * (big - 1)], 'gobSkin')),
+        e(g('arm_lower_right', 'arm_lower_right', [x - .6 * big, low, -2.4 * big], [x + 1.2 * big, mid + .2, -.4 + .6 * (big - 1)], 'gobSkin')),
+        e(g('wrap_right', 'arm_lower_right', [x - .75 * big, low + .4, -2.55 * big], [x + 1.35 * big, low + 1.4, -.25 + .6 * (big - 1)], T.cloth)),
+        e(g('hand_right', 'hand_right', [x - .8 * big, low - 2.4 * big, -2.8 * big], [x + 1.4 * big, low, -.2 + .4 * (big - 1)], 'gobSkin')),
+        e(g('claws_right', 'hand_right', [x - .6 * big, low - 3 * big, -3.2 * big], [x + 1.2 * big, low - 2.3 * big, -1.8], kind === 'schleicher' ? 'gobBone' : 'gobClaw')));
+      if (kind === 'schleicher') add(e(g('blades_right', 'hand_right', [x - .2, low - 6.5, -3], [x + .6, low - 2.4, -2.2], 'gobBone')));
+    }
+    // Legs: bowed, knobbly knees, long bare clawed feet.
+    for (const [s, side] of [[1, 'right'], [-1, 'left']]) {
+      const e = c => s > 0 ? c : mirrorCube(c), x = 1.7 * width, kneeY = hipY - 5 * limb;
+      add(e(g('thigh_right', 'leg_upper_right', [x - 1.2, kneeY, -1], [x + 1.2, hipY + .4, 1.8], 'gobSkin')),
+        e(g('knee_right', 'leg_upper_right', [x - .9, kneeY - .4, -1.3], [x + 1.1, kneeY + 1.2, .4], 'gobSkin')),
+        e(g('shin_right', 'leg_lower_right', [x - .9, 1.6, -.4], [x + 1.1, kneeY + .4, 1.6], 'gobSkin')),
+        e(g('foot_right', 'foot_right', [x - 1.3, 0, -2.8], [x + 1.5, 1.8, 1.4], 'gobSkin', { decals: [{ face: 'north', palette: { c: '#1c1814' }, x: 0, y: 1, map: ['c.c'] }] })));
+    }
+    // Clothing: a loincloth and a belt hung with dried ears.
+    add(g('loin_front', 'hips', [W(-1.8), hipY - 4.5, -1.6], [W(1.8), hipY - .5, -1.1], T.cloth), g('loin_back', 'hips', [W(-2), hipY - 4.2, 1.9], [W(2), hipY - .5, 2.4], T.cloth),
+      g('belt', 'hips', [W(-2.6), hipY + .6, -1.4], [W(2.6), hipY + 1.6, 2.4], 'leatherDark'));
+    for (const [i, x] of [[0, 1.6], [1, -1.2]]) add(g(`trophy_${i}`, 'hips', [W(x) - .45, hipY - 1.4, -1.8], [W(x) + .45, hipY + .6, -1.4], 'gobInner'));
+    // Tribe dress.
+    if (tribe === 'schaedelsaenger') {
+      add(g('paint_chest', 'chest', [W(-3.35), chestY + 1.2, -2.5], [W(3.35), chestY + 1.8, -2.35], 'gobPaint', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }),
+        ...sym(g('scapula_right', 'chest', [W(2.6), chestY + 2.4, -2.2], [W(4.6), chestY + 3.4, 1.6], 'gobBone', { rotation: [-24, 0, -18], origin: [W(3.6), chestY + 2.8, 0] })));
+      for (let i = 0; i < 5; i++) add(g(`bone_bead_${i}`, 'chest', [-2.2 + i * 1.1, chestY + 2.6 - Math.abs(i - 2) * .5, -2.9], [-1.6 + i * 1.1, chestY + 3.3 - Math.abs(i - 2) * .5, -2.4], 'gobBone', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }));
+      add(g('visor', 'head', [-3.6, head + 2.4, -6.9 + hz], [3.6, head + 5.2, -6.3 + hz], 'gobBone', { decals: [{ face: 'north', palette: { d: '#1a1612' }, x: 0, y: 1, map: ['.dd.dd.'] }] }));
+    } else if (tribe === 'pilzmuetter') {
+      add(g('hood', 'head', [-3.7, head + 2.5, -5.6 + hz], [3.7, head + 5.6, -.4 + hz], 'clothGreen', { inflate: .15 }),
+        g('cap_head', 'head', [-2.2, head + 5.4, -4.2 + hz], [1.2, head + 6.3, -1.4 + hz], 'capBrown'),
+        ...sym(g('cap_shoulder_right', 'chest', [W(2.8), chestY + 3.4, -1.6], [W(5), chestY + 4.2, .8], 'capGlow', { rotation: [-24, 0, 0], origin: [0, chestY, 0] })),
+        g('spore_pouch', 'hips', [W(1.8), hipY - 1.6, -1.2], [W(3), hipY + .2, .6], 'spore'));
+    } else {
+      add(g('collar', 'chest', [W(-2.4), chestY + 3.2, -2.6], [W(2.4), chestY + 4.1, 1], 'rust', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }),
+        g('chain_link_a', 'chest', [-.5, chestY + .6, -3], [.5, chestY + 3.2, -2.5], 'iron', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }),
+        ...sym(g('manacle_right', 'arm_lower_right', [W(4.4) - .9, chestY + 3 - armLen * 1.9 + 1.4, -2.7], [W(4.4) + 1.5, chestY + 3 - armLen * 1.9 + 2.4, -.1], 'rust')),
+        g('apron', 'chest', [W(-2.6), chestY - .8, -2.7], [W(2.6), chestY + 2.4, -2.4], 'leather', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }));
+      if (kind !== 'brecher' && !chief) add(g('helmet', 'head', [-3.6, head + 3.9, -6.2 + hz], [3.6, head + 5.6, -.6 + hz], 'ironDark'), g('helmet_brim', 'head', [-3.9, head + 3.7, -6.8 + hz], [3.9, head + 4.1, -5.6 + hz], 'ironDark'));
+    }
+    // The special kinds.
+    if (kind === 'schleicher') add(g('cowl', 'head', [-3.8, head + 1, -5 + hz], [3.8, head + 5.8, .2 + hz], 'leatherDark', { inflate: .2 }), g('cloak', 'chest', [W(-3.6), chestY - 5, 1.6], [W(3.6), chestY + 4.2, 2.6], 'leatherDark', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }));
+    if (kind === 'speier') {
+      // A sack of spores swollen on the back, lumpy, with glowing blisters, and a sagging belly.
+      add(g('sack', 'pack', [-3.6, chestY - 1, 1.6], [3.6, chestY + 6, 7.4], 'gobSkin', { decals: [{ face: 'south', palette: { s: '#b8d660' }, x: 1, y: 1, map: ['s..s..', '..s..s', 's...s.'] }] }),
+        g('sack_lump', 'pack', [-2.4, chestY + 5, 2.4], [2.8, chestY + 7.6, 6.2], 'gobSkin'), ...sym(g('blister_right', 'pack', [3.4, chestY + 1, 3], [4.6, chestY + 3.2, 5.6], 'spore')),
+        g('gut', 'torso', [W(-3), hipY + .4, -2.8], [W(3), hipY + 4, 1], 'gobSkin'));
+    }
+    if (kind === 'wuerger') {
+      for (let i = 0; i < 4; i++) add(g(`coil_${i}`, 'chest', [W(-3.4), chestY + .6 + i * .9, -2.6 + i * .2], [W(3.4), chestY + 1.2 + i * .9, 2.4], i % 2 ? 'iron' : 'ironDark', { rotation: [-24, 0, 14 - i * 9], origin: [0, chestY + 2, 0] }));
+    }
+    if (kind === 'trommler' || chief && tribe === 'schaedelsaenger') {
+      add(...sym(g('tine_right', 'head', [1.4, head + 5, -3 + hz], [2, head + 9, -2.4 + hz], 'gobBone', { rotation: [0, 0, -20], origin: [1.7, head + 5, -2.7 + hz] })),
+        ...sym(g('tine_branch_right', 'head', [1.9, head + 7, -2.9 + hz], [3.6, head + 7.6, -2.5 + hz], 'gobBone', { rotation: [0, 0, -20], origin: [1.7, head + 5, -2.7 + hz] })));
+    }
+    if (kind === 'trommler') add(g('drum', 'torso', [-3, hipY - .4, -6], [3, hipY + 4.6, -2], 'wood', { faceMat: { north: 'gobHide' } }), g('drum_strap', 'chest', [W(-3.4), chestY + 1, -2.7], [W(3.4), chestY + 1.8, 2.5], 'leatherDark', { rotation: [-24, 0, 40], origin: [0, chestY + 1, 0] }));
+    if (brute) {
+      // A brute: a hump of muscle, a head sunk between the shoulders, growths on the giant arm.
+      add(g('hump', 'chest', [W(-3), chestY + 2, -.4], [W(3), chestY + 6, 3], 'gobSkin', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }),
+        g('growth_a', 'arm_upper_right', [W(4.4) + 1, chestY - 1, -1.4], [W(4.4) + 2.4, chestY + 1, .4], 'gobSkin'),
+        g('growth_b', 'arm_lower_right', [W(4.4) + 1.2, chestY - 6, -3.6], [W(4.4) + 2.4, chestY - 4, -2], 'gobSkin'));
+    }
+    if (chief) {
+      if (tribe === 'schaedelsaenger') add(g('skull_crown', 'head', [-2.4, head + 5.2, -5.6 + hz], [2.4, head + 8, -2.2 + hz], 'gobBone', { decals: [{ face: 'north', palette: { d: '#1a1612' }, x: 0, y: 1, map: ['.d.d.'] }] }),
+        g('bone_cloak', 'chest', [W(-4), chestY - 6, 2], [W(4), chestY + 4.4, 3.2], 'gobBone', { rotation: [-18, 0, 0], origin: [0, chestY, 0] }));
+      if (tribe === 'pilzmuetter') for (let i = 0; i < 6; i++) add(g(`mantle_cap_${i}`, 'chest', [W(-4 + i * 1.4), chestY + 3.2 + (i % 2) * .6, -1 + (i % 3)], [W(-2.6 + i * 1.4), chestY + 4.2 + (i % 2) * .6, 1.6 + (i % 3)], i % 2 ? 'capGlow' : 'capBrown', { rotation: [-24, 0, 0], origin: [0, chestY, 0] }));
+      if (tribe === 'kettenbrecher') {
+        add(g('iron_mask', 'head', [-3.6, head - .2, -7 + hz], [3.6, head + 4.4, -6.2 + hz], 'ironDark', { decals: [{ face: 'north', palette: { d: '#120f0d' }, x: 0, y: 1, map: ['.dd.dd.', '.......', '..ddd..'] }] }));
+        for (let i = 0; i < 5; i++) add(g(`chain_wrap_${i}`, 'chest', [W(-3.5), chestY - .5 + i * 1, -2.6], [W(3.5), chestY + .1 + i * 1, 2.4], i % 2 ? 'iron' : 'rust', { rotation: [-24, 0, 22 - i * 11], origin: [0, chestY + 2, 0] }));
+      }
+    }
+    return { name, bones, cubes, materials, atlasWidth: brute ? 256 : 128 };
+  }
+  const GOBLIN_MODELS = {
+    goblin_schaedel: { tribe: 'schaedelsaenger' }, goblin_pilz: { tribe: 'pilzmuetter' }, goblin_ketten: { tribe: 'kettenbrecher' },
+    goblin_schleicher: { tribe: 'schaedelsaenger', kind: 'schleicher' }, goblin_speier: { tribe: 'pilzmuetter', kind: 'speier' },
+    goblin_wuerger: { tribe: 'kettenbrecher', kind: 'wuerger' }, goblin_brecher: { tribe: 'kettenbrecher', kind: 'brecher' }, goblin_trommler: { tribe: 'schaedelsaenger', kind: 'trommler' },
+    goblin_vosh: { tribe: 'schaedelsaenger', kind: 'speer', chief: true }, goblin_ghast: { tribe: 'pilzmuetter', kind: 'dolch', chief: true }, goblin_ulgrak: { tribe: 'kettenbrecher', kind: 'brecher', chief: true },
+  };
+
   // ── Held items. Each top-level bone is one item whose pivot is the grip point.
   function weapons() {
     // Swords: souls-like shapes (an arming/longsword, about 0.8 m of blade on a 1.1 m sword) in chunky
@@ -822,7 +1126,207 @@ function AshenModels() {
       for (const side of [-1, 1]) cubes.push(box(`staff_prong${side}`, 'staff', [x + side * 1.3 - .3, 18.5, -.3], [x + side * 1.3 + .3, 22.5, .3], 'ironDark', { origin: [x + side * 1.3, 18.5, 0], rotation: [0, 0, side * -12] }));
       cubes.push(box('staff_ember', 'staff', [x - 1.1, 19.6, -1.1], [x + 1.1, 21.8, 1.1], 'ember', { origin: [x, 20.7, 0], rotation: [0, 45, 0] }));
     }
+    // Goblin arms: spears of bone, flint and rusted iron, daggers of rib bone, black glass and a hooked knife, the
+    // strangler's chain hook, Vosh's skull staff and Ulgrak's chain fist. Pivot at the grip, points up +Y.
+    const gob = (item, x, parts) => { bones.push([item, null, [x, 0, 0]]); parts.forEach(([n, from, to, mat, o], i) => cubes.push(box(`${item}_${n || i}`, item, [x + from[0], from[1], from[2]], [x + to[0], to[1], to[2]], mat, o ? { ...o, ...(o.origin ? { origin: [x + o.origin[0], o.origin[1], o.origin[2]] } : {}) } : {}))); };
+    const shaft = [['shaft', [-.4, -9, -.4], [.4, 14, .4], 'wood'], ['grip', [-.55, -1.5, -.55], [.55, 2, .55], 'leatherDark'], ['lash', [-.55, 12.6, -.55], [.55, 13.8, .55], 'leather']];
+    gob('gob_spear_bone', 120, [...shaft, ['tip', [-.9, 13.8, -.3], [.9, 17, .3], 'antler'], ['point', [-.45, 17, -.22], [.45, 19.6, .22], 'antler'], ['ear', [.5, 11, -.2], [1.3, 12.4, .2], 'skin']]);
+    gob('gob_spear_stone', 132, [...shaft, ['tip', [-1.1, 13.8, -.35], [1.1, 16, .35], 'ironDark'], ['point', [-.6, 16, -.3], [.6, 18, .3], 'ironDark'], ['point2', [-.25, 18, -.2], [.25, 19.2, .2], 'ironDark'], ['feather', [-1.4, 11.6, -.1], [-.4, 13.6, .1], 'fletchRed']]);
+    gob('gob_spear_iron', 144, [...shaft, ['socket', [-.6, 13.6, -.6], [.6, 15, .6], 'rust'], ['tip', [-.8, 15, -.25], [.8, 18.4, .25], 'rust'], ['barb', [.6, 14.6, -.2], [1.6, 16.4, .2], 'rust', { rotation: [0, 0, -30], origin: [.8, 15.4, 0] }], ['point', [-.35, 18.4, -.2], [.35, 19.6, .2], 'rust']]);
+    gob('gob_dagger_bone', 156, [['grip', [-.6, -2.2, -.55], [.6, 2.2, .55], 'leather'], ['guard', [-1, 2.2, -.5], [1, 2.9, .5], 'antler'], ['blade', [-.55, 2.9, -.25], [.55, 7.5, .25], 'antler', { rotation: [0, 0, 6], origin: [0, 2.9, 0] }], ['point', [-.3, 7.3, -.2], [.3, 8.8, .2], 'antler', { rotation: [0, 0, 12], origin: [0, 2.9, 0] }]]);
+    gob('gob_dagger_obsidian', 166, [['grip', [-.55, -2.2, -.55], [.55, 2.2, .55], 'leatherDark'], ['blade', [-.85, 2.2, -.25], [.85, 6.4, .25], 'darkSteel'], ['tip', [-.5, 6.4, -.2], [.5, 8.2, .2], 'darkSteel', { rotation: [0, 0, -14], origin: [0, 6.4, 0] }], ['chip', [.6, 3.4, -.2], [1.2, 4.4, .2], 'darkSteel']]);
+    gob('gob_dagger_rust', 176, [['grip', [-.55, -2.4, -.55], [.55, 2, .55], 'wood'], ['blade', [-.7, 2, -.2], [.7, 7, .2], 'rust'], ['hook', [-.7, 6.4, -.2], [1.6, 7.6, .2], 'rust', { rotation: [0, 0, -40], origin: [0, 7, 0] }]]);
+    gob('gob_hook', 188, [['grip', [-.6, -2, -.6], [.6, 2, .6], 'leatherDark'], ...[0, 1, 2, 3].map(i => [`link${i}`, [-.4, 2 + i * 1.4, i % 2 ? -.15 : -.5], [.4, 3.4 + i * 1.4, i % 2 ? .15 : .5], 'iron']), ['shank', [-.45, 7.6, -.45], [.45, 11, .45], 'ironDark'], ['hook', [-.4, 10.4, -.4], [3.2, 11.4, .4], 'ironDark'], ['barb', [2.4, 8.8, -.35], [3.2, 11, .35], 'ironDark']]);
+    gob('gob_staff', 200, [['shaft', [-.5, -12, -.5], [.5, 16, .5], 'wood'], ['wrap', [-.65, -1.5, -.65], [.65, 2, .65], 'leather'], ['skull', [-1.6, 16, -1.6], [1.6, 19, 1.4], 'antler', { decals: [{ face: 'north', palette: { d: '#1a1612' }, x: 0, y: 1, map: ['.d.d', '....', '.dd.'] }] }], ...[-1, 1].map(s => [`horn${s}`, [s * 1.4 - .3, 18, -.3], [s * 1.4 + .3, 21.5, .3], 'antler', { rotation: [0, 0, -s * 22], origin: [s * 1.4, 18, 0] }])]);
+    gob('gob_flail', 214, [['grip', [-.7, -2.5, -.7], [.7, 2.5, .7], 'leatherDark'], ...[0, 1, 2].map(i => [`link${i}`, [-.45, 2.5 + i * 1.5, i % 2 ? -.15 : -.55], [.45, 4 + i * 1.5, i % 2 ? .15 : .55], 'iron']), ['ball', [-2, 7, -2], [2, 11, 2], 'ironDark'], ...[[0, 1], [1, 0], [0, -1], [-1, 0]].map(([dx, dz], i) => [`spike${i}`, [dx * 2 - .35, 8.6, dz * 2 - .35], [dx * 2.9 + .35, 9.4, dz * 2.9 + .35], 'iron'])]);
     return { name: 'weapons', bones, cubes, materials: MATERIALS, atlasWidth: 128 };
+  }
+
+  // ── Goblin cave props (systems/caves.js, sites/caveMouths.js): filthy, crooked, made of bone, hide, rotten wood and
+  // rust. Each top-level bone is one prop, pivot on the ground at its footprint centre, front −z; a prop that hangs
+  // on a wall has the wall at +z. Fire, glow and turning puzzle parts stay in code.
+  function caveProps() {
+    const bones = [], cubes = [], add = (...c) => cubes.push(...c.flat());
+    const M = { ...MATERIALS,
+      bone: { style: 'flat', ramp: ['#8a7e66', '#a09478', '#b4a98c', '#c6bca0'] }, boneDark: { style: 'flat', ramp: ['#5e5444', '#6e6350', '#7e735e'] },
+      hide: { style: 'leather', ramp: ['#5e4636', '#6c5240', '#7a5e4a'] }, hideDark: { style: 'leather', ramp: ['#3e2e22', '#4a3829', '#564131'] },
+      rag: { style: 'cloth', ramp: ['#3e382c', '#4a4334', '#564e3e', '#625a48'] }, ragRed: { style: 'cloth', ramp: ['#4a2018', '#5a281e', '#6a3024', '#7a382a'] },
+      rock: { style: 'flat', ramp: ['#4a4740', '#56524a', '#625e55', '#6e6a60'] }, rockDark: { style: 'flat', ramp: ['#33302b', '#3e3a34', '#48443d'] },
+      ochre: { style: 'flat', ramp: ['#5e2418', '#72301e', '#863a24'] }, soot: { style: 'flat', ramp: ['#141210', '#1c1915', '#24201b'] },
+      filth: { style: 'fur', ramp: ['#241e14', '#2e2619', '#3a301f', '#463a27'] }, slime: { style: 'flat', ramp: ['#3a4420', '#465228', '#526030'] },
+      meat: { style: 'flat', ramp: ['#5a1e1a', '#6e2822', '#82322a'] }, fat: { style: 'flat', ramp: ['#9a8a68', '#ab9a76', '#bcab84'] },
+      capGlow: { style: 'glow', ramp: ['#2f8a78', '#46a892', '#62c4ac', '#8adcc6'], unshaded: true }, capRot: { style: 'flat', ramp: ['#4e3420', '#5e3f27', '#6e4a2e'] },
+      stem: { style: 'flat', ramp: ['#9a9078', '#aca28a', '#bcb29a'] }, rope: { style: 'hair', ramp: ['#4e4028', '#5c4c30', '#6a5838'] },
+      stew: { style: 'fur', ramp: ['#3a3a18', '#46461e', '#525224', '#5e5c2a'] }, parchment: { style: 'flat', ramp: ['#8e8064', '#a09274', '#b0a284'] },
+      ember: MATERIALS.ember };
+    let slot = 0;
+    const prop = name => { const x = slot; slot += 48; bones.push([name, null, [x, 0, 0]]); return (n, from, to, mat, extra = {}) => add(box(`${name}_${n}`, name, [from[0] + x, from[1], from[2]], [to[0] + x, to[1], to[2]], mat,
+      { ...extra, origin: extra.origin ? [extra.origin[0] + x, extra.origin[1], extra.origin[2]] : undefined })); };
+    const R = (rx, ry, rz, o) => ({ rotation: [rx, ry, rz], origin: o });
+    const EYES = { face: 'north', palette: { k: '#120e0a' }, x: 1, y: 1, map: ['k.k', '...', '.k.'] };
+    const skull = (p, n, x, y, z, s = 1, ry = 0, mat = 'bone') => {
+      p(`${n}_cap`, [x - 2.5 * s, y + 1.5 * s, z - 2.5 * s], [x + 2.5 * s, y + 5 * s, z + 2.5 * s], mat, { ...R(0, ry, 0, [x, y, z]), decals: [{ ...EYES, x: Math.round(s), y: Math.round(.5 * s) }] });
+      p(`${n}_jaw`, [x - 1.8 * s, y, z - 2.6 * s], [x + 1.8 * s, y + 1.6 * s, z + 1.2 * s], mat, R(0, ry, 0, [x, y, z]));
+    };
+    const longBone = (p, n, x, y, z, len, ry, mat = 'bone') => {
+      p(`${n}`, [x - .5, y, z - len / 2], [x + .5, y + 1, z + len / 2], mat, R(0, ry, 0, [x, y, z]));
+      for (const e of [-1, 1]) p(`${n}_k${e}`, [x - 1, y, z + e * len / 2 - .8], [x + 1, y + 1.5, z + e * len / 2 + .8], mat, R(0, ry, 0, [x, y, z]));
+    };
+    const stake = (p, n, x, z, h, rx = 0, rz = 0, mat = 'woodDark') => {
+      p(n, [x - 1, 0, z - 1], [x + 1, h, z + 1], mat, R(rx, 0, rz, [x, 0, z]));
+      p(`${n}_tip`, [x - .5, h, z - .5], [x + .5, h + 2.5, z + .5], mat, R(rx, 0, rz, [x, 0, z]));
+    };
+
+    // 1 Wall torch: rusty bracket on the wall (+z), a crooked stick, an oily rag head (the flame is code).
+    { const p = prop('torch_wall');
+      p('plate', [-2.5, 30, 6.4], [2.5, 37, 7.6], 'rust'); p('arm', [-.6, 32, 2], [.6, 33.2, 7], 'rust'); p('ring', [-1.6, 31.5, .6], [1.6, 33.6, 3.4], 'rust');
+      p('stick', [-.8, 26, 1.2], [.8, 38, 2.8], 'woodDark', R(-14, 0, 0, [0, 32, 2])); p('rag', [-1.6, 37, .2], [1.6, 41, 3.4], 'soot', R(-14, 0, 0, [0, 32, 2])); }
+    // 2 Fire pit: blackened stones, half-burnt logs, ash and a gnawed bone (the flame is code).
+    { const p = prop('fire_pit');
+      for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2, x = Math.cos(a) * 12, z = Math.sin(a) * 12; p(`stone${k}`, [x - 3, 0, z - 2.5], [x + 3, 3.5 + (k % 3), z + 2.5], k % 2 ? 'rock' : 'rockDark', R(0, k * 40, 0, [x, 0, z])); }
+      p('ash', [-9, 0, -9], [9, .6, 9], 'soot');
+      for (let k = 0; k < 4; k++) p(`log${k}`, [-1.6, .5, -10], [1.6, 3.4, 10], k % 2 ? 'logs' : 'soot', R(18 * (k % 2 ? 1 : -1), k * 47, 0, [0, 1, 0]));
+      longBone(p, 'bone', 14, 0, 9, 8, 30); }
+    // 3 Mushroom cluster: pale stems, a few glowing caps, a few rotting ones.
+    { const p = prop('mushrooms');
+      for (const [k, x, z, h, w, glow] of [[0, 0, 0, 14, 9, 1], [1, 8, 4, 9, 6, 0], [2, -7, 5, 7, 5, 1], [3, 4, -8, 11, 7, 1], [4, -6, -6, 5, 4, 0], [5, 11, -3, 4, 3, 1]]) {
+        p(`stem${k}`, [x - 1.2, 0, z - 1.2], [x + 1.2, h, z + 1.2], 'stem', R(0, 0, (k % 3 - 1) * 6, [x, 0, z]));
+        p(`cap${k}`, [x - w / 2, h, z - w / 2], [x + w / 2, h + 2.2, z + w / 2], glow ? 'capGlow' : 'capRot', R(0, k * 23, (k % 3 - 1) * 6, [x, 0, z]));
+        p(`top${k}`, [x - w / 3, h + 2.2, z - w / 3], [x + w / 3, h + 3.4, z + w / 3], glow ? 'capGlow' : 'capRot', R(0, k * 23, (k % 3 - 1) * 6, [x, 0, z]));
+      } }
+    // 4 Bone pile: skulls, ribs, long bones, filth.
+    { const p = prop('bone_pile');
+      p('muck', [-12, 0, -10], [12, .8, 10], 'filth');
+      skull(p, 's1', -4, 0, -2, 1.2, 20); skull(p, 's2', 5, 0, 3, 1, -40, 'boneDark'); skull(p, 's3', 1, 2.5, -1, 1.1, 70);
+      longBone(p, 'b1', -2, .8, 5, 12, 60); longBone(p, 'b2', 6, .8, -5, 10, -20, 'boneDark'); longBone(p, 'b3', -8, .8, -6, 9, 100); longBone(p, 'b4', 2, 1.8, 0, 11, 15);
+      for (let k = 0; k < 5; k++) p(`rib${k}`, [8 + k * 1.3, 0, -1], [8.8 + k * 1.3, 4 - Math.abs(k - 2) * .6, 6], 'bone', R(-30, 10, 0, [8, 0, 2])); }
+    // 5 Totem: a bark pole, crossbars hung with bone strings and rags, a horned skull with bat ears on top, ochre stripes.
+    { const p = prop('totem');
+      p('pole', [-2.2, 0, -2.2], [2.2, 50, 2.2], 'logs', { decals: ['north', 'south', 'east', 'west'].map(face => ({ face, palette: { o: '#7a2e1e' }, x: 0, y: 8, map: ['oooo', '....', 'oooo', '....', '....', 'oooo'] })) });
+      for (const [k, y] of [[0, 30], [1, 40]]) { p(`bar${k}`, [-11 + k * 3, y, -1], [11 - k * 3, y + 2, 1], 'woodDark');
+        for (const e of [-1, 1]) for (let j = 0; j < 4; j++) p(`string${k}_${e}_${j}`, [e * (9 - k * 3) - .4, y - 2 - j * 2.2, -.4], [e * (9 - k * 3) + .4, y - .2 - j * 2.2, .4], j % 2 ? 'bone' : 'boneDark'); }
+      p('rag', [3, 20, -2.6], [7, 28, -2.2], 'ragRed', R(0, 0, -8, [5, 28, -2]));
+      skull(p, 'skull', 0, 50, 0, 1.8);
+      for (const e of [-1, 1]) { p(`ear${e}`, [e > 0 ? 3.5 : -9, 54, -.6], [e > 0 ? 9 : -3.5, 59, .6], 'hide', R(0, 0, e * 25, [e * 3.5, 54, 0]));
+        p(`horn${e}`, [e * 3 - .8, 58, -.8], [e * 3 + .8, 64, .8], 'boneDark', R(0, 0, e * -20, [e * 3, 58, 0])); } }
+    // 6 Altar: a stone slab on two blocks, a skull, candle stubs, old blood running down.
+    { const p = prop('altar');
+      for (const e of [-1, 1]) p(`foot${e}`, [e * 10 - 4, 0, -6], [e * 10 + 4, 10, 6], 'rockDark');
+      p('slab', [-16, 10, -9], [16, 15, 9], 'rock', { decals: [{ face: 'north', palette: { b: '#3a1210', r: '#5a1a14' }, x: 12, y: 0, map: ['rbbr', '.bb.', '.b..', '.b..'] }, { face: 'up', palette: { b: '#3a1210', r: '#5a1a14' }, x: 8, y: 6, map: ['..rr..', '.rbbr.', 'rbbbbr', '.rbbr.'] }] });
+      skull(p, 'skull', -8, 15, 0, 1.4, 15);
+      for (const [k, x, z, h] of [[0, 6, -4, 4], [1, 9, 3, 3], [2, 12, -2, 5]]) { p(`candle${k}`, [x - .8, 15, z - .8], [x + .8, 15 + h, z + .8], 'fat'); p(`wick${k}`, [x - .3, 15 + h, z - .3], [x + .3, 15 + h + 1, z + .3], 'ember'); }
+      longBone(p, 'bone', 2, 15, 2, 9, 70); }
+    // 7 Drums: three hide drums on rough wood, bone pegs, beaters.
+    { const p = prop('drums');
+      for (const [k, x, z, r, h] of [[0, 0, 0, 7, 12], [1, 14, 5, 5, 9], [2, -13, 6, 5.5, 10]]) {
+        for (const ry of [0, 45]) p(`body${k}_${ry}`, [x - r, 0, z - r], [x + r, h, z + r], 'woodDark', R(0, ry, 0, [x, 0, z]));
+        p(`skin${k}`, [x - r + .6, h, z - r + .6], [x + r - .6, h + .6, z + r - .6], 'hide');
+        for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2 + .4; p(`peg${k}_${j}`, [x + Math.cos(a) * r - .5, h - 4, z + Math.sin(a) * r - .5], [x + Math.cos(a) * r + .5, h + .4, z + Math.sin(a) * r + .5], 'bone'); } }
+      longBone(p, 'beater', 6, 12.6, -5, 9, 40); }
+    // 8 Banner on the wall: a pole and crossbar, a stretched hide painted with the eye, bones dangling.
+    { const p = prop('banner');
+      p('pole', [-1, 0, 4], [1, 46, 6], 'woodDark'); p('bar', [-10, 42, 4], [10, 44, 6], 'woodDark');
+      p('hide', [-9, 16, 4.6], [9, 42, 5.4], 'hide', { decals: [{ face: 'north', palette: { o: '#7a2e1e', k: '#1a1410', w: '#b4a98c' }, x: 4, y: 6, map: ['..oooooo..', '.oo....oo.', 'oo.wwww.oo', 'o.wwkkww.o', 'oo.wwww.oo', '.oo....oo.', '..oooooo..'] }] });
+      for (let j = 0; j < 4; j++) p(`dangle${j}`, [-7.5 + j * 5, 11 + (j % 2) * 2, 4.7], [-6.5 + j * 5, 16, 5.3], 'bone'); }
+    // 9 Bed: a heap of mangy furs and straw with a gnawed bone and rags.
+    { const p = prop('bed');
+      p('straw', [-14, 0, -8], [14, 2, 8], 'hay'); p('fur1', [-12, 2, -6], [6, 4.5, 6], 'furDark', R(0, 8, 0, [-3, 2, 0])); p('fur2', [-2, 2, -7], [13, 4, 4], 'hide', R(0, -12, 0, [5, 2, -1]));
+      p('rag', [-13, 4, 2], [-5, 5, 7], 'rag'); longBone(p, 'bone', 9, 4, 4, 7, 30, 'boneDark'); }
+    // 10 Junk heap: a broken crate, a torn sack, a cracked pot, rags and bones.
+    { const p = prop('junk');
+      p('crate', [-12, 0, -5], [-2, 9, 5], 'woodLight', R(0, 12, 6, [-7, 0, 0])); p('plank', [-14, 0, 6], [2, 1.2, 8.5], 'woodDark', R(0, -24, 0, [-6, 0, 7]));
+      p('sack', [1, 0, -4], [9, 7, 3], 'sack', R(0, -10, -12, [5, 0, 0])); p('spill', [6, 0, 2], [13, .6, 9], 'filth');
+      p('pot', [-4, 0, 5], [2, 5, 11], 'clayDark'); p('pot_rim', [-3.5, 5, 5.5], [1.5, 6, 10.5], 'clay'); p('rag', [3, 0, -9], [11, .8, -3], 'ragRed');
+      skull(p, 'skull', 9, 0, 9, .9, 40, 'boneDark'); }
+    // 11 Mine cart tipped over, rusted through.
+    { const p = prop('cart');
+      p('tub', [-10, 4, -7], [10, 16, 7], 'rust', R(0, 0, 0, [0, 0, 0])); p('rim', [-10.5, 15, -7.5], [10.5, 16.5, 7.5], 'ironDark');
+      for (const e of [-1, 1]) for (const f of [-1, 1]) p(`wheel${e}${f}`, [e * 7 - 2.5, 0, f * 7.5 - .8], [e * 7 + 2.5, 5, f * 7.5 + .8], 'ironDark');
+      p('ore', [-8, 16, -5], [8, 17, 5], 'rockDark'); }
+    // 12 Rail segment, one cell long.
+    { const p = prop('rails');
+      for (const e of [-1, 1]) p(`rail${e}`, [e * 7 - .8, 1, -16], [e * 7 + .8, 2.6, 16], 'rust');
+      for (let k = 0; k < 3; k++) p(`sleeper${k}`, [-10, 0, -12 + k * 12], [10, 1.2, -9 + k * 12], k === 1 ? 'logs' : 'woodDark', R(0, (k - 1) * 4, 0, [0, 0, -10.5 + k * 12])); }
+    // 13 A scrap of parchment, scribbled on.
+    { const p = prop('scrap');
+      p('sheet', [-4, 0, -3], [4, .3, 3], 'parchment', { decals: [{ face: 'up', palette: { k: '#2a2018' }, x: 1, y: 1, map: ['kk.kkk', '......', 'kkk.kk', '......', 'k.kkk.'] }] }); p('stone', [2, 0, 1], [5, 2, 4], 'rock'); }
+    // 14 Wall carving: a stone tablet scratched with tribal signs (on the wall at +z).
+    { const p = prop('carving');
+      p('tablet', [-12, 16, 5], [12, 36, 7.5], 'rock', { decals: [{ face: 'north', palette: { o: '#7a2e1e', k: '#1a1612' }, x: 3, y: 3, map: ['.kkk..ooo..kk.k.kk', 'k...k.o.o..k..k..k', '.kkk..ooo...kkk.kk', '..................', 'ooo.kk.k.ooo.k.kk.', 'o...k..k...o.kk.k.', 'ooo.kk.k.ooo.k.kk.'] }] }); }
+    // 15 Chest: rough planks, rusty straps, a bone handle, a lock.
+    { const p = prop('chest');
+      p('box', [-9, 0, -6], [9, 9, 6], 'woodDark'); p('lid', [-9.3, 9, -6.3], [9.3, 12, 6.3], 'woodLight');
+      for (const e of [-1, 1]) p(`strap${e}`, [e * 5.5 - 1, 0, -6.5], [e * 5.5 + 1, 12.4, 6.5], 'rust');
+      p('lock', [-1.5, 6.5, -7], [1.5, 9.5, -6], 'ironDark'); for (const e of [-1, 1]) p(`handle${e}`, [e * 9 - .5 * e, 6, -1.5], [e * 9 + 1.2 * e, 7, 1.5].map((v, i) => v), 'bone'); }
+    // 16 Key: a big iron key with a bone bow.
+    { const p = prop('key');
+      p('stem', [-3, 0, -.5], [3, 1, .5], 'ironDark'); p('bow', [-5.5, 0, -1.5], [-3, 1.2, 1.5], 'bone'); p('bit', [2, 0, .5], [3, 1, 2], 'ironDark'); }
+    // 17 Cage: crooked poles lashed with rope, a lid of poles, bones hung from it.
+    { const p = prop('cage');
+      for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2, x = Math.cos(a) * 14, z = Math.sin(a) * 14; p(`pole${k}`, [x - 1, 0, z - 1], [x + 1, 38, z + 1], k % 3 ? 'woodDark' : 'logs', R((k % 2 - .5) * 4, 0, (k % 3 - 1) * 3, [x, 0, z])); }
+      for (const y of [6, 30]) for (const [k, from, to] of [[0, [-15, y, -15], [15, y + 1.2, -13.8]], [1, [-15, y, 13.8], [15, y + 1.2, 15]], [2, [-15, y, -15], [-13.8, y + 1.2, 15]], [3, [13.8, y, -15], [15, y + 1.2, 15]]]) p(`ring${y}_${k}`, from, to, 'rope');
+      for (let k = 0; k < 4; k++) p(`lid${k}`, [-15, 38, -1 + (k - 1.5) * 7], [15, 40, 1 + (k - 1.5) * 7], 'woodDark');
+      skull(p, 'skull', 0, 40, 0, 1.2); longBone(p, 'hang', 6, 26, -6, 6, 20); }
+    // 18 Gates: a portcullis of sharpened stakes (iron-shod for the mine), lashed crossbars, bone charms.
+    for (const [name, mat, tip] of [['gate_wood', 'logs', 'boneDark'], ['gate_iron', 'rust', 'ironDark']]) {
+      const p = prop(name);
+      for (let k = 0; k < 6; k++) { const x = -13.5 + k * 5.4; p(`bar${k}`, [x - 1.1, 2, -1.1], [x + 1.1, 66, 1.1], mat); p(`tip${k}`, [x - .6, 0, -.6], [x + .6, 2.5, .6], tip); }
+      for (const y of [18, 46]) p(`cross${y}`, [-16, y, -1.6], [16, y + 2, 1.6], 'woodDark');
+      for (const [k, x] of [[0, -8], [1, 6]]) skull(p, `charm${k}`, x, 52, -2, .8, 0); }
+    // 19 Lever: a stone block with a slot; the handle is its own prop so it can turn.
+    { const p = prop('lever_base'); p('block', [-5, 0, -4], [5, 14, 4], 'rockDark'); p('slot', [-1.5, 13.6, -3], [1.5, 14.2, 3], 'soot'); }
+    { const p = prop('lever_handle'); p('bar', [-.8, 0, -.8], [.8, 14, .8], 'rust'); p('grip', [-1.2, 12, -1.2], [1.2, 17, 1.2], 'bone'); }
+    // 20 Pull chain: a bracket on the wall (+z), a rusty chain, a ring to pull.
+    { const p = prop('chain_pull');
+      p('bracket', [-2, 44, 4], [2, 48, 7], 'rust');
+      for (let k = 0; k < 9; k++) p(`link${k}`, [-.7, 18 + k * 3, k % 2 ? 4.8 : 4.2], [.7, 21.4 + k * 3, k % 2 ? 5.2 : 5.8], 'chain');
+      p('ring', [-2.4, 13, 4.2], [2.4, 18, 5.8], 'rust'); }
+    // 21 Pillar: a squat carved column, rough bands, a base and a cap (the symbol plates are code).
+    { const p = prop('pillar');
+      p('base', [-9, 0, -9], [9, 4, 9], 'rockDark'); p('shaft', [-7, 4, -7], [7, 34, 7], 'rock', { decals: ['north', 'south', 'east', 'west'].map(face => ({ face, palette: { k: '#2a2620' }, x: 0, y: 2, map: ['kkkkkkkkkkkkkk', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', '..............', 'kkkkkkkkkkkkkk'] })) });
+      p('cap', [-8.5, 34, -8.5], [8.5, 38, 8.5], 'rockDark'); p('crack', [6.8, 10, -2], [7.2, 22, -1], 'soot'); }
+    // 22 Brazier: a rusty bowl on three bone-lashed legs, cold coals.
+    { const p = prop('brazier');
+      for (let k = 0; k < 3; k++) { const a = k / 3 * Math.PI * 2, x = Math.cos(a) * 5, z = Math.sin(a) * 5; p(`leg${k}`, [x - .8, 0, z - .8], [x + .8, 18, z + .8], k ? 'ironDark' : 'bone', R(Math.sin(a) * -10, 0, Math.cos(a) * 10, [x, 9, z])); }
+      p('bowl', [-8, 16, -8], [8, 21, 8], 'rust'); p('bowl2', [-6, 15, -6], [6, 16, 6], 'rust'); p('coals', [-6.5, 20.4, -6.5], [6.5, 21.2, 6.5], 'soot'); }
+    // 23 Pressure plate: a carved slab, a little sunk.
+    { const p = prop('plate'); p('slab', [-11, 0, -11], [11, 1.6, 11], 'rock', { decals: [{ face: 'up', palette: { k: '#2a2620', o: '#6e2a1c' }, x: 6, y: 6, map: ['..kkkkk...', '.k.....k..', 'k..ooo..k.', 'k..o.o..k.', 'k..ooo..k.', '.k.....k..', '..kkkkk...'] }] }); }
+    // 24 Idol: a squat goblin figure in stone, big ears, ochre eyes.
+    { const p = prop('idol');
+      p('body', [-3, 0, -2.5], [3, 6, 2.5], 'rock'); p('head', [-2.5, 6, -2.5], [2.5, 10, 2.5], 'rock', { decals: [{ face: 'north', palette: { o: '#9a3a24' }, x: 1, y: 1, map: ['o.o'] }] });
+      for (const e of [-1, 1]) p(`ear${e}`, [e > 0 ? 2.5 : -5.5, 7, -.5], [e > 0 ? 5.5 : -2.5, 9.5, .5], 'rock', R(0, 0, e * 20, [e * 2.5, 8, 0])); }
+    // 25 Socket: a pedestal with a hollow at the top (against the wall at +z).
+    { const p = prop('socket');
+      p('base', [-7, 0, -7], [7, 18, 7], 'rockDark'); for (const [k, from, to] of [[0, [-7, 18, -7], [7, 22, -4]], [1, [-7, 18, 4], [7, 22, 7]], [2, [-7, 18, -4], [-4, 22, 4]], [3, [4, 18, -4], [7, 22, 4]]]) p(`rim${k}`, from, to, 'rock'); p('hollow', [-4, 18, -4], [4, 18.4, 4], 'soot'); }
+    // 26 Skull stake (outside the bone singers' hole): a sharpened pole, a skull, rags and feathers.
+    { const p = prop('skull_stake');
+      stake(p, 'pole', 0, 0, 34, 0, 4); skull(p, 'skull', -1.5, 34, 0, 1.6, 10);
+      p('rag', [-3, 26, -1.6], [2, 32, -1.2], 'ragRed', R(0, 0, -10, [0, 32, 0])); for (const e of [-1, 1]) p(`feather${e}`, [e * 2 - .4, 38, -.4], [e * 2 + .4, 44, .4], 'feather', R(0, 0, e * 25, [e * 2, 38, 0])); }
+    // 27 Giant mushroom (outside the fungus mothers' hole): a pale stem, a broad cap, glowing gills.
+    { const p = prop('mushroom_giant');
+      p('stem', [-3, 0, -3], [3, 26, 3], 'stem', R(0, 0, 4, [0, 0, 0])); p('gills', [-11, 25, -11], [11, 26.5, 11], 'capGlow'); p('cap', [-12, 26.5, -12], [12, 31, 12], 'capRot'); p('top', [-8, 31, -8], [8, 34, 8], 'capRot');
+      for (const [k, x, z] of [[0, -6, 3], [1, 5, -6], [2, 7, 6]]) p(`spot${k}`, [x - 1.5, 33.6, z - 1.5], [x + 1.5, 34.2, z + 1.5], 'capGlow'); }
+    // 28 Filth: dung heaps, a slick of slime, gnawed bones, a rat-chewed rag.
+    { const p = prop('filth');
+      p('slime', [-14, 0, -9], [10, .4, 10], 'slime'); for (const [k, x, z, s] of [[0, -6, -3, 4], [1, 4, 4, 3], [2, 8, -5, 2.5]]) { p(`dung${k}`, [x - s, 0, z - s], [x + s, s * .7, z + s], 'filth'); p(`dungtop${k}`, [x - s * .55, s * .7, z - s * .55], [x + s * .55, s * 1.15, z + s * .55], 'filth'); }
+      longBone(p, 'b1', -2, .3, 6, 7, 50, 'boneDark'); longBone(p, 'b2', 9, .3, 4, 5, -30); p('rag', [-13, .3, 3], [-6, 1, 9], 'rag', R(0, 30, 0, [-9, 0, 6])); }
+    // 29 Spikes: sharpened stakes driven in at angles, a barricade.
+    { const p = prop('spikes');
+      for (let k = 0; k < 7; k++) stake(p, `s${k}`, -15 + k * 5, (k % 2) * 3, 16 + (k % 3) * 4, -28 - (k % 2) * 8, (k % 3 - 1) * 6, k % 2 ? 'woodDark' : 'logs');
+      p('lash', [-17, 6, -3], [17, 7.5, 0], 'rope'); }
+    // 30 Meat rack: a frame of poles with hanging strips of meat and a hide stretched to dry.
+    { const p = prop('meat_rack');
+      for (const e of [-1, 1]) p(`post${e}`, [e * 14 - 1, 0, -1], [e * 14 + 1, 30, 1], 'woodDark', R(0, 0, e * -5, [e * 14, 0, 0]));
+      p('beam', [-16, 28, -1], [16, 30, 1], 'logs');
+      for (let k = 0; k < 6; k++) { const x = -11 + k * 4.4, len = 7 + (k % 3) * 3; p(`hook${k}`, [x - .3, 25, -.3], [x + .3, 28, .3], 'rope'); p(`meat${k}`, [x - 1.6, 25 - len, -1.2], [x + 1.6, 25, 1.2], k % 4 === 1 ? 'fat' : 'meat', R(0, k * 30, (k % 2 - .5) * 8, [x, 25, 0])); }
+      p('drip', [-12, 0, -4], [12, .3, 4], 'ochre'); }
+    // 31 Stew pot: a cracked cauldron on stones, a green stew, a bone ladle.
+    { const p = prop('stew_pot');
+      for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2, x = Math.cos(a) * 9, z = Math.sin(a) * 9; p(`stone${k}`, [x - 2.5, 0, z - 2.5], [x + 2.5, 3, z + 2.5], 'rockDark'); }
+      p('ash', [-7, 0, -7], [7, .5, 7], 'soot');
+      for (const ry of [0, 45]) p(`pot${ry}`, [-8, 3, -8], [8, 14, 8], 'ironDark', R(0, ry, 0, [0, 3, 0]));
+      p('stew', [-6.6, 13, -6.6], [6.6, 13.8, 6.6], 'stew'); p('ladle', [3, 12, -1], [4, 22, 1], 'bone', R(0, 0, -25, [3.5, 12, 0])); skull(p, 'float', -2, 12.6, 1, .7, 30, 'boneDark'); }
+    return { name: 'cave_props', bones, cubes, materials: M, atlasWidth: 256 };
   }
 
   return {
@@ -837,6 +1341,8 @@ function AshenModels() {
     bandit: () => humanoid({ name: 'bandit', skin: 'skinTan', hair: 'hairDark', hairColor: '#251e19', scar: true,
       top: 'clothGrey', leatherArmor: 'leatherDark', headband: 'clothCrimson', mask: 'clothGrey', bracers: 'leatherDark', tunicSkirt: 'clothGrey', scabbard: true }),
     captain: () => humanoid({ name: 'captain', build: 'strong', hair: 'hairDark', top: 'clothCrimson', plate: 'darkSteel', helmet: 'darkSteel', tabard: 'clothCrimson', cape: 'clothCrimson', noPouch: true, boots: 'boot' }),
-    wolf, weapons, deer, fox, hare, crow, props, trees,
+    wolf, weapons, deer, fox, hare, crow, props, trees, cave_props: caveProps,
+    ...Object.fromEntries(Object.keys(HORSES).map(v => [`horse_${v}`, () => horse(v)])),
+    ...Object.fromEntries(Object.entries(GOBLIN_MODELS).map(([name, o]) => [name, () => goblin({ name, ...o })])),
   };
 }

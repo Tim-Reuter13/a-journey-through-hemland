@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createLightPool } from './lightPool.js';
 import { batchScenery } from './batching.js';
 import { createAtmosphere } from './atmosphere.js';
-import { createCollisionWorld, collidersFrom } from './navigation.js';
+import { createCollisionWorld, collidersFrom, surfaceOf } from './navigation.js';
 import { buildFarTerrain, buildWater, markNearChunk } from './terrain.js';
 import { createWater } from './water.js';
 import { createFires } from './fire.js';
@@ -12,7 +12,7 @@ import { createChimneySmoke } from './smoke.js';
 import { createCritters } from './critters.js';
 import { boulder, wind, setGroundDensity } from './flora.js';
 import { BOUNDS, SITES, ROADS, WATER_LEVEL } from './hemland.js';
-import { makeHouse, makeLantern, makeWell, makeShrine, makeWatchtower, makeCamp, makeCart, makeFence, makeChest, makeForge, makeAnvil, glowMaterials } from './buildings.js';
+import { makeHouse, makeLantern, makeWell, makeShrine, makeWatchtower, makeCamp, makeCart, makeFence, makeChest, makeForge, makeAnvil, makeHitchingRail, glowMaterials } from './buildings.js';
 
 /* Hemland, region Aschmark: a streamed heightfield world (hemland.js, heightfield.js,
    chunks.js) with authored sites. Dämmerwald is built here; larger sites come from
@@ -96,7 +96,7 @@ export function createWorld(scene) {
   waters.useSky(atmosphere.uniforms, sun);
 
   // Building registry shared by the village and the site modules.
-  const doors = [], interiors = [], loose = [], markers = [], pois = [], extraColliders = [], updaters = [];
+  const doors = [], interiors = [], loose = [], markers = [], pois = [], extraColliders = [], updaters = [], ties = [];
   function registerBuilding(home, kind = home.root.userData.siteBuilding?.kind ?? 'home') {
     const { root } = home, index = doors.length;
     root.updateMatrixWorld(true);
@@ -135,6 +135,8 @@ export function createWorld(scene) {
   makeChest(village, heightAt, -1, 13, -2.68);
   makeCart(village, heightAt, 6, 20, .4);
   makeFence(village, heightAt, Array.from({ length: 12 }, (_, i) => [-29 + i * 2.4, -19 + Math.sin(i * .5) * 2]));
+  // A hitching rail by the east road, where the grey waits for whoever takes its reins.
+  ties.push({ id: 'village_rail', ...makeHitchingRail(village, heightAt, 7.6, .7, Math.atan2(2, 9), { trough: -1 }) });
   extraColliders.push({ kind: 'well', x: -3, z: 9, radius: 1.55, bottom: heightAt(-3, 9), top: heightAt(-3, 9) + 1.42 },
     { kind: 'cart', x: 6, z: 20, rotation: .4, halfWidth: 1.8, halfDepth: 1.05, bottom: heightAt(6, 20), top: heightAt(6, 20) + 2.2 });
 
@@ -174,7 +176,7 @@ export function createWorld(scene) {
         root, heightAt, random, site: id => SITES[id], road: id => ROADS.find(r => r.id === id), roadAt: roadNear,
         registerBuilding: (home, kind) => registerBuilding(home, kind), registerFloor: addFloor,
         addCollider: c => extraColliders.push(c), addLight: light => { const at = light.getWorldPosition(new THREE.Vector3()); root.add(light); light.position.copy(root.worldToLocal(at)); },
-        marker: m => markers.push(m), poi: p => pois.push(p),
+        marker: m => markers.push(m), poi: p => pois.push(p), tie: p => ties.push(p),
       };
       try {
         const result = build(ctx);
@@ -193,6 +195,32 @@ export function createWorld(scene) {
   scene.updateMatrixWorld(true);
   for (const c of collidersFrom(village)) collision.add(c);
   for (const g of siteGroups) for (const c of collidersFrom(g)) collision.add(c);
+  // Hitboxes for everything solid that was built without one (the owner found far too much of the world walk-through,
+  // scripts/audit_hitboxes.mjs lists it): any part standing on the ground, knee-high or taller, not foliage, cloth,
+  // glass, fire, a door or a roof and not inside a house, that no collider covers yet, gets a box of its own — turned
+  // like the part when it is an upright box, else its bounds. Low parts (under .45) stay steppable.
+  {
+    const SOFT = /Leaves|Grass|fern|reeds|flower|thatch|cloth|water|glass|window|flame|ember|smoke|hay|rope|straw|carpet|rug|curtain|leaf|moss|Pine|glow|door/i;
+    const skip = new Set();
+    for (const door of doors) door.hinge.traverse(o => skip.add(o));
+    for (const item of loose) item.traverse(o => skip.add(o));
+    scene.traverse(o => { if (o.userData.barrier) o.traverse(m => skip.add(m)); });
+    const box = new THREE.Box3(), size = new THREE.Vector3(), mid = new THREE.Vector3(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), up = new THREE.Vector3(), ax = new THREE.Vector3();
+    for (const g of [village, ...siteGroups]) g.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || skip.has(o) || o.userData.solid || o.userData.noCollide) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m || m.transparent || m.alphaTest > 0 || SOFT.test(`${m.name} ${m.map?.name || ''} ${o.name}`)) return;
+      box.setFromObject(o); box.getSize(size); box.getCenter(mid);
+      if (size.y < .5 || size.x > 8 || size.z > 8 || Math.max(size.x, size.z) < .2) return;
+      const ground = walkHeightAt(mid.x, mid.z), bottom = Math.max(ground, box.min.y);
+      if (box.min.y > ground + 1.6 || box.max.y < ground + .45 || indoorAt(mid.x, mid.z)) return;
+      if (collision.blocked(mid.x, mid.z, .05, bottom + .05, Math.min(2, box.max.y - bottom - .1))) return;
+      o.matrixWorld.decompose(p, q, sc); up.set(0, 1, 0).applyQuaternion(q); ax.set(1, 0, 0).applyQuaternion(q);
+      const params = o.geometry?.parameters, upright = params?.width && up.y > .999;
+      collision.add({ kind: 'auto', surface: surfaceOf(o), x: mid.x, z: mid.z, rotation: upright ? Math.atan2(-ax.z, ax.x) : 0,
+        halfWidth: upright ? params.width * sc.x / 2 : size.x / 2, halfDepth: upright ? params.depth * sc.z / 2 : size.z / 2, bottom: box.min.y, top: box.max.y });
+    });
+  }
   function blocked(x, z, radius = .43, y = walkHeightAt(x, z), height = 2.65) { return collision.blocked(x, z, radius, y, height); }
   // NPC path planning treats doors as open; walking still bumps into closed ones.
   function navBlocked(x, z, radius = .34, y = walkHeightAt(x, z)) {
@@ -224,7 +252,7 @@ export function createWorld(scene) {
   const streamer = createChunkStreamer({ scene, field, collision, water: waters, onTerrain: markNearChunk,
     avoidTrees: (x, z) => Math.hypot(x, z - 6) < 34 || occupied(x, z) || inSite(x, z, 8),
     // No grass on city paving, and none poking through any site building's floor.
-    avoidGround: (x, z) => occupied(x, z) || field.siteDistance('city', x, z) <= 0 || field.siteDistance('castle', x, z) <= 0 ||
+    avoidGround: (x, z) => occupied(x, z) || field.siteDistance('city', x, z) <= 0 || field.siteDistance('castle', x, z) <= 0 || (field.pit(x, z)?.r ?? 2) < 1.15 ||
       inSite(x, z, 1) && floorAt(x, z) > -Infinity });
 
   atmosphere.collectLights();
@@ -235,6 +263,9 @@ export function createWorld(scene) {
   const critters = createCritters(scene, heightAt);
   // Every placed light becomes an anchor of the fixed-size pool, so the light count never changes.
   const placed = []; scene.traverse(o => { if (o.isPointLight) placed.push(o); });
+  // Everything of the land above: hidden (and not updated) while you are down in a cave, far below nothing of it shows.
+  const surfaceRoots = scene.children.filter(o => !o.isLight && o.name !== 'Living sky');
+  let underground = false;
   const lights = createLightPool(scene);
   for (const light of placed) lights.adopt(light);
 
@@ -246,6 +277,7 @@ export function createWorld(scene) {
     const mark = name => { const now = performance.now(); profile[name] = +(now - t).toFixed(1); t = now; };
     elapsed += dt;
     atmosphere.update(dt, hour, camera, focus); mark('atmosphere');
+    if (underground) { lights.update(camera.position); mark('rest'); return; }
     streamer.update(focus); mark('streamer');
     wind.value += dt; water.update(dt, focus); fires.update(dt, camera);
     for (const g of siteGroups) { const s = g.userData.cull; if (s) g.visible = cullPoint.copy(s.center).distanceTo(focus) < s.radius + 520; }
@@ -276,7 +308,8 @@ export function createWorld(scene) {
     // What a struck point is made of: 'stone', 'wood', 'soft', or 'earth' for open ground.
     surfaceAt: point => collision.colliderAt(point.x, point.z, point.y)?.surface ?? 'earth',
     collidersNear: (x, z, r) => collision.near(x, z, r),
-    blocked, update, batching, sun, ambient, moon: atmosphere.moon, indoorAt, streamer, setQuality: setGroundDensity, doors, interiors, floors, loose, markers, pois,
+    blocked, update, batching, sun, ambient, moon: atmosphere.moon, indoorAt, streamer, setQuality: setGroundDensity, doors, interiors, floors, loose, markers, pois, ties,
+    addColliders: list => { for (const c of list) collision.add(c); }, removeColliders: list => collision.remove(list), setUnderground: (k, fog) => { atmosphere.setUnderground(k, fog); if ((k > .5) !== underground) { underground = k > .5; for (const o of surfaceRoots) o.visible = !underground; } },
     nearRoad: (x, z, margin = 2.5) => field.roadClearance(x, z) < margin - 2,
     landmarks: { village: at(-3, 9), shrine: at(SHRINE.x, SHRINE.z), tower: at(SITES.tower.x, SITES.tower.z), camp: at(SITES.camp.x, SITES.camp.z),
       anvil: anvil.userData.work, city: at(SITES.city.x, SITES.city.z), castle: at(SITES.castle.x, SITES.castle.z), inn: at(SITES.inn.x, SITES.inn.z), chest: at(-1, 13),

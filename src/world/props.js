@@ -2,9 +2,13 @@ import * as THREE from 'three';
 
 // Street props built in Blockbench (art/blockbench/models.js › props → public/models/props.gltf):
 // carts, barrels, crates, sacks, produce, troughs, woodpiles, benches, hay, pottery, signs, ladders.
+// The goblin caves have their own set (› cave_props → public/models/cave_props.gltf): bones, totems, cages, drums,
+// stake gates, torches, filth, meat racks and the puzzle pieces.
 // The world is generated before the characters load, so main.js awaits these first; without them
 // (Node tests) propClone returns null and the sites keep their block-built clutter.
 export const PROPS = ['handcart', 'wheelbarrow', 'barrels', 'crates', 'sacks', 'produce', 'trough', 'woodpile', 'bench', 'hay', 'pottery', 'sign', 'ladder', 'cartwheel'];
+export const CAVE_PROPS = ['torch_wall', 'fire_pit', 'mushrooms', 'bone_pile', 'totem', 'altar', 'drums', 'banner', 'bed', 'junk', 'cart', 'rails', 'scrap', 'carving', 'chest', 'key', 'cage',
+  'gate_wood', 'gate_iron', 'lever_base', 'lever_handle', 'chain_pull', 'pillar', 'brazier', 'plate', 'idol', 'socket', 'skull_stake', 'mushroom_giant', 'filth', 'spikes', 'meat_rack', 'stew_pot'];
 const templates = new Map();
 
 function atlasMaterial(source) {
@@ -18,28 +22,31 @@ function atlasMaterial(source) {
 
 export async function loadPropModels(base = `${import.meta.env.BASE_URL}models/`) {
   const [{ GLTFLoader }, { mergeGeometries }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/utils/BufferGeometryUtils.js')]);
-  const scene = (await new GLTFLoader().loadAsync(`${base}props.gltf`)).scene;
-  scene.updateMatrixWorld(true);
   const inverse = new THREE.Matrix4();
-  let material = null;
-  for (const name of PROPS) {
-    const node = scene.getObjectByName(name);
-    if (!node) continue;
-    // Every cube of a prop is baked into one mesh around the prop's pivot (its footprint centre).
-    inverse.copy(node.matrixWorld).invert();
-    const parts = [];
-    node.traverse(object => { if (object.isMesh) parts.push(object); });
-    const geometries = parts.map(part => {
-      const geometry = part.geometry.index ? part.geometry.toNonIndexed() : part.geometry.clone();
-      for (const key of Object.keys(geometry.attributes)) if (!['position', 'normal', 'uv'].includes(key)) geometry.deleteAttribute(key);
-      return geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, part.matrixWorld));
-    });
-    material ??= atlasMaterial(parts[0].material);
-    const geometry = mergeGeometries(geometries, false);
-    geometries.forEach(g => g.dispose());
-    geometry.computeBoundingBox(); geometry.computeBoundingSphere();
-    templates.set(name, { geometry, material, bounds: geometry.boundingBox });
+  async function load(file, names) {
+    const scene = (await new GLTFLoader().loadAsync(`${base}${file}`)).scene;
+    scene.updateMatrixWorld(true);
+    let material = null;
+    for (const name of names) {
+      const node = scene.getObjectByName(name);
+      if (!node) continue;
+      // Every cube of a prop is baked into one mesh around the prop's pivot (its footprint centre).
+      inverse.copy(node.matrixWorld).invert();
+      const parts = [];
+      node.traverse(object => { if (object.isMesh) parts.push(object); });
+      const geometries = parts.map(part => {
+        const geometry = part.geometry.index ? part.geometry.toNonIndexed() : part.geometry.clone();
+        for (const key of Object.keys(geometry.attributes)) if (!['position', 'normal', 'uv'].includes(key)) geometry.deleteAttribute(key);
+        return geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, part.matrixWorld));
+      });
+      material ??= atlasMaterial(parts[0].material);
+      const geometry = mergeGeometries(geometries, false);
+      geometries.forEach(g => g.dispose());
+      geometry.computeBoundingBox(); geometry.computeBoundingSphere();
+      templates.set(name, { geometry, material, bounds: geometry.boundingBox });
+    }
   }
+  await Promise.all([load('props.gltf', PROPS), load('cave_props.gltf', CAVE_PROPS).catch(error => console.warn('Cave props not loaded', error))]);
   return templates.size;
 }
 

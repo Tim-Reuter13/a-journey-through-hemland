@@ -72,7 +72,7 @@ export function createAmbience() {
   let nextFire = 0;
   let nextBeat = 0;
   let beat = 0;
-  let lastStep = -Infinity;
+  let lastStep = -Infinity, lastHoof = -Infinity, nextDrip = 0;
   let weights = { day: 0, night: 0 };
   let fireLevel = 0;
   const volumes = { master: 0.6, music: 0.45, effects: 0.7 };
@@ -377,14 +377,21 @@ export function createAmbience() {
       nextTick = now + 0.08; // ~12.5 Hz control rate, independent of render FPS.
       weights = timeOfDayWeights(input.hour);
       fireLevel = nearestFireGain(input.position, input.fires);
-      const altitude = 1 + clamp((finite(input.position?.y) - 15) / 45) * 1.7;
+      // Underground (a cave): no wind, no crickets, no birds; water dripping somewhere in the dark.
+      const under = Boolean(input.underground);
+      const altitude = under ? 0 : 1 + clamp((finite(input.position?.y) - 15) / 45) * 1.7;
       const gust = 0.72 + 0.18 * Math.sin(now * 0.29) + 0.1 * Math.sin(now * 0.071);
       smooth(graph.wind.gain, 0.16 * altitude * gust, now, 0.6);
+      if (under && !paused && now > nextDrip) {
+        nextDrip = now + random(.6, 2.8);
+        const f = random(900, 1700);
+        voice({ layer: 'footsteps', at: now, duration: .07, volume: random(.015, .05), frequency: f, endFrequency: f * .6, type: 'sine', cutoff: 4000, attack: .002, release: .06, pan: random(-.8, .8) });
+      }
       smooth(graph.windFilter.frequency, 420 + 480 * gust, now, 0.8);
       const cricketPhrase = Math.sin(now * 1.7) > -0.35 ? 1 : 0.12;
-      smooth(graph.crickets.gain, 0.012 * weights.night * cricketPhrase, now, 0.03);
+      smooth(graph.crickets.gain, under ? 0 : 0.012 * weights.night * cricketPhrase, now, 0.03);
       music(now); // Music keeps playing (ducked) while paused.
-      if (!paused) wildlife(now);
+      if (!paused && !under) wildlife(now);
     });
   }
 
@@ -409,6 +416,63 @@ export function createAmbience() {
         volume: (surface === 'wood' ? 0.11 : 0.055) * strength,
         frequency: settings.tone * random(0.88, 1.12), endFrequency: settings.tone * 0.6,
         type: 'sine', cutoff: 650, attack: 0.003, release: 0.09 });
+    });
+  }
+
+  // Horses (systems/horses.js): hoofbeats (a dull thud on grass, a knock with a click of iron on the road),
+  // a snort, a whinny that shakes and falls away, the thump of a landing, the wanderer's two-note whistle.
+  function horse(kind, intensity = 0.5, { road = false, pan = 0 } = {}) {
+    safely(() => {
+      if (!graph || context?.state !== 'running' || paused) return;
+      const s = clamp(finite(intensity));
+      if (!s) return;
+      const now = context.currentTime;
+      if (kind === 'hoof') {
+        if (now - lastHoof < 0.035) return;
+        lastHoof = now;
+        voice({ layer: 'footsteps', at: now, duration: road ? 0.07 : 0.1, volume: (road ? 0.2 : 0.16) * s, noisy: true,
+          cutoff: road ? 2400 * random(0.85, 1.15) : 850 * random(0.8, 1.2), filterType: road ? 'bandpass' : 'lowpass', attack: 0.002, release: road ? 0.06 : 0.09, pan });
+        voice({ layer: 'footsteps', at: now, duration: 0.09, volume: 0.09 * s, frequency: (road ? 150 : 85) * random(0.9, 1.1), endFrequency: 50,
+          type: 'sine', cutoff: 500, attack: 0.002, release: 0.08, pan });
+        if (road && Math.random() < 0.5) voice({ layer: 'footsteps', at: now + 0.008, duration: 0.03, volume: 0.035 * s, frequency: random(2100, 2700), type: 'triangle',
+          cutoff: 1800, filterType: 'highpass', attack: 0.001, release: 0.025, pan });
+      } else if (kind === 'snort') {
+        voice({ layer: 'footsteps', at: now, duration: 0.42, volume: 0.15 * s, noisy: true, cutoff: 1250 * random(0.85, 1.15), filterType: 'bandpass', attack: 0.02, release: 0.3, pan });
+        voice({ layer: 'footsteps', at: now + 0.06, duration: 0.24, volume: 0.07 * s, noisy: true, cutoff: 520, filterType: 'lowpass', attack: 0.01, release: 0.2, pan });
+      } else if (kind === 'neigh') {
+        const base = random(500, 620);
+        for (let i = 0; i < 4; i++) voice({ layer: 'footsteps', at: now + i * 0.15, duration: 0.2, volume: 0.065 * s * (1 - i * 0.16),
+          frequency: base * (1 - i * 0.09), endFrequency: base * (1 - i * 0.09) * 0.9, type: 'sawtooth', cutoff: 1700, filterType: 'bandpass', attack: 0.02, release: 0.1, pan, detune: random(-30, 30) });
+        voice({ layer: 'footsteps', at: now + 0.62, duration: 0.42, volume: 0.07 * s, noisy: true, cutoff: 850, filterType: 'bandpass', attack: 0.03, release: 0.32, pan });
+      } else if (kind === 'land') {
+        voice({ layer: 'footsteps', at: now, duration: 0.16, volume: 0.22 * s, noisy: true, cutoff: 700, filterType: 'lowpass', attack: 0.003, release: 0.14, pan });
+        voice({ layer: 'footsteps', at: now, duration: 0.14, volume: 0.12 * s, frequency: 70, endFrequency: 40, type: 'sine', cutoff: 400, attack: 0.003, release: 0.12, pan });
+      } else if (kind === 'whistle') {
+        voice({ layer: 'footsteps', at: now, duration: 0.2, volume: 0.06 * s, frequency: 1500, endFrequency: 2350, type: 'sine', cutoff: 4000, attack: 0.02, release: 0.05 });
+        voice({ layer: 'footsteps', at: now + 0.24, duration: 0.32, volume: 0.06 * s, frequency: 2350, endFrequency: 1450, type: 'sine', cutoff: 4000, attack: 0.02, release: 0.08 });
+      }
+    });
+  }
+
+  // Goblins (systems/goblins.js): clipped guttural chatter, shrieks, a death rattle, the Brecher's roar, the drum, a
+  // wet spit, a gurgle, a rattling chain, a spore burst, a choke, a thrown spear's whoosh, a heavy landing.
+  function goblin(kind, intensity = 0.5, pan = 0) {
+    safely(() => {
+      if (!graph || context?.state !== 'running' || paused) return;
+      const s = clamp(finite(intensity)); if (!s) return;
+      const now = context.currentTime, v = (o) => voice({ layer: 'footsteps', pan, ...o });
+      if (kind === 'chatter') for (let i = 0; i < 3; i++) { const f = random(260, 520); v({ at: now + i * random(.07, .11), duration: .07, volume: .05 * s, frequency: f, endFrequency: f * random(.7, 1.3), type: 'square', cutoff: random(900, 1500), filterType: 'bandpass', attack: .005, release: .04 }); }
+      else if (kind === 'shriek') v({ at: now, duration: .38, volume: .07 * s, frequency: random(800, 1000), endFrequency: random(1400, 1700), type: 'sawtooth', cutoff: 2000, filterType: 'bandpass', attack: .02, release: .15 });
+      else if (kind === 'death') v({ at: now, duration: .6, volume: .07 * s, frequency: random(460, 560), endFrequency: 150, type: 'sawtooth', cutoff: 1200, filterType: 'bandpass', attack: .02, release: .3 });
+      else if (kind === 'roar') { v({ at: now, duration: 1, volume: .12 * s, noisy: true, cutoff: 420, attack: .08, release: .5 }); v({ at: now, duration: 1, volume: .08 * s, frequency: 95, endFrequency: 58, type: 'sawtooth', cutoff: 500, attack: .08, release: .5 }); }
+      else if (kind === 'drum') { v({ at: now, duration: .28, volume: .2 * s, frequency: 72, endFrequency: 44, type: 'sine', cutoff: 400, attack: .003, release: .25 }); v({ at: now, duration: .08, volume: .08 * s, noisy: true, cutoff: 500, attack: .002, release: .07 }); }
+      else if (kind === 'spit') v({ at: now, duration: .2, volume: .1 * s, noisy: true, cutoff: 1500, filterType: 'bandpass', attack: .005, release: .15 });
+      else if (kind === 'gurgle') for (let i = 0; i < 4; i++) v({ at: now + i * .09, duration: .1, volume: .06 * s, noisy: true, cutoff: random(300, 700), filterType: 'bandpass', attack: .01, release: .08 });
+      else if (kind === 'chain') for (let i = 0; i < 4; i++) v({ at: now + i * .05, duration: .04, volume: .05 * s, frequency: random(1800, 2600), type: 'triangle', cutoff: 1500, filterType: 'highpass', attack: .001, release: .03 });
+      else if (kind === 'burst') v({ at: now, duration: .55, volume: .16 * s, noisy: true, cutoff: 900, attack: .005, release: .45 });
+      else if (kind === 'choke') v({ at: now, duration: .3, volume: .07 * s, noisy: true, cutoff: 700, filterType: 'bandpass', attack: .02, release: .2 });
+      else if (kind === 'throw') v({ at: now, duration: .18, volume: .06 * s, noisy: true, cutoff: 2200, filterType: 'highpass', attack: .02, release: .1 });
+      else if (kind === 'land') v({ at: now, duration: .16, volume: .14 * s, noisy: true, cutoff: 600, attack: .003, release: .14 });
     });
   }
 
@@ -445,5 +509,5 @@ export function createAmbience() {
       paused, combatMix: mix, activeVoices: voices.size, voiceLimit: VOICE_LIMIT };
   }
 
-  return { resume, update, footstep, setVolume, state, dispose };
+  return { resume, update, footstep, horse, goblin, setVolume, state, dispose };
 }

@@ -384,13 +384,14 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     let winding=enemies.filter(e=>e.windup>0).length;
     const attackers={count:enemies.filter(e=>!e.dead&&['approach','strike'].includes(e.plan)).length,max:1+(enemies.filter(e=>!e.dead&&!e.calm&&e.kind==='wolf'&&e.model.position.distanceTo(player.position)<18).length>2?1:0)};
     for(const e of enemies){const p=e.model.position;
-      if(e.dead){e.deathTime=Math.min(1,(e.deathTime||0)+dt*1.4);p.y=world.heightAt(p.x,p.z);continue;}
+      if(e.dead){e.deathTime=Math.min(1,(e.deathTime||0)+dt*1.4);if(!e.drive)p.y=world.heightAt(p.x,p.z);continue;}
       e.cooldown-=dt;e.stagger=Math.max(0,(e.stagger||0)-dt);e.strikeT=Math.max(0,(e.strikeT||0)-dt);
       const dx=player.position.x-p.x,dz=player.position.z-p.z,distance=Math.hypot(dx,dz);
       if(e.knock){moveEnemy(e,e.knock.x*dt,e.knock.z*dt);e.knock.multiplyScalar(Math.exp(-dt*9));}
       if(e.motionLock){e.windup=0;e.casting=null;continue;}
       if(e.stagger>0)continue;
       if(e.ai){driveAI(e,dt,distance,dx,dz,attackers);continue;}
+      if(e.drive){e.drive(e,dt,distance,dx,dz);continue;}
       // Once in the fight an enemy stays in it out to 32 m (a fleeing bandit comes back after a while);
       // one shot from afar comes looking for the archer from much further.
       const active=!e.calm&&distance<(e.engaged?(e.alertUntil>time?90:32):20);e.engaged=active;

@@ -4,8 +4,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Blockbench characters (art/blockbench → public/models/*.gltf). Blockbench
 // exports one mesh per cube; on load every bone's rigid cubes are merged into a
-// single mesh so a character costs one draw call per moving part.
-const MODELS = ['wanderer', 'elder', 'smith', 'ranger', 'bandit', 'captain', 'wolf', 'weapons', 'deer', 'fox', 'hare', 'crow'];
+// single mesh so a character costs one draw call per moving part. Horses, with
+// thirty-odd moving parts, become one rigidly skinned mesh instead: one draw call.
+export const HORSE_VARIANTS = ['bay', 'black', 'grey', 'chestnut', 'palomino', 'paint'];
+export const GOBLIN_MODELS = ['goblin_schaedel', 'goblin_pilz', 'goblin_ketten', 'goblin_schleicher', 'goblin_speier', 'goblin_wuerger', 'goblin_brecher', 'goblin_trommler', 'goblin_vosh', 'goblin_ghast', 'goblin_ulgrak'];
+const MODELS = ['wanderer', 'elder', 'smith', 'ranger', 'bandit', 'captain', 'wolf', 'weapons', 'deer', 'fox', 'hare', 'crow', ...HORSE_VARIANTS.map(v => `horse_${v}`), ...GOBLIN_MODELS];
 const templates = new Map();
 const materials = new Map();
 
@@ -42,9 +45,39 @@ function prepare(scene) {
   return scene;
 }
 
+// Every cube into one mesh, each vertex bound wholly to the bone that carried its cube; the bones stay the
+// rig the animator turns. Bone inverses come from the rest pose with the model at the origin.
+function prepareSkinned(scene) {
+  scene.updateMatrixWorld(true);
+  const bones = [], cubes = [];
+  scene.traverse(object => { if (object.isMesh) cubes.push(object); else if (object !== scene) bones.push(object); });
+  const index = new Map(bones.map((bone, i) => [bone, i]));
+  const geometries = cubes.map(cube => {
+    const geometry = cube.geometry.index ? cube.geometry.toNonIndexed() : cube.geometry.clone();
+    for (const name of Object.keys(geometry.attributes)) if (!['position', 'normal', 'uv'].includes(name)) geometry.deleteAttribute(name);
+    geometry.applyMatrix4(cube.matrixWorld);
+    const n = geometry.attributes.position.count, bone = index.get(cube.parent) ?? 0, skinIndex = new Uint16Array(n * 4), skinWeight = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { skinIndex[i * 4] = bone; skinWeight[i * 4] = 1; }
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
+    return geometry;
+  });
+  const material = pixelMaterial(cubes[0].material);
+  cubes.forEach(cube => cube.removeFromParent());
+  const mesh = new THREE.SkinnedMesh(mergeGeometries(geometries, false), material);
+  geometries.forEach(g => g.dispose());
+  mesh.name = 'skin'; mesh.castShadow = mesh.receiveShadow = true;
+  scene.add(mesh); mesh.updateMatrixWorld(true);
+  mesh.bind(new THREE.Skeleton(bones));
+  mesh.userData.boneNames = bones.map(bone => bone.name);
+  // Rearing and grazing reach past the rest pose's bounds.
+  mesh.computeBoundingSphere(); mesh.boundingSphere.radius *= 1.35;
+  return scene;
+}
+
 export async function loadCharacterModels(base = `${import.meta.env.BASE_URL}models/`) {
   const loader = new GLTFLoader();
-  await Promise.all(MODELS.map(async name => templates.set(name, prepare((await loader.loadAsync(`${base}${name}.gltf`)).scene))));
+  await Promise.all(MODELS.map(async name => { const scene = (await loader.loadAsync(`${base}${name}.gltf`)).scene; templates.set(name, name.startsWith('horse_') || name.startsWith('goblin_') ? prepareSkinned(scene) : prepare(scene)); }));
 }
 
 /** Clones a character template. Returns a root group whose userData.rig maps bone names to nodes. */
@@ -57,6 +90,8 @@ export function createCharacter(name, { scale = 1 } = {}) {
   const rig = {};
   body.traverse(object => { if (!object.isMesh && object.name) rig[object.name] = object; });
   for (const bone of Object.values(rig)) bone.userData.rest = { position: bone.position.clone(), quaternion: bone.quaternion.clone() };
+  // A cloned skinned mesh still points at the template's bones: bind it to this copy's own.
+  body.traverse(object => { if (object.isSkinnedMesh) object.bind(new THREE.Skeleton(object.userData.boneNames.map(n => rig[n]), object.skeleton.boneInverses), object.bindMatrix); });
   root.userData.rig = rig; root.userData.kind = name; root.userData.phase = Math.random() * 10;
   return root;
 }

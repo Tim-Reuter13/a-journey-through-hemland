@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { block, blockOn, beam, boxGeometry, crossGeometry } from '../../art/blocks.js';
 import { pixelMaterial } from '../../art/pixelTextures.js';
-import { makeHouse, makeCart, makeWell, makeFence, makeLantern } from '../buildings.js';
+import { makeHouse, makeCart, makeWell, makeFence, makeLantern, makeHitchingRail } from '../buildings.js';
 import * as F from '../furniture.js';
 import { furnishInterior } from '../interiors.js';
 import { BRIDGES, WATER_LEVEL } from '../hemland.js';
@@ -167,6 +167,8 @@ function buildInn(ctx) {
   }
   const lamp = point(frame, -8.8, 6); makeLantern(ctx.root, ctx.heightAt, lamp.x, lamp.z);
   const hay = point(frame, 12.5, -11); haystack(ctx, hay.x, hay.z, rotation);
+  // Travellers' horses wait at a rail in front, between the door and the stable.
+  const rail = point(frame, 7.5, 9.5); ctx.tie?.({ id: 'inn_rail', ...makeHitchingRail(ctx.root, ctx.heightAt, rail.x, rail.z, rotation, { trough: 1 }) });
   ctx.marker({ id: 'inn', kind: 'inn', label: s.name, x: s.x, z: s.z });
 }
 
@@ -310,6 +312,9 @@ function buildOutpost(ctx, id) {
   blockOn(board, 1.7, 1, .1, 'planks', 0, .95, 0); blockOn(board, 1.9, .14, .3, 'darkPlanks', 0, 2.05, 0);
   for (const [x, yy, w, h] of [[-.5, 1.45, .36, .44], [0, 1.25, .4, .5], [.5, 1.5, .32, .36], [.3, 1.05, .28, .22]]) blockOn(board, w, h, .03, 'clothLinen', x, yy - h / 2, -.07);
   F.brazier(root, gate[0] - 1.4, 0, front - 1.2, 0, { light: false });
+
+  // The watch's horses stand at a rail outside the yard's side wall.
+  { const p = at(R + 2.6, front - 4); ctx.tie?.({ id: `${id}_rail`, ...makeHitchingRail(ctx.root, ctx.heightAt, p.x, p.z, rotation - PI / 2, { trough: -1 }) }); }
 
   // ── Road barrier: post with a counterweighted, striped pole raised over the road, a sentry box.
   // On the post's own side of the road; the arm (local +x) reaches across toward the far side.

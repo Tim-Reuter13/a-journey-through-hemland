@@ -116,6 +116,14 @@ const SWORD = [
     [1, {}, 'inOut'],
   ],
 ];
+// A spear or knife thrust (goblins): the arm draws back, then drives straight at the target with the body behind it.
+const THRUST = [
+  [0, {}],
+  [.4, { arm_upper_right: [.3, .5, .25], arm_lower_right: [1.7, 0, 0], hand_right: [.3, 0, 0], chest: [.05, .45, 0], torso: [.06, .2, 0], arm_upper_left: [.9, -.3, -.2], arm_lower_left: [1.0, 0, 0] }, 'inOut'],
+  [.55, { arm_upper_right: [1.55, -.15, .05], arm_lower_right: [.05, 0, 0], hand_right: [-.2, 0, 0], chest: [-.08, -.35, 0], torso: [-.25, -.15, 0], arm_upper_left: [1.2, -.2, -.1], arm_lower_left: [.4, 0, 0], hipsY: -.06 }, 'snap'],
+  [.75, { arm_upper_right: [1.4, -.1, .05], arm_lower_right: [.15, 0, 0], chest: [-.06, -.3, 0], torso: [-.2, -.1, 0] }, 'out'],
+  [1, {}, 'inOut'],
+];
 const CAST = [
   [0, {}],
   [.3, { arm_upper_left: [.4, .3, -.2], arm_lower_left: [1.6, 0, 0], chest: [0, .25, 0], head: [0, -.15, 0] }, 'inOut'],
@@ -151,6 +159,47 @@ const GETUP_FRONT = [
   [1, {}, 'out'],
 ];
 const GETUP = { back: [GETUP_BACK, 0], front: [GETUP_FRONT, 0], sitting: [GETUP_BACK, .45], kneeling: [GETUP_FRONT, .58] };
+// Riding (systems/horses.js, characters/rider.js): seated with the thighs round the barrel, heels in the
+// stirrups, hands low over the withers. Mounting and dismounting are keyed for the horse's left side and
+// mirrored for its right: foot in the stirrup, hands on the saddle, up, the far leg over the croup.
+const RIDE_SEAT = { leg_upper_right: [1.25, 0, .62], leg_upper_left: [1.25, 0, -.62], leg_lower_right: [-1.25, 0, 0], leg_lower_left: [-1.25, 0, 0], foot_right: [-.1, 0, 0], foot_left: [-.1, 0, 0],
+  arm_upper_right: [.5, 0, -.08], arm_upper_left: [.5, 0, .08], arm_lower_right: [1.1, 0, 0], arm_lower_left: [1.1, 0, 0] };
+const MOUNT = [
+  [0, { leg_upper_left: [1.3, 0, -.2], leg_lower_left: [-1.7, 0, 0], foot_left: [.2, 0, 0], arm_upper_right: [2.0, 0, -.2], arm_upper_left: [2.0, 0, .2], arm_lower_right: [.4, 0, 0], arm_lower_left: [.4, 0, 0], torso: [-.15, 0, 0] }],
+  [.3, { leg_upper_left: [.6, 0, -.2], leg_lower_left: [-.9, 0, 0], leg_upper_right: [-.6, 0, .5], arm_upper_right: [1.4, 0, -.1], arm_upper_left: [1.4, 0, .1], arm_lower_right: [.5, 0, 0], arm_lower_left: [.5, 0, 0], torso: [-.5, 0, 0] }, 'inOut'],
+  [.55, { leg_upper_left: [.9, 0, -.4], leg_lower_left: [-1.0, 0, 0], leg_upper_right: [-.2, 0, 1.3], leg_lower_right: [-.6, 0, 0], arm_upper_right: [1.0, 0, 0], arm_upper_left: [1.0, 0, 0], arm_lower_right: [.8, 0, 0], arm_lower_left: [.8, 0, 0], torso: [-.6, 0, 0] }, 'inOut'],
+  [.8, { leg_upper_left: [1.2, 0, -.6], leg_lower_left: [-1.2, 0, 0], leg_upper_right: [.9, 0, .8], leg_lower_right: [-1.1, 0, 0], arm_upper_right: [.7, 0, 0], arm_upper_left: [.7, 0, 0], arm_lower_right: [1.0, 0, 0], arm_lower_left: [1.0, 0, 0], torso: [-.25, 0, 0] }, 'inOut'],
+  [1, RIDE_SEAT, 'out'],
+];
+const DISMOUNT = [
+  [0, RIDE_SEAT],
+  [.28, { ...RIDE_SEAT, leg_upper_right: [-.4, 0, 1.2], leg_lower_right: [-.5, 0, 0], arm_upper_right: [1.2, 0, 0], arm_upper_left: [1.2, 0, 0], arm_lower_right: [.6, 0, 0], arm_lower_left: [.6, 0, 0], torso: [-.5, 0, 0] }, 'inOut'],
+  [.52, { leg_upper_left: [.7, 0, -.3], leg_lower_left: [-.9, 0, 0], leg_upper_right: [.2, 0, .3], leg_lower_right: [-.3, 0, 0], arm_upper_right: [1.3, 0, 0], arm_upper_left: [1.3, 0, 0], arm_lower_right: [.5, 0, 0], arm_lower_left: [.5, 0, 0], torso: [-.3, 0, 0] }, 'inOut'],
+  [.8, { leg_upper_left: [.3, 0, 0], leg_lower_left: [-.5, 0, 0], leg_upper_right: [.05, 0, 0], arm_upper_right: [.8, 0, 0], arm_upper_left: [.8, 0, 0], arm_lower_right: [.3, 0, 0], arm_lower_left: [.3, 0, 0], torso: [-.1, 0, 0], hipsY: -.12 }, 'inOut'],
+  [1, {}, 'out'],
+];
+const mirrorName = name => name.endsWith('_right') ? name.slice(0, -6) + '_left' : name.endsWith('_left') ? name.slice(0, -5) + '_right' : name;
+const mirrorTrack = track => track.map(([t, keys, curve]) => [t, Object.fromEntries(Object.entries(keys).map(([name, v]) => name === 'hipsY' ? [name, v] : [mirrorName(name), [v[0], -v[1], -v[2]]])), curve]);
+const MOUNT_RIGHT = mirrorTrack(MOUNT), DISMOUNT_RIGHT = mirrorTrack(DISMOUNT);
+// Seated, the body goes with the horse: the hips swing at the walk, rise to the trot, sit deep in the canter's
+// rocking; at the gallop the rider stands in the stirrups crouched over the neck.
+function ridePose(pose, ride) {
+  const left = (ride.side ?? -1) < 0;
+  if (ride.kind === 'mount') { sample(left ? MOUNT : MOUNT_RIGHT, clamp(ride.t, 0, 1), pose); return; }
+  if (ride.kind === 'dismount') { sample(left ? DISMOUNT : DISMOUNT_RIGHT, clamp(ride.t, 0, 1), pose); return; }
+  addStatic(RIDE_SEAT, pose, 1);
+  const W = ride.weights || {}, p = (ride.phase || 0) * TAU, m = ride.move ?? 0;
+  const walk = (W.walk || 0) * m, trot = (W.trot || 0) * m, canter = (W.canter || 0) * m, gallop = (W.gallop || 0) * m;
+  pose.add('hips', 0, Math.sin(p) * .06 * walk, Math.sin(p) * .05 * walk); pose.add('torso', 0, -Math.sin(p) * .04 * walk, -Math.sin(p) * .03 * walk);
+  pose.hipsY += .08 * Math.max(0, Math.sin(2 * p)) * trot + .1 * gallop;
+  pose.add('torso', Math.sin(p + 1.2) * .07 * canter);
+  const lean = .06 * walk + .14 * trot + .2 * canter + .55 * gallop + (ride.lean || 0);
+  pose.add('torso', -lean); pose.add('chest', -lean * .25); pose.add('head', lean * .85);
+  for (const side of ['right', 'left']) { pose.add(`arm_upper_${side}`, .45 * gallop); pose.add(`leg_upper_${side}`, -.15 * gallop); }
+  // A cloak lies back over the cantle and falls down the croup; with speed it lifts and streams out.
+  const speed = trot * .4 + canter * .7 + gallop, t = ride.time || 0;
+  pose.add('cape_1', -.82 - .2 * speed + Math.sin(t * 9) * .04 * speed); pose.add('cape_2', .45 - .55 * speed + Math.sin(t * 9 - 1) * .08 * speed); pose.add('cape_3', .35 - .5 * speed + Math.sin(t * 9 - 2) * .12 * speed);
+}
 const GUARD = { arm_upper_right: [.8, .45, .22], arm_lower_right: [1.2, 0, 0], hand_right: [.2, .3, -.9], arm_upper_left: [.85, -.4, -.18], arm_lower_left: [1.4, 0, 0], chest: [0, -.12, 0], torso: [-.1, 0, 0], head: [-.05, .12, 0], leg_upper_right: [.18, 0, .04], leg_lower_right: [-.32, 0, 0], leg_upper_left: [-.1, 0, -.04], leg_lower_left: [-.2, 0, 0], hipsY: -.06 };
 
 // Looping work and life activities (NPC daily routines), layered over idle.
@@ -347,15 +396,20 @@ export function createAnimator(character) {
   }
 
   function humanoid(pose, input) {
-    if (input.getup) {
-      const [track, start] = GETUP[input.getup.kind] || GETUP.back;
-      sample(track, start + (1 - start) * clamp(input.getup.progress, 0, 1), pose);
-      pose.add('chest', Math.sin(state.time * 3.2) * .03);
-      return;
+    // In the saddle the legs and hips belong to the ride; swings, casts, the bow and the guard still move the arms.
+    const saddle = !!input.ride;
+    if (saddle) ridePose(pose, input.ride);
+    else {
+      if (input.getup) {
+        const [track, start] = GETUP[input.getup.kind] || GETUP.back;
+        sample(track, start + (1 - start) * clamp(input.getup.progress, 0, 1), pose);
+        pose.add('chest', Math.sin(state.time * 3.2) * .03);
+        return;
+      }
+      locomotion(pose, input);
+      // Holding something (a cart, a body, a bow) keeps the pose while walking.
+      if (input.activity && (state.move < .3 || ['pull', 'carry', 'aim_low', 'aim', 'draw_bow', 'swim', 'sneak', 'guardReady', 'search', 'warn', 'shieldUp'].includes(input.activity))) activityPose(pose, input.activity, state.time);
     }
-    locomotion(pose, input);
-    // Holding something (a cart, a body, a bow) keeps the pose while walking.
-    if (input.activity && (state.move < .3 || ['pull', 'carry', 'aim_low', 'aim', 'draw_bow', 'swim', 'sneak', 'guardReady', 'search', 'warn', 'shieldUp'].includes(input.activity))) activityPose(pose, input.activity, state.time);
     const upper = new Pose();
     let actionWeight = 0;
     const action = input.action;
@@ -365,10 +419,10 @@ export function createAnimator(character) {
       const track = action.kind === 'sword' ? SWORD[action.combo % 3] : action.kind === 'cast' ? CAST : DRINK;
       sample(track, p, upper);
     } else if (input.windup > 0) {
-      // Enemy telegraph: slow, readable overhead wind-up.
-      actionWeight = 1; sample(SWORD[2], .36 * ease.out(input.windup), upper);
+      // Enemy telegraph: slow, readable overhead wind-up (a drawn-back arm for a thrust).
+      actionWeight = 1; if (input.style === 'thrust' || input.style === 'stab') sample(THRUST, .4 * ease.out(input.windup), upper); else sample(SWORD[2], .36 * ease.out(input.windup), upper);
     } else if (input.strike > 0) {
-      actionWeight = 1; sample(SWORD[2], .36 + .64 * (1 - input.strike), upper);
+      actionWeight = 1; if (input.style === 'thrust' || input.style === 'stab') sample(THRUST, .4 + .6 * (1 - input.strike / .35), upper); else sample(SWORD[2], .36 + .64 * (1 - input.strike), upper);
     }
     // Archer's stance: the body turns side-on so the bow shoulder points at the target, the head turns
     // back to look along the arrow and the chest leans with the aim. The arms meet bow and string by IK.
@@ -376,7 +430,7 @@ export function createAnimator(character) {
       const k = input.bow, pitch = input.bowPitch || 0;
       pose.add('torso', 0, -.45 * k, 0); pose.add('chest', pitch * .35 * k, -.6 * k, 0);
       pose.add('neck', 0, .45 * k, 0); pose.add('head', -pitch * .2 * k, .55 * k, 0);
-      pose.add('leg_upper_left', -.12 * k, 0, -.08 * k); pose.add('leg_upper_right', .1 * k, 0, .06 * k);
+      if (!saddle) { pose.add('leg_upper_left', -.12 * k, 0, -.08 * k); pose.add('leg_upper_right', .1 * k, 0, .06 * k); }
     }
     state.guard = damp(state.guard, input.guard ? 1 : 0, 14, input.dt);
     if (state.guard > .01) addStatic(GUARD, upper, state.guard * (1 - actionWeight));
@@ -387,11 +441,12 @@ export function createAnimator(character) {
         const base = pose.get(name), over = upper.get(name);
         for (let k = 0; k < 3; k++) base[k] = lerp(base[k], over[k], layer);
       }
-      for (const name of ['chest', 'torso', 'head', 'leg_upper_right', 'leg_lower_right', 'leg_upper_left', 'leg_lower_left']) {
+      for (const name of saddle ? ['chest', 'torso', 'head'] : ['chest', 'torso', 'head', 'leg_upper_right', 'leg_lower_right', 'leg_upper_left', 'leg_lower_left']) {
         const over = upper.bones.get(name); if (over) pose.add(name, over[0], over[1], over[2]);
       }
-      pose.hipsY += upper.hipsY;
+      if (!saddle) pose.hipsY += upper.hipsY;
     }
+    if (saddle) return;
     // Talking: small nods and hand gestures.
     state.talk = damp(state.talk, input.speaking ? 1 : 0, 6, input.dt);
     if (state.talk > .01) {

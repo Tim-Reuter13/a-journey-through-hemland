@@ -33,6 +33,12 @@ export const SITES = {
   quarry: { name: 'Königsbruch', x: 1235, z: -890, radius: 19, blend: 18, mode: 'flatten', offset: -1.5 },
   plague_field: { name: 'Pestacker', x: 790, z: -930, radius: 15, blend: 14, mode: 'flatten', offset: 5.5 },
   jetty: { name: 'Fischersteg am Grausee', x: 768, z: 450, radius: 3, blend: 7, mode: 'flatten' },
+  // Goblin caves (systems/caves.js, sites/caveMouths.js): holes in the ground on the flank of a rise of earth
+  // (heightfield.js burrows). x, z is the hole; hole is its radius, mound the height of the rise. A walk-in cave has a
+  // sunken way sloping down into the hill instead of a shaft.
+  cave_klagende: { name: 'Die Klagende Grube', x: -200, z: -420, radius: 2, blend: 12, mode: 'burrow', hole: 1.7, mound: 2.4, walkIn: true },
+  cave_moder: { name: 'Die Moderhöhle', x: 150, z: 560, radius: 2, blend: 12, mode: 'burrow', hole: 1.9, mound: 2.1, walkIn: true },
+  cave_eisen: { name: 'Die Eisengrube', x: 700, z: -1000, radius: 2, blend: 12, mode: 'burrow', hole: 1.7, mound: 1.7 },
 };
 
 /** Roads: type 'king' (wide, paved near the city), 'dirt', 'lane'. `ramp` interpolates height end to end. */

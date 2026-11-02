@@ -17,11 +17,11 @@ export function terrainMaterial() {
   material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = 'attribute vec4 splatA;\nattribute vec4 splatB;\nvarying vec4 vSplatA;\nvarying vec4 vSplatB;\nvarying vec3 vTerrainPos;\nvarying vec3 vTerrainNormal;\n' +
+    shader.vertexShader = 'attribute vec4 splatA;\nattribute vec4 splatB;\nattribute float shade;\nvarying vec4 vSplatA;\nvarying vec4 vSplatB;\nvarying float vShade;\nvarying vec3 vTerrainPos;\nvarying vec3 vTerrainNormal;\n' +
       shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-        vSplatA = splatA; vSplatB = splatB; vTerrainPos = (modelMatrix * vec4(position, 1.)).xyz; vTerrainNormal = normal;`);
+        vSplatA = splatA; vSplatB = splatB; vShade = shade; vTerrainPos = (modelMatrix * vec4(position, 1.)).xyz; vTerrainNormal = normal;`);
     shader.fragmentShader = `uniform sampler2D ${Object.keys(uniforms).filter(n => n !== 'cityBounds').join(', ')}; uniform vec4 cityBounds;
-      varying vec4 vSplatA; varying vec4 vSplatB; varying vec3 vTerrainPos; varying vec3 vTerrainNormal;
+      varying vec4 vSplatA; varying vec4 vSplatB; varying float vShade; varying vec3 vTerrainPos; varying vec3 vTerrainNormal;
       float terrainHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float terrainNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
         return mix(mix(terrainHash(i), terrainHash(i + vec2(1., 0.)), f.x), mix(terrainHash(i + vec2(0., 1.)), terrainHash(i + vec2(1., 1.)), f.x), f.y); }
@@ -46,7 +46,7 @@ export function terrainMaterial() {
         vec2 texel = floor(groundUV * 16.);
         float other = step(.5, terrainNoise(groundUV * .11) + (terrainHash(texel + 5.) - .5) * .16);
         float otherRock = step(.5, terrainNoise(cliffUV * .11) + (terrainHash(floor(cliffUV * 16.) + 5.) - .5) * .16);
-        vec3 grass = layer(t_grass, groundUV, ${scale('grass')}, other), dirt = layer(t_dirt, groundUV, ${scale('dirt')}, other), trail = layer(t_path, groundUV, ${scale('path')}, other);
+        vec3 grass = layer(t_grass, groundUV, ${scale('grass')}, other), dirt = layer(t_dirt, cliffUV, ${scale('dirt')}, otherRock), trail = layer(t_path, groundUV, ${scale('path')}, other);
         vec3 litter = layer(t_litter, groundUV, ${scale('litter')}, other), mud = layer(t_mud, groundUV, ${scale('mud')}, other), sand = layer(t_sand, groundUV, ${scale('sand')}, other);
         vec3 cobble = layer(t_cobble, groundUV, ${scale('cobble')}, other), setts = layerRows(t_setts, groundUV, ${scale('setts')}, other), flags = layer(t_flagstone, groundUV, ${scale('flagstone')}, other);
         // Kronwacht's street plan (streets.js): setts on the main streets, flagstones on the squares,
@@ -80,7 +80,7 @@ export function terrainMaterial() {
         if (vSplatA.z + RELIEF(rock, .43) > pick) { ground = rock; living = 0.; }
         if (vSplatA.w + RELIEF(snow, .8) > pick) { ground = snow; living = 0.; }
         vec3 tone = mix(vec3(1.), vec3(.86 + macro * .26, .9 + macro * .2, .84 + macro * .2), living);
-        diffuseColor.rgb *= ground * tone * mix(vec3(1.), vColor, living);`);
+        diffuseColor.rgb *= ground * tone * mix(vec3(1.), vColor, living) * (1. - vShade);`);
   };
   return material;
 }
@@ -99,6 +99,59 @@ function attributes(heightfield, sample, xs, zs, heights, slopeStep) {
   return { splatA, splatB, colors, normals };
 }
 
+// Goblin holes (heightfield.js burrows) are far narrower than the 2-unit grid. At full detail the cells round each
+// one are drawn on a grid four times finer: heights from heightAt (the hole included), everything else interpolated
+// from the cell's corners exactly as the coarse triangles would be (so the patch meets them without a seam), then
+// bare earth round the rim, rock down the walls, darker and darker towards the bottom.
+const SUB = 4;
+function pitCells(heightfield, g) {
+  const C = heightfield.CELLS, i0 = g.cx * C, j0 = g.cz * C, cells = new Set();
+  for (const b of heightfield.burrows) for (let j = Math.max(b.j0, j0); j < Math.min(b.j1, j0 + C); j++) for (let i = Math.max(b.i0, i0); i < Math.min(b.i1, i0 + C); i++) cells.add((j - j0) * C + i - i0);
+  return cells.size ? cells : null;
+}
+function pitPatch(heightfield, g, cells) {
+  const C = heightfield.CELLS, full = C + 1, A = g.attr, e = .25;
+  const out = { pos: [], normals: [], colors: [], splatA: [], splatB: [], shade: [], index: [] };
+  const ss = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const dh = (x, z) => heightfield.pit(x, z)?.dh || 0;
+  const copy = (k, drop) => {
+    out.pos.push(out.pos[k * 3], out.pos[k * 3 + 1] - drop, out.pos[k * 3 + 2]);
+    for (const [name, size] of [['normals', 3], ['colors', 3], ['splatA', 4], ['splatB', 4], ['shade', 1]]) for (let c = 0; c < size; c++) out[name].push(out[name][k * size + c]);
+    return out.shade.length - 1;
+  };
+  for (const cell of cells) {
+    const i = cell % C, j = Math.floor(cell / C), corner = [j * full + i, j * full + i + 1, (j + 1) * full + i, (j + 1) * full + i + 1];
+    const base = out.shade.length;
+    for (let v = 0; v <= SUB; v++) for (let u = 0; u <= SUB; u++) {
+      const fu = u / SUB, fv = v / SUB, x = g.x0 + (i + fu) * heightfield.STEP, z = g.z0 + (j + fv) * heightfield.STEP;
+      // Barycentric weights of corners a, b, c, d in the coarse cell's two triangles (split b–c, as heightAt).
+      const w = fu + fv <= 1 ? [1 - fu - fv, fu, fv, 0] : [0, 1 - fv, 1 - fu, fu + fv - 1];
+      const mix = (arr, size) => { const r = new Array(size).fill(0); for (let n = 0; n < 4; n++) if (w[n]) for (let c = 0; c < size; c++) r[c] += arr[corner[n] * size + c] * w[n]; return r; };
+      // Slopes, not normals, interpolate linearly; the hole's own slope is added on top.
+      let gx = 0, gz = 0;
+      for (let n = 0; n < 4; n++) if (w[n]) { const o = corner[n] * 3; gx -= A.normals[o] / A.normals[o + 1] * w[n]; gz -= A.normals[o + 2] / A.normals[o + 1] * w[n]; }
+      gx += (dh(x + e, z) - dh(x - e, z)) / (2 * e); gz += (dh(x, z + e) - dh(x, z - e)) / (2 * e);
+      const len = Math.hypot(gx, 1, gz), a = mix(A.splatA, 4), b = mix(A.splatB, 4), p = heightfield.pit(x, z);
+      if (p) { a[1] = Math.max(a[1], ss(1.5, 1.05, p.r) * .85); a[2] = Math.max(a[2], p.rock); b[0] *= ss(1.1, 1.5, p.r); b[1] = Math.max(b[1], ss(1.05, .7, p.r) * .5); }
+      out.pos.push(x, heightfield.heightAt(x, z), z); out.normals.push(-gx / len, 1 / len, -gz / len);
+      out.colors.push(...mix(A.colors, 3)); out.splatA.push(...a); out.splatB.push(...b); out.shade.push(p ? p.shade : 0);
+    }
+    for (let v = 0; v < SUB; v++) for (let u = 0; u < SUB; u++) {
+      const a = base + v * (SUB + 1) + u, b = a + 1, c = a + SUB + 1, d = c + 1;
+      out.index.push(a, c, b, b, c, d);
+    }
+    // Where the patch meets coarse cells their edges carry fewer vertices: a short skirt under each such side
+    // hides any hairline crack.
+    const gi = g.cx * C + i, gj = g.cz * C + j;
+    for (const [di, dj, edge] of [[0, -1, u => u], [0, 1, u => SUB * (SUB + 1) + u], [-1, 0, v => v * (SUB + 1)], [1, 0, v => v * (SUB + 1) + SUB]]) {
+      if (heightfield.pitCell(gi + di, gj + dj)) continue;
+      const top = [...Array(SUB + 1).keys()].map(t => base + edge(t)), low = top.map(k => copy(k, .6));
+      for (let t = 0; t < SUB; t++) out.index.push(top[t], low[t], top[t + 1], top[t + 1], low[t], low[t + 1], top[t], top[t + 1], low[t], top[t + 1], low[t + 1], low[t]);
+    }
+  }
+  return out;
+}
+
 /** Terrain mesh for one chunk. lod 0/1/2 = 2/4/8 units per quad. Skirts hide cracks between LODs. */
 export function buildChunkMesh(heightfield, cx, cz, lod) {
   const g = heightfield.grid(cx, cz), stride = 1 << lod, n = heightfield.CELLS / stride, step = heightfield.STEP * stride;
@@ -106,8 +159,9 @@ export function buildChunkMesh(heightfield, cx, cz, lod) {
   const pos = new Float32Array(count * 3);
   const set = (k, x, y, z) => { pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z; };
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) set(j * side + i, g.x0 + i * step, g.heights[(j * stride) * (heightfield.CELLS + 1) + i * stride], g.z0 + j * step);
-  const index = [];
+  const index = [], fine = lod === 0 ? pitCells(heightfield, g) : null;
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    if (fine?.has(j * n + i)) continue;
     const a = j * side + i, b = a + 1, c = a + side, d = c + 1;
     index.push(a, c, b, b, c, d);
   }
@@ -128,7 +182,7 @@ export function buildChunkMesh(heightfield, cx, cz, lod) {
   if (!g.attr) {
     const gx = new Float32Array(full * full), gz = new Float32Array(full * full);
     for (let j = 0; j < full; j++) for (let i = 0; i < full; i++) { gx[j * full + i] = g.x0 + i * heightfield.STEP; gz[j * full + i] = g.z0 + j * heightfield.STEP; }
-    g.attr = attributes(heightfield, heightfield.heightAt, gx, gz, g.heights, heightfield.STEP);
+    g.attr = attributes(heightfield, heightfield.gridHeightAt, gx, gz, g.heights, heightfield.STEP);
   }
   const source = new Int32Array(count);
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) source[j * side + i] = (j * stride) * full + i * stride;
@@ -140,12 +194,20 @@ export function buildChunkMesh(heightfield, cx, cz, lod) {
     attr.normals.set(g.attr.normals.subarray(o * 3, o * 3 + 3), v * 3); attr.colors.set(g.attr.colors.subarray(o * 3, o * 3 + 3), v * 3);
     attr.splatA.set(g.attr.splatA.subarray(o * 4, o * 4 + 4), v * 4); attr.splatB.set(g.attr.splatB.subarray(o * 4, o * 4 + 4), v * 4);
   }
+  let position = pos, shade = new Float32Array(count);
+  if (fine) {
+    const patch = pitPatch(heightfield, g, fine), grow = (a, extra) => { const r = new Float32Array(a.length + extra.length); r.set(a); r.set(extra, a.length); return r; };
+    position = grow(pos, patch.pos); shade = grow(shade, patch.shade);
+    for (const name of ['normals', 'colors', 'splatA', 'splatB']) attr[name] = grow(attr[name], patch[name]);
+    for (const k of patch.index) index.push(k + count);
+  }
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(attr.normals, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(attr.colors, 3));
   geometry.setAttribute('splatA', new THREE.BufferAttribute(attr.splatA, 4));
   geometry.setAttribute('splatB', new THREE.BufferAttribute(attr.splatB, 4));
+  geometry.setAttribute('shade', new THREE.BufferAttribute(shade, 1));
   geometry.setIndex(index);
   geometry.computeBoundingSphere();
   const mesh = new THREE.Mesh(geometry, terrainMaterial());
@@ -197,6 +259,7 @@ export function buildFarTerrain(heightfield, step = 32, margin = 640) {
   geometry.setAttribute('color', new THREE.BufferAttribute(attr.colors, 3));
   geometry.setAttribute('splatA', new THREE.BufferAttribute(attr.splatA, 4));
   geometry.setAttribute('splatB', new THREE.BufferAttribute(attr.splatB, 4));
+  geometry.setAttribute('shade', new THREE.BufferAttribute(new Float32Array(count), 1));
   geometry.setIndex(index); geometry.computeBoundingSphere();
   const mesh = new THREE.Mesh(geometry, farTerrainMaterial());
   mesh.name = 'far terrain'; mesh.receiveShadow = false;
