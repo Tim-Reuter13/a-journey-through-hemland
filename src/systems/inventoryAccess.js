@@ -16,7 +16,7 @@ const ease = { out: t => 1 - (1 - t) ** 3, inOut: t => t < .5 ? 4 * t ** 3 : 1 -
 const clamp01 = v => Math.max(0, Math.min(1, v));
 const _f = new THREE.Vector3(), _r = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _p = new THREE.Vector3(), _look = new THREE.Vector3();
 
-export function createInventoryAccess({ scene, player, firstPerson, puff = () => {}, sound = () => {} }) {
+export function createInventoryAccess({ scene, player, firstPerson, puff = () => {}, sound = () => {}, blocked = () => false }) {
   let phase = 'idle', t = 0, onReady = null, onDone = null, blend = 0, pack = null, fpPack = null, holdAt = null;
   const world = { open: 0, slack: 0, move: 0, scale: 1 };   // the pack's own state, 0..1
   const from = { move: 1, open: 1 };                        // where a closing starts (it can be cancelled half way)
@@ -50,16 +50,18 @@ export function createInventoryAccess({ scene, player, firstPerson, puff = () =>
     _f.set(-Math.sin(yaw), 0, -Math.cos(yaw)); _r.set(Math.cos(yaw), 0, -Math.sin(yaw));
     // From between the shoulder blades round the right side to the chest, rising a little on the way.
     _a.copy(P).addScaledVector(_f, -.4).setY(P.y + 1.5);
-    _c.copy(P).addScaledVector(_f, .64).setY(P.y + 1.28);
+    _c.copy(P).addScaledVector(_f, .52).setY(P.y + .98);
     _b.copy(P).addScaledVector(_r, .95).addScaledVector(_f, .02).setY(P.y + 1.62);
     const m = ease.inOut(k), u = 1 - m;
     _p.copy(_a).multiplyScalar(u * u).addScaledVector(_b, 2 * u * m).addScaledVector(_c, m * m);
     pack.root.position.copy(_p);
     // It stays outer side toward the wearer, swings out as it travels and settles tilted toward them.
-    pack.root.rotation.set(-.5 * ease.out(k) - Math.sin(k * Math.PI) * .18, yaw + Math.PI - Math.sin(k * Math.PI) * 1.05, Math.sin(k * Math.PI) * .22, 'YXZ');
+    // Worn, its outer side faces back; swung round the side to the front it turns half a circle, so the buckles end up facing the world,
+    // and it leans back toward the wearer, who looks into the opening.
+    pack.root.rotation.set(.42 * ease.out(k) + Math.sin(k * Math.PI) * .12, yaw + Math.PI * (1 - m) + Math.sin(k * Math.PI) * .3, Math.sin(k * Math.PI) * .2, 'YXZ');
     const grow = k < 1 ? .35 + .65 * ease.back(clamp01(k * 1.15)) : 1;
     pack.root.scale.setScalar(grow * world.scale);
-    pack.set(open, k);
+    pack.set(open * .8, k);   // the flap stands up behind the opening rather than falling onto the wearer
   }
   /** First person: the pack rises from below the view, tilted toward the eye. In the hand scene, units are the arm's. */
   function placeFirstPerson(k, open) {
@@ -101,9 +103,10 @@ export function createInventoryAccess({ scene, player, firstPerson, puff = () =>
     const yaw = player.yaw, P = eyePos(), b = blend;
     _f.set(-Math.sin(yaw), 0, -Math.cos(yaw)); _r.set(Math.cos(yaw), 0, -Math.sin(yaw));
     if (player.mode === 'third') {
-      // From the right and above, close in: the head bowed over the pack, the open flap and what is in it.
-      _a.copy(P).addScaledVector(_f, .12).addScaledVector(_r, 1.35).setY(P.y + 2.6);
-      _look.copy(P).addScaledVector(_f, .6).setY(P.y + 1.5);
+      // In front of the wanderer and a little to the side, close in: the head bowed over the open pack, held at the chest.
+      _a.copy(P).addScaledVector(_f, 2.4).addScaledVector(_r, 1.1).setY(P.y + 2.75);
+      for (let i = 0; i < 10 && blocked(_a.x, _a.z, _a.y); i++) _a.lerp(P, .12).setY(P.y + 2.75);
+      _look.copy(P).addScaledVector(_f, .2).setY(P.y + 1.55);
       _c.copy(camera.position).add(camera.getWorldDirection(_b).multiplyScalar(3.2));
       camera.position.lerp(_a, b);
       camera.lookAt(_c.lerp(_look, b));

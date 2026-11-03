@@ -204,8 +204,8 @@ const GUARD = { arm_upper_right: [.8, .45, .22], arm_lower_right: [1.2, 0, 0], h
 
 function packPose(pose, { reach, open, look }) {
   const flap = Math.sin(open * Math.PI);
-  pose.add('arm_upper_right', .78 * reach, -.28 * reach, -.12 * reach); pose.add('arm_lower_right', 1.12 * reach); pose.add('hand_right', -.2 * reach);
-  pose.add('arm_upper_left', (.78 + .22 * flap) * reach, .28 * reach, .12 * reach); pose.add('arm_lower_left', (1.12 + .3 * flap) * reach); pose.add('hand_left', (-.2 + .5 * flap) * reach);
+  pose.add('arm_upper_right', .95 * reach, -.1 * reach, 0); pose.add('arm_lower_right', 1.0 * reach); pose.add('hand_right', -.15 * reach);
+  pose.add('arm_upper_left', (.95 + .15 * flap) * reach, .1 * reach, 0); pose.add('arm_lower_left', (1.0 + .25 * flap) * reach); pose.add('hand_left', (-.15 + .4 * flap) * reach);
   pose.add('torso', -.14 * reach - .05 * look); pose.add('chest', -.06 * look); pose.add('head', -.46 * look); pose.add('neck', -.12 * look);
   pose.hipsY -= .03 * reach;
 }

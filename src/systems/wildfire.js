@@ -91,7 +91,7 @@ export function createWildfire({ scene, world, sound = () => {} }) {
     const wl = Math.hypot(wind.x, wind.z) || 1, k = 3 + Math.random() * 7 * (.4 + wind.speed);
     b.p.set(t.x + (Math.random() - .5) * t.radius, t.base + t.height * (.5 + Math.random() * .5), t.z + (Math.random() - .5) * t.radius);
     b.v.set(wind.x / wl * k + (Math.random() - .5) * 2, 2 + Math.random() * 4, wind.z / wl * k + (Math.random() - .5) * 2);
-    b.duration = b.life = 3.5; b.size = .1; b.swirl = Math.random() * 6; b.brand = true;
+    b.duration = b.life = 3.5; b.size = .1; b.swirl = Math.random() * 6; b.brand = true; b.energy = Math.max(1, t.energy - 1);
   }
   function onSteam(x, z, n = 1) {
     for (let i = 0; i < n * 2; i++) {
@@ -243,7 +243,7 @@ export function createWildfire({ scene, world, sound = () => {} }) {
       if (b.p.y < ground + .03) {
         b.life = 0; embers.mesh.setMatrixAt(i, embers.hidden);
         // A brand that lands on something dry starts a fire; on water it dies with a hiss.
-        if (b.brand) { if (world.water?.at(b.p.x, b.p.z)) onSteam(b.p.x, b.p.z, 1); else sim.ignite(b.p.x, b.p.z, { power: .55, radius: 1 }); }
+        if (b.brand) { if (world.water?.at(b.p.x, b.p.z)) onSteam(b.p.x, b.p.z, 1); else sim.ignite(b.p.x, b.p.z, { power: .55, radius: 1, energy: b.energy || 1 }); }
         return;
       }
       // A brand that comes down inside a crown sets the tree alight from above.
@@ -251,7 +251,7 @@ export function createWildfire({ scene, world, sound = () => {} }) {
         for (const canopy of canopiesNear(b.p.x, b.p.z, 1.2)) {
           if (Math.hypot(canopy.x - b.p.x, canopy.z - b.p.z) < canopy.radius * .85 && b.p.y > canopy.bottom && b.p.y < canopy.top) {
             b.life = 0; embers.mesh.setMatrixAt(i, embers.hidden);
-            if (Math.random() < .5) sim.brandHit(canopy);
+            if (Math.random() < .5) sim.brandHit(canopy, b.energy);
             return;
           }
         }

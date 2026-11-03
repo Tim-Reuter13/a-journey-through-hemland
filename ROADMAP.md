@@ -318,3 +318,25 @@ sheet yet; quarry floor patches look rectangular; crags round the castle look li
 
 ## Later
 Stealth (detection, sneaking, hidden bodies), crafting, dungeons, more Hemland regions, coast and sea.
+
+
+## Phase 6 — blood, fire and the backpack (2026-11-03, Claude)
+Owner brief: no more combat lag; the best pixel blood that knows armour from skin; fire that behaves (trees, water, snow);
+a backpack animation for the inventory in first and third person, made in Blockbench.
+- [x] Lag: every sword swing cloned and disposed a material, so three.js compiled a shader per blow (80–120 ms). Slash and spell
+  materials are pooled and all effect materials are compiled before the first frame. Terrain height lookups (13 µs each) are cached.
+- [x] Blood (systems/blood.js, bloodSim.js): pixel drops, 2 m ground tiles of pixel fluid (flows downhill, pools, dries, soaks in by
+  surface, drops leave trails on slopes), blows raycast onto the character atlas (skin / cloth / leather / mail / plate), gash along
+  the blade's path, runs, wounds that stay on their bone and bleed by region (neck pulses), blood loss drains hit points and makes
+  weakened fighters stumble, corpses can be cut and bleed on, dragged bodies smear the pools, blood in water clouds.
+- [x] Armour: plate / mail / leather and heavy suits (Rauk) turn physical blows and arrows, but not fire; sparks toned down.
+- [x] Fire (systems/wildfire.js, world/fireSim.js, world/burnMap.js): one spell burns a few metres (energy per fire), wind and slope,
+  water stops it, snow melts, trees burn for minutes from foot / crown / side with patchy char, brands, smouldering, burnt ground and
+  trees drawn by the shaders; burning men light grass and are put out by water; a burning shield is thrown away by its bearer.
+- [x] Backpack (art/blockbench/models.js › backpack, characters/backpack.js, systems/inventoryAccess.js): swings round, flap opens,
+  camera glides in, menu rises; first and third person.
+- [ ] Not built yet: blood on the blade and on the first-person hand, bloody footprints, screen blood, wall splatter decals, fire on
+  buildings and thatch, rain, burning arrows, animals and villagers fleeing fire, regrowth of burnt ground.
+- Feedback 2026-11-03 (fixed): fire spread far too fast and wide; trees burned out too fast and always bottom-up; blood sprays too
+  long, too thick; Rauk took belly damage through visible armour; arrows did not always leave blood; shield particles overdone;
+  first-person sword hand came in from the left; third-person backpack view was terrible.

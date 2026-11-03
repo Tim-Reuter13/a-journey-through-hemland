@@ -2047,7 +2047,7 @@ function animate(now) {
   compass.update(player.yaw,player.position,compassMarkers());
   profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) leaveTracks(visualDt); profile.mark('world');
   wildfire.update(game.paused ? 0 : visualDt, camera);
-  if (game.started && !game.paused && (fireTick -= dt) <= 0) { fireTick = .25; fireHazards(); }
+  if (game.started && !game.paused && (fireTick -= dt) <= 0) { fireTick = .25; fireHazards(); bleedTick(.25); }
   updateParticles(visualDt);
   combat.effects.update(game.paused?0:dt,camera);
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
@@ -2070,8 +2070,24 @@ combat.spellFx.onSteam = (x, z, n) => wildfire.steam(x, z, n);
 let fireTick = 0, fireWarned = 0;
 // Opening the inventory is an act (systems/inventoryAccess.js): the backpack swings round, the flap opens, the camera
 // glides in, then the menu fades in over it. While it plays the wanderer neither walks nor fights.
-const access = createInventoryAccess({ scene, player, firstPerson, puff: p => combat.effects.spray(p, v3(0, 1, 0), 'dust', 9), sound: kind => combat.effects.sound(kind === 'packOpen' ? 'drink' : 'slosh') });
+const access = createInventoryAccess({ scene, player, firstPerson, blocked: (x, z, y) => world.blocked(x, z, .3, y - .4, .6), puff: p => combat.effects.spray(p, v3(0, 1, 0), 'dust', 9), sound: kind => combat.effects.sound(kind === 'packOpen' ? 'drink' : 'slosh') });
 /** Whoever stands in a burning cell catches fire (enemies) or is burnt (the player, unless wading). */
+/** Blood loss: open wounds drain hit points, and a weakened fighter stumbles now and then. */
+function bleedTick(dt) {
+  for (const e of enemies) {
+    if (e.dead || !e.model) continue;
+    const loss = combat.effects.blood.bleeding(e);
+    if (loss <= 0) continue;
+    e.bleedAcc = (e.bleedAcc || 0) + loss * dt;
+    if (e.bleedAcc >= 1) { const amount = Math.floor(e.bleedAcc); e.bleedAcc -= amount; damageEnemy(e, amount, true); }
+    if (e.dead || e.hp > e.maxHp * .5 || !motion.get(e.model)) continue;
+    e.stumbleIn = (e.stumbleIn ?? 2 + Math.random() * 3) - dt;
+    if (e.stumbleIn <= 0) {
+      e.stumbleIn = 3 + Math.random() * 4; e.stagger = Math.max(e.stagger || 0, .45);
+      motion.impact(e.model, { force: .9 + (1 - e.hp / e.maxHp), dir: v3(Math.random() - .5, 0, Math.random() - .5).normalize() });
+    }
+  }
+}
 function fireHazards() {
   for (const e of enemies) if (!e.dead && wildfire.heatAt(e.model.position.x, e.model.position.z) > .5) combat.spellFx.ignite(e, 12);
   if (player.swimming || WATER_LEVEL - world.terrainHeightAt(player.position.x, player.position.z) > .3) return;

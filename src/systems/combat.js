@@ -16,9 +16,17 @@ export const ARCHER_DRAW=1.1;
  * bow: optional { ammo, damage(power), aim(origin, direction), arrowModel() } for the hunting bow (systems/archery.js).
  * ai: optional HUMANITY AI manager (systems/ai/manager.js). Enemies with a brain (enemy.ai) are driven by
  * its intents; the rest keep the simple tactics below. Combat tells it about noise, wounds, arrows and fire. */
+// Heavy suits (and Rauk) turn blows aside anywhere on the body; plate, mail and leather decide it where a blow lands.
+const HEAVY_ARMOR = new Set(['aschenrüstung', 'hauptmannsplatte', 'wachpanzer']);
 export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null}) {
   // motion (HUMANITY MOTION): impact(enemy, info) for forces on bodies, playerHit(enemy, info), grapple(enemy, 'grab'|'shove'), handles(enemy).
   let strikeKind=null;
+  const armorScale=(enemy,probe,magic)=>{
+    const suit=enemy.storyId?.45:HEAVY_ARMOR.has(enemy.look?.equipment?.armor)?.55:1;
+    if(magic)return suit<1?1.35:1;   // armour does not stop fire and spells: plate only makes it worse
+    const place=Math.min(suit,{plate:.3,mail:.55,leather:.85}[probe?.cls]??1);
+    return place*(strikeKind==='arrow'&&place<1?.8:1);
+  };
   const effects=createCombatEffects(scene,world),projectiles=[];
   const spellFx=createSpellFx(scene,world,{onImpact,sound:effects.sound,onBurnDamage(enemy,amount){
     onHit(enemy,amount,true);effects.burnDamage(enemy,amount);
@@ -45,7 +53,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // An enemy's arrow: a raised guard turns it aside if it comes from the front.
     hurtPlayer:(amount,from)=>{
       const dx=from.x-player.position.x,dz=from.z-player.position.z;
-      if(guard&&inAttackArc(dx,dz,player.yaw,999,.3)&&player.stamina>=8){player.stamina-=8;effects.sound('parry');effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',8);onHurt(Math.round(amount*.15));return;}
+      if(guard&&inAttackArc(dx,dz,player.yaw,999,.3)&&player.stamina>=8){player.stamina-=8;effects.sound('parry');effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',3);onHurt(Math.round(amount*.15));return;}
       onHurt(amount);effects.sound('arrowFlesh');if(!effects.hurtPlayer(from,{kind:'arrow',amount}))effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(-dx,0,-dz).normalize(),'blood',12);
     }}):null;
   // Enemy archers loose at the wanderer's chest, leading a moving target and allowing for the drop;
@@ -89,17 +97,21 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // A raised shield turns blows from the front (the shield bearer's stamina pays for it).
     // A raised shield turns blows from the front (about ±70°), paid in stamina. The heavy third blow, or a
     // blow on an exhausted arm, breaks the guard: the shield is flung aside and the body is open.
-    if(!magic&&enemy.ai?.personality.shield&&enemy.shieldUp&&(enemy.shieldRaise??1)>.6&&!(enemy.guardBroken>0)&&!enemy.ai.disarmed&&inAttackArc(player.position.x-enemy.model.position.x,player.position.z-enemy.model.position.z,enemy.model.rotation.y,9,.35)){
+    if(!magic&&enemy.ai?.personality.shield&&!enemy.shieldGone&&enemy.shieldUp&&(enemy.shieldRaise??1)>.6&&!(enemy.guardBroken>0)&&!enemy.ai.disarmed&&inAttackArc(player.position.x-enemy.model.position.x,player.position.z-enemy.model.position.z,enemy.model.rotation.y,9,.35)){
       const heavy=strikeKind!=='arrow'&&combo===2;
       if(heavy||enemy.ai.stamina<10){enemy.guardBroken=1.3;enemy.shieldUp=false;enemy.stagger=.55;enemy.ai.stamina=Math.max(0,enemy.ai.stamina-10);effects.sound('parry');
-        effects.spray(enemy.model.position.clone().add(vector(0,1.4,0)),vector(0,1,0),'splinter',12);hitPause=.06;toast('DECKUNG DURCHBROCHEN',1100);
+        effects.spray(enemy.model.position.clone().add(vector(0,1.4,0)),vector(0,1,0),'splinter',5);hitPause=.06;toast('DECKUNG DURCHBROCHEN',1100);
         motion?.impact(enemy,{shield:true,force:2.4,from});motion?.impact(enemy,{kind:'sword',from,combo:1,amount:0});ai?.noise('fight',enemy.model.position);return;}
-      enemy.ai.stamina-=strikeKind==='arrow'?2:9;effects.sound('arrowWood');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'splinter',8);hitPause=.03;ai?.noise('fight',enemy.model.position);
+      enemy.ai.stamina-=strikeKind==='arrow'?2:9;effects.sound('arrowWood');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'splinter',3);hitPause=.03;ai?.noise('fight',enemy.model.position);
       motion?.impact(enemy,{shield:true,force:strikeKind==='arrow'?.35:combo===2?1.4:.8,from});return;}
-    if(!magic&&enemy.blocking>0){enemy.blocking=0;enemy.stagger=.25;effects.sound('parry');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'ember',10);amount*=.2;hitPause=.03;
+    if(!magic&&enemy.blocking>0){enemy.blocking=0;enemy.stagger=.25;effects.sound('parry');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'ember',4);amount*=.2;hitPause=.03;
       if(amount<4){onHit(enemy,amount,magic);return;}}
+    const probe=magic?null:effects.probe(enemy,from,{kind:strikeKind||'sword',combo});
+    amount=Math.round(amount*armorScale(enemy,probe,magic));
+    // Fire on a shield sets the shield alight (update() lets the bearer throw it away).
+    if(magic&&enemy.shield&&!enemy.shieldGone&&!(enemy.shieldBurn>0))enemy.shieldBurn=2.4;
     ai?.hurt(enemy,amount,from);ai?.noise('fight',enemy.model.position);
-    onHit(enemy,amount,magic);effects.hit(enemy,from,amount,magic,{kind:strikeKind||(magic?'magic':'sword'),combo});enemy.stagger=magic?.32:.43;enemy.windup=0;
+    onHit(enemy,amount,magic);effects.hit(enemy,from,amount,magic,{kind:strikeKind||(magic?'magic':'sword'),combo,point:probe?.point});enemy.stagger=magic?.32:.43;enemy.windup=0;
     // Bodies with HUMANITY MOTION take the force themselves (steps, falls); the rest slide back.
     if(motion?.handles?.(enemy))motion.impact(enemy,{kind:strikeKind||(magic?'spell':'sword'),from,combo,amount,magic});
     else enemy.knock=enemy.model.position.clone().sub(player.position).setY(0).normalize().multiplyScalar(combo===2?3.2:1.8);
@@ -114,6 +126,12 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
       if(world.segmentBlocked(eye(),p.clone().add(vector(0,aimY(e),0))))continue;
       const d=p.distanceTo(player.position);if(d<nearest){target=e;nearest=d;}}
     if(target)strike(target,weaponDamage()*(combo===2?1.18:1),false,eye());
+    else{
+      // No one alive in reach: a corpse can still be cut, and bleeds from the new wound.
+      let corpse=null,reach=2.4;
+      for(const e of enemies){if(!e.dead||!e.model.visible)continue;const p=e.model.position;if(!inAttackArc(p.x-player.position.x,p.z-player.position.z,player.yaw))continue;const d=p.distanceTo(player.position);if(d<reach){corpse=e;reach=d;}}
+      if(corpse){effects.corpseHit(corpse,eye(),combo);effects.sound('impact');}
+    }
   }
   function launchSpell(){
     const origin=castOrigin(hand),direction=vector(-Math.sin(player.yaw)*Math.cos(player.pitch),Math.sin(player.pitch),-Math.cos(player.yaw)*Math.cos(player.pitch));
@@ -417,6 +435,18 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     }
   }
   function update(dt){time+=dt;hitPause=Math.max(0,hitPause-dt);const actionDt=hitPause>0?dt*.18:dt;
+    for(const e of enemies){
+      if(!(e.shieldBurn>0)||e.dead)continue;
+      e.shieldBurn-=dt;
+      const sp=(e.model.userData.rig?.arm_lower_left||e.model).getWorldPosition(vector(0,0,0));
+      if(Math.random()<dt*9)effects.spray(sp,vector(0,1,0),'ember',1);
+      // A shield bearer is not stupid: once the shield burns they fling it away, stumble back and fight on without it.
+      if(e.shieldBurn<1.3){
+        e.shieldBurn=0;e.shieldGone=true;e.shieldUp=false;e.shield=false;e.guardBroken=1.5;e.stagger=Math.max(e.stagger||0,.5);
+        const mesh=e.model.getObjectByName('shield');if(mesh)mesh.visible=false;
+        effects.spray(sp,vector(0,1,0),'splinter',3);effects.sound('parry');
+      }
+    }
     spellFx.update(dt);
     if(action){const previous=action.t;action.t+=actionDt;action.progress=Math.min(1,action.t/action.duration);player.attack=Math.max(0,action.duration-action.t);
       if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='sword')resolveSword();else if(action.kind==='cast')launchSpell();else onHeal();}

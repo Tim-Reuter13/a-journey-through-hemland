@@ -1,11 +1,13 @@
 // The rules of wildfire, without graphics, so node tests can run them (visuals: systems/wildfire.js).
 // The world is read lazily in 2 m cells: grass and litter burn quickly and spread to their neighbours,
 // faster downwind and uphill, slower on damp ground; snow barely burns (and melts); water never does.
+// Every fire carries an `energy`: a fireball starts with 2, each generation of spread passes on one less and a fire
+// with 1 burns but spreads no further — so one spell scorches a few metres of meadow, not the world.
 // Trees are their own things: they catch from burning ground beside them or from a burning neighbour's heat
 // and flying brands, burn up from the foot to the crown, smoulder and stand black.
 export const CELL = 2;
 export const STEP = .45;                // seconds between a fire's spreading attempts
-export const MAX_ACTIVE = 700;          // cells burning at once; a bigger blaze simply stops growing
+export const MAX_ACTIVE = 160;          // cells burning at once; a bigger blaze simply stops growing
 const BASE = { grass: .058, litter: .075, snow: .005, tree: .08 };
 const DURATION = { grass: [5, 10], litter: [7, 13], snow: [1.5, 3], tree: [6, 10] };
 /**
@@ -37,16 +39,16 @@ export function createFireSim({ fuelAt, canopiesNear = () => [], heightAt = () =
     return c;
   }
   const burnable = c => c.state === 0 && c.kind !== 'none' && c.kind !== 'water' && c.fuel > .05;
-  function lightCell(c, power = 1) {
+  function lightCell(c, power = 1, energy = 1) {
     if (!burnable(c) || active.length >= MAX_ACTIVE) { if (c.kind === 'water' && c.state === 0) onSteam(c.x, c.z, 1); return false; }
-    c.state = 1; c.t = 0;
+    c.state = 1; c.t = 0; c.energy = energy;
     const [lo, hi] = DURATION[c.kind] || DURATION.grass;
     c.dur = (lo + random() * (hi - lo)) * (.6 + c.fuel * .5) * (.8 + power * .2);
     active.push(c); onCell(c, 'ignite');
     return true;
   }
   /** Fire at a point: every cell within `radius` metres catches (power 0..1 scales how readily). */
-  function ignite(x, z, { power = 1, radius = 1.5 } = {}) {
+  function ignite(x, z, { power = 1, radius = 1.5, energy = Math.max(1, Math.round(power * 2)) } = {}) {
     let lit = 0;
     const r = Math.ceil(radius / CELL);
     fresh = 0;
@@ -55,10 +57,10 @@ export function createFireSim({ fuelAt, canopiesNear = () => [], heightAt = () =
       if (!c) continue;
       const d = Math.hypot(centre(cx) - x, centre(cz) - z);
       if (d > radius + CELL * .5 || random() > Math.min(1, power * 1.4 - d / Math.max(radius, 1) * .4)) continue;
-      if (lightCell(c, power)) lit++;
+      if (lightCell(c, power, energy)) lit++;
     }
     // A fire lit right at a tree's foot starts it too.
-    for (const canopy of canopiesNear(x, z, 4)) heatTree(canopy, 2.2 * power, 1, 'ground');
+    for (const canopy of canopiesNear(x, z, 4)) heatTree(canopy, 2.2 * power, 1, 'ground', energy + 1);
     return lit;
   }
   function treeFor(canopy) {
@@ -78,17 +80,17 @@ export function createFireSim({ fuelAt, canopiesNear = () => [], heightAt = () =
     else if (cause === 'neighbor') { t.o1 = .2 + random() * .55; t.o2 = random() < .5 ? .78 + random() * .18 : .04; t.d2 = .2 + random() * .3; }
     else { t.o1 = .02; t.o2 = .45 + random() * .45; t.d2 = .22 + random() * .35; }
   }
-  function heatTree(canopy, amount, dt, cause = 'ground') {
+  function heatTree(canopy, amount, dt, cause = 'ground', energy = 2) {
     const t = treeFor(canopy);
     if (t.state !== 0) return t;
     t.heat += amount * dt / t.resist;
-    if (t.heat >= 2) { t.state = 1; t.t = 0; origins(t, cause); onTree(t, 'ignite'); }
+    if (t.heat >= 2) { t.state = 1; t.t = 0; t.energy = energy; origins(t, cause); onTree(t, 'ignite'); }
     return t;
   }
   /** A glowing brand lands in a crown: the tree catches high up and burns downwards. */
-  function brandHit(canopy) { return heatTree(canopy, 4, 1, 'brand'); }
+  function brandHit(canopy, energy = 2) { return heatTree(canopy, 4, 1, 'brand', energy); }
   function spreadFrom(c) {
-    const wl = Math.hypot(wind.x, wind.z) || 1, wx = wind.x / wl, wz = wind.z / wl, h0 = c.h ??= heightAt(c.x, c.z);
+    const wl = Math.hypot(wind.x, wind.z) || 1, wx = wind.x / wl, wz = wind.z / wl, h0 = c.h ??= heightAt(c.x, c.z), passOn = c.energy - 1;
     for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
       if (!dx && !dz) continue;
       const dist = Math.hypot(dx, dz), ux = dx / dist, uz = dz / dist, align = ux * wx + uz * wz;
@@ -99,12 +101,12 @@ export function createFireSim({ fuelAt, canopiesNear = () => [], heightAt = () =
       const rise = ((n.h ??= heightAt(n.x, n.z)) - h0) / (dist * CELL);
       const chance = BASE[n.kind] * (c.kind === 'snow' ? .3 : 1) * (1 + wind.speed * 1.7 * Math.max(0, align) - .5 * Math.max(0, -align)) * (1 + Math.max(-.4, Math.min(1.2, rise * 1.6)))
         * (1 - n.wet * .85) * (dist > 1.5 ? .35 : 1 / dist) * (.5 + n.fuel * .5);
-      if (random() < chance) lightCell(n, 1);
+      if (passOn > 0 && random() < chance) lightCell(n, 1, passOn);
     }
     // Burning ground heats the trees standing in it.
     for (const canopy of canopiesNear(c.x, c.z, 4.5)) {
       const d = Math.hypot(canopy.x - c.x, canopy.z - c.z);
-      if (d < canopy.radius * .7 + 1.9) heatTree(canopy, (c.kind === 'litter' ? 1.1 : .9) * (1 + wind.speed * .5), STEP);
+      if (d < canopy.radius * .7 + 1.9) heatTree(canopy, (c.kind === 'litter' ? 1.1 : .9) * (1 + wind.speed * .5), STEP, 'ground', c.energy + 1);
     }
   }
   function stepTree(t, dt) {
@@ -118,7 +120,7 @@ export function createFireSim({ fuelAt, canopiesNear = () => [], heightAt = () =
     if (t.state === 1 && t.t > t.burnEnd) { t.state = 2; onTree(t, 'smoulder'); }
     if (t.t > t.end) { t.state = 3; t.progress = 1; t.age = 1; onTree(t, 'burnt'); return; }
     // A burning tree heats its neighbours, most of all downwind, and now and then throws a brand.
-    if (t.progress > .25 && t.state === 1) {
+    if (t.progress > .25 && t.state === 1 && t.energy > 1) {
       t.brand -= dt * (.5 + wind.speed);
       if (t.brand <= 0) { t.brand = 4 + random() * 5; onBrand(t); }
       t.warm = (t.warm || 0) + dt;
@@ -129,10 +131,10 @@ export function createFireSim({ fuelAt, canopiesNear = () => [], heightAt = () =
           const d = Math.hypot(other.x - t.x, other.z - t.z);
           if (d < .5) continue;
           const align = ((other.x - t.x) * wind.x + (other.z - t.z) * wind.z) / (d * wl);
-          heatTree(other, (.5 + t.progress * .5) * 2.6 / (1 + d * d * .09) * (1 + wind.speed * 1.3 * Math.max(0, align)) * (align < -.3 ? .5 : 1), STEP, 'neighbor');
+          heatTree(other, (.5 + t.progress * .5) * 2.6 / (1 + d * d * .09) * (1 + wind.speed * 1.3 * Math.max(0, align)) * (align < -.3 ? .5 : 1), STEP, 'neighbor', t.energy - 1);
         }
         // Burning litter falls beneath the crown, now and then.
-        if (random() < .3) lightCell(cellAt(Math.floor((t.x + (random() - .5) * t.radius * 1.6) / CELL), Math.floor((t.z + (random() - .5) * t.radius * 1.6) / CELL)), .8);
+        { const drop = random() < .3 && cellAt(Math.floor((t.x + (random() - .5) * t.radius * 1.6) / CELL), Math.floor((t.z + (random() - .5) * t.radius * 1.6) / CELL)); if (drop) lightCell(drop, .8, Math.max(1, t.energy - 1)); }
       }
     }
     if (Math.abs(t.progress - t.written) > .004 || Math.abs(t.age - (t.writtenAge ?? -1)) > .004) { t.written = t.progress; t.writtenAge = t.age; onTree(t, 'progress'); }

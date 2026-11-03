@@ -201,11 +201,11 @@ const STRIKES = [
     { at: [.55, -.05, .8], blade: [.95, .3, -.15] },
     { at: [-.25, -.2, .8], blade: [-.95, .15, -.2] },
     { at: [-.85, -.5, .85], blade: [-.6, -.2, .75] }] },
-  { times: [0, .22, .36, .45, .6, 1], keys: [ // backhand, left to right
-    { at: [-.55, 0, .8], blade: [-.75, .45, .5] },
-    { at: [-.25, -.1, .78], blade: [-.95, .2, -.15] },
-    { at: [.45, -.25, .8], blade: [.95, .1, -.2] },
-    { at: [1.2, -.55, .9], blade: [.7, -.25, .6] }] },
+  { times: [0, .22, .36, .45, .6, 1], keys: [ // rising cut, from low on the right up across to the left (the arm never leaves its side)
+    { at: [1.12, -.52, .88], blade: [.45, .35, .55] },
+    { at: [.6, -.28, .82], blade: [.8, .45, -.1] },
+    { at: [-.1, .05, .8], blade: [-.8, .5, -.25] },
+    { at: [-.6, .4, .86], blade: [-.55, .35, .7] }] },
   { times: [0, .3, .42, .5, .64, 1], keys: [ // diagonal chop, upper right to lower left
     { at: [.6, .45, .75], blade: [.2, .5, .85] },
     { at: [.45, .25, .78], blade: [.25, .95, -.2] },
@@ -251,7 +251,7 @@ export function createFirstPerson() {
   const viewInverse = new THREE.Quaternion();
   const rig = new THREE.Group(); scene.add(rig);
   let packRoot = null, packPose = null;
-  const _v = new THREE.Vector3();
+  const _v = new THREE.Vector3(), _qa = new THREE.Quaternion(), _ea = new THREE.Euler();
   const right = new THREE.Group(), left = new THREE.Group(); rig.add(right, left);
   // Light neutral ramp, tinted to the player's skin tone in update().
   const skin = painted('skin', ['#d8d0c8', '#ece6e0', '#f8f4f0']);
@@ -501,8 +501,9 @@ export function createFirstPerson() {
       const m = packPose.k, ease3 = m * m * (3 - 2 * m);
       sword.visible = flask.bottle.visible = spell.visible = false; hideBow(); right.visible = left.visible = true;
       right.position.lerp(_v.set(.3, -.42, -.7), ease3); left.position.lerp(_v.set(-.3, -.42, -.7), ease3);
-      right.rotation.x = THREE.MathUtils.lerp(right.rotation.x, -.95, ease3); right.rotation.y = THREE.MathUtils.lerp(right.rotation.y, -.4, ease3); right.rotation.z = THREE.MathUtils.lerp(right.rotation.z, -.25, ease3);
-      left.rotation.x = THREE.MathUtils.lerp(left.rotation.x, -.95 - packPose.open * .35, ease3); left.rotation.y = THREE.MathUtils.lerp(left.rotation.y, .4, ease3); left.rotation.z = THREE.MathUtils.lerp(left.rotation.z, .25, ease3);
+      // Turn the hands as quaternions: the sword arm is aimed with one, and blending Euler angles of it snapped.
+      right.quaternion.slerp(_qa.setFromEuler(_ea.set(-.95, -.4, -.25)), ease3);
+      left.quaternion.slerp(_qa.setFromEuler(_ea.set(-.95 - packPose.open * .35, .4, .25)), ease3);
       // The free hand lifts the flap as it opens.
       left.position.y += Math.sin(packPose.open * Math.PI) * .07; left.position.z -= Math.sin(packPose.open * Math.PI) * .06;
     }

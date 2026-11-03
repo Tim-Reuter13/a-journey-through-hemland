@@ -29,7 +29,7 @@ export async function loadBackpack(base = `${import.meta.env.BASE_URL}models/`) 
   gltf.scene.traverse(o => { if (o.isMesh && !map) map = o.material.map; });
   if (map) { map.magFilter = map.minFilter = THREE.NearestFilter; map.generateMipmaps = false; map.colorSpace = THREE.SRGBColorSpace; map.needsUpdate = true; }
   // The same low floor of self-illumination as the characters: the pack stays readable in shade.
-  const material = new THREE.MeshLambertMaterial({ map, alphaTest: .5, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: .22 });
+  const material = new THREE.MeshLambertMaterial({ map, alphaTest: .5, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: .34 });
   const bones = [];
   gltf.scene.traverse(o => { if (!o.isMesh && o.children.some(c => c.isMesh)) bones.push(o); });
   bones.forEach(b => mergeBone(b, material));

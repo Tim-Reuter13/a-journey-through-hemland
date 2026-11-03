@@ -92,6 +92,10 @@ export function createCombatEffects(scene,world) {
   }
   /** A blot of blood on the ground; `size` is roughly its width in metres. */
   function groundStain(position,size=.55){blood.pool(position.x,position.z,size*size*55,Math.min(9,Math.max(2,size*5)));}
+  /** What a blow would hit (skin, cloth, leather, mail, plate): nothing is painted. */
+  function probe(enemy,from,info){return blood.strike(enemy,from,{...info,dry:true});}
+  /** A blow on a corpse: it is cut, and bleeds from the new wound. */
+  function corpseHit(enemy,from,combo=0){return blood.strike(enemy,from,{kind:'sword',combo,amount:26});}
   /** An old wound on an enemy that was saved hurt: the cut is drawn, nothing sprays. */
   function wound(enemy,from){blood.strike(enemy,from,{kind:'sword',combo:0,amount:12,quiet:true});}
   // The player's own body takes cuts the same way (visible in third person); main.js hands over the actor.
@@ -118,7 +122,7 @@ export function createCombatEffects(scene,world) {
     const direction=point.clone().sub(from).normalize();
     let result=null;
     if(magic)blood.spurt(point,direction,6,{speed:1.8});
-    else result=blood.strike(enemy,from,{kind:info.kind||'sword',combo:info.combo??0,amount});
+    else result=blood.strike(enemy,from,{kind:info.kind||'sword',combo:info.combo??0,amount,point:info.point});
     if(enemy.hp<=0)killed(enemy);
     damageNumber(point,amount,enemy.hp<=0?'fatal':'');hitTime=.17;shake=.035;
     if(!magic)sound(result?.armoured?'parry':'impact');
@@ -184,6 +188,6 @@ export function createCombatEffects(scene,world) {
   // pool never compiles a shader mid-fight; call warm(false) right after.
   const warmMeshes=[...new Set([...Object.values(bitMaterials),sparkMaterial,...slashPool])].map(material=>{const m=new THREE.Mesh(unit,material);m.visible=false;m.frustumCulled=false;scene.add(m);return m;});
   function warm(on){for(const m of warmMeshes)m.visible=on;for(const p of puffs)p.mesh.visible=on;blood.warm(on);}
-  return {hit,wound,killed,hurtPlayer,setPlayer,spray,groundStain,slash,sound,burnDamage,update,reset,warm,blood,
+  return {hit,probe,corpseHit,wound,killed,hurtPlayer,setPlayer,spray,groundStain,slash,sound,burnDamage,update,reset,warm,blood,
     get shake(){return shake;},state:()=>({wounds:blood.state().wounds,bloodStains:blood.state().tiles,particles:bits.length,blood:blood.state()})};
 }

@@ -6,7 +6,8 @@ export const TILE = 32;            // cells per side of one ground tile
 export const CELL = 1 / 16;        // metres per cell: one ground texel
 export const FILM = .3;            // thinnest layer that still flows (surface tension holds the rest in place)
 const K = .04;                     // metres of depth per unit of blood
-const RATE = 9;                    // how fast a level difference drains
+const SLOPE = 2.6;                 // the ground's tilt counts this much more than in metres: blood visibly runs downhill
+const RATE = 14;                   // how fast a level difference drains
 const NEIGHBOURS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, .7], [-1, 1, .7], [1, -1, .7], [-1, -1, .7]];
 
 export const cellHash = i => { let h = Math.imul(i + 374761393, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -23,12 +24,12 @@ export function flowStep(vol, ground, out, spill) {
   for (let z = 0; z < TILE; z++) for (let x = 0; x < TILE; x++) {
     const i = z * TILE + x, v = vol[i], film = FILM * (.82 + cellHash(i) * .36);
     if (v <= film) continue;
-    const level = ground[i] + v * K, weights = [];
+    const level = ground[i] * SLOPE + v * K, weights = [];
     let sum = 0;
     for (let n = 0; n < 8; n++) {
       const nx = x + NEIGHBOURS[n][0], nz = z + NEIGHBOURS[n][1], f = NEIGHBOURS[n][2];
       const outside = nx < 0 || nz < 0 || nx >= TILE || nz >= TILE;
-      const other = outside ? ground[i] : ground[nz * TILE + nx] + vol[nz * TILE + nx] * K;
+      const other = outside ? ground[i] * SLOPE : ground[nz * TILE + nx] * SLOPE + vol[nz * TILE + nx] * K;
       const w = Math.max(0, level - other) * f;
       weights.push(w); sum += w;
     }
