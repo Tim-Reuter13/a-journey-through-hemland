@@ -1019,6 +1019,70 @@ function AshenModels() {
   };
 
   // ── Held items. Each top-level bone is one item whose pivot is the grip point.
+  // ── The wanderer's backpack (characters/backpack.js: it swings round from the back, the flap opens, the inventory
+  // is the view into it). Faces −Z (its outer side, with the flap and buckles), stands on y = 0, 11 × 5 px footprint,
+  // 12 px tall. Bones: pack › flap (hinge at the back of the rim, opens by turning +X) › buckle; strap_left /
+  // strap_right hang on the back side; the bedroll under it and the pockets are part of the pack.
+  function backpack() {
+    const bones = [['pack', null, [0, 0, 0]], ['flap', 'pack', [0, 12.4, 2.4]], ['buckle', 'flap', [0, 8.6, -3.1]], ['strap_left', 'pack', [-3.6, 10.8, 2.7]], ['strap_right', 'pack', [3.6, 10.8, 2.7]],
+      ['pocket_left', 'pack', [5.6, 7.2, 0]], ['pocket_right', 'pack', [-5.6, 7.2, 0]]];
+    const cubes = [], put = (name, bone, from, to, mat, extra) => cubes.push(box(name, bone, from, to, mat, extra));
+    // Body: a leather bag with a darker foot, stitched, with a rim round the opening and the inside showing dark.
+    put('body', 'pack', [-5.5, .8, -2.5], [5.5, 11.2, 2.5], 'leather');
+    put('foot', 'pack', [-5.7, 0, -2.7], [5.7, 1.4, 2.7], 'leatherDark');
+    put('belly', 'pack', [-5.9, 3, -2.7], [5.9, 4.1, 2.7], 'leatherDark');
+    put('rim_front', 'pack', [-5.6, 11.2, -2.6], [5.6, 12.5, -1.7], 'leatherDark');
+    put('rim_back', 'pack', [-5.6, 11.2, 1.7], [5.6, 12.5, 2.6], 'leatherDark');
+    put('rim_left', 'pack', [-5.6, 11.2, -1.7], [-4.7, 12.5, 1.7], 'leatherDark');
+    put('rim_right', 'pack', [4.7, 11.2, -1.7], [5.6, 12.5, 1.7], 'leatherDark');
+    put('inside', 'pack', [-4.7, 10.6, -1.7], [4.7, 11.6, 1.7], 'sackDark');
+    // What the pack holds, showing over the rim: a loaf, a flask, a scroll, a pouch, a folded blanket.
+    put('loaf', 'pack', [-3.9, 11.2, -1.4], [-1.5, 13.0, .9], 'clay', { origin: [-2.7, 11.2, -.2], rotation: [0, 14, 4] });
+    put('flask', 'pack', [1.3, 11.2, -1.2], [3.0, 13.4, .5], 'water');
+    put('flask_neck', 'pack', [1.75, 13.4, -.75], [2.55, 14.4, .05], 'wood');
+    put('scroll', 'pack', [-.6, 11.2, .4], [.9, 14.2, 1.5], 'clothLinen', { origin: [0, 11.2, 1], rotation: [-7, 0, 5] });
+    put('pouch', 'pack', [3.2, 11.2, .2], [4.6, 12.7, 1.5], 'leatherDark');
+    put('blanket', 'pack', [-4.6, 11.2, 1.0], [-1.0, 12.4, 1.65], 'clothCrimson');
+    // Front strap with its buckle, and the stitched pocket of the flap.
+    put('strap_front_l', 'pack', [-3.4, 3.4, -2.8], [-2.2, 9.2, -2.5], 'leatherDark');
+    put('strap_front_r', 'pack', [2.2, 3.4, -2.8], [3.4, 9.2, -2.5], 'leatherDark');
+    put('strap_buckle_l', 'pack', [-3.5, 4.2, -3], [-2.1, 5.6, -2.7], 'brass');
+    put('strap_buckle_r', 'pack', [2.1, 4.2, -3], [3.5, 5.6, -2.7], 'brass');
+    // The flap: a lid over the opening, its front drop covers the upper part of the front.
+    put('flap_top', 'flap', [-5.8, 12.4, -3.1], [5.8, 13.4, 2.8], 'leather');
+    put('flap_front', 'flap', [-5.8, 8.4, -3.2], [5.8, 13.4, -2.4], 'leather');
+    put('flap_edge', 'flap', [-5.2, 8.0, -3.3], [5.2, 8.6, -2.55], 'leatherDark');
+    put('flap_seam', 'flap', [-5.8, 12.9, -3.3], [5.8, 13.2, -2.9], 'leatherDark');
+    put('flap_strap_l', 'flap', [-3.2, 7.6, -3.4], [-2.4, 13.5, -2.9], 'leatherDark');
+    put('flap_strap_r', 'flap', [2.4, 7.6, -3.4], [3.2, 13.5, -2.9], 'leatherDark');
+    put('flap_stud_l', 'flap', [-3.3, 8.3, -3.6], [-2.3, 9.3, -3.35], 'brass');
+    put('flap_stud_r', 'flap', [2.3, 8.3, -3.6], [3.3, 9.3, -3.35], 'brass');
+    put('buckle_plate', 'buckle', [-1.1, 8.0, -3.7], [1.1, 9.4, -3.35], 'brass');
+    put('buckle_tongue', 'buckle', [-.35, 7.2, -3.8], [.35, 8.2, -3.5], 'steel');
+    // Side pockets, a little looser than the bag.
+    for (const [name, sign] of [['pocket_left', 1], ['pocket_right', -1]]) {
+      const lo = sign > 0 ? 5.5 : -7.2, hi = sign > 0 ? 7.2 : -5.5;
+      put(`${name}_bag`, name, [lo, 1.6, -1.8], [hi, 7.2, 1.8], 'leatherDark');
+      put(`${name}_flap`, name, [lo - (sign < 0 ? .15 : 0), 6.0, -2.0], [hi + (sign > 0 ? .15 : 0), 7.6, 2.0], 'leather');
+    }
+    put('pocket_stud_l', 'pocket_left', [6.6, 6.4, -2.15], [7.3, 7.0, -1.85], 'brass');
+    put('pocket_stud_r', 'pocket_right', [-7.3, 6.4, -2.15], [-6.6, 7.0, -1.85], 'brass');
+    // The bedroll under the bag: a rolled blanket held by two straps.
+    put('bedroll', 'pack', [-5.2, -3.2, -2.2], [5.2, -.2, 2.4], 'clothGrey');
+    put('bedroll_end_l', 'pack', [-5.5, -3.0, -1.8], [-5.2, -.4, 2.0], 'clothLinen');
+    put('bedroll_end_r', 'pack', [5.2, -3.0, -1.8], [5.5, -.4, 2.0], 'clothLinen');
+    put('bedroll_strap_l', 'pack', [-3.4, -3.4, -2.4], [-2.4, -.1, 2.6], 'leatherDark');
+    put('bedroll_strap_r', 'pack', [2.4, -3.4, -2.4], [3.4, -.1, 2.6], 'leatherDark');
+    // Shoulder straps on the back side, each in two pieces so it can slacken and swing.
+    for (const [name, x] of [['strap_left', -3.6], ['strap_right', 3.6]]) {
+      put(`${name}_top`, name, [x - 1.1, 6.2, 2.5], [x + 1.1, 10.8, 3.6], 'leatherDark');
+      put(`${name}_low`, name, [x - 1.1, 1.0, 2.5], [x + 1.1, 6.2, 3.3], 'leather');
+      put(`${name}_pad`, name, [x - 1.5, 7.4, 3.2], [x + 1.5, 10.0, 4.1], 'clothGrey');
+      put(`${name}_ring`, name, [x - .6, 9.9, 3.4], [x + .6, 10.9, 3.9], 'brass');
+    }
+    return { name: 'backpack', bones, cubes, materials: MATERIALS, atlasWidth: 128 };
+  }
+
   function weapons() {
     // Swords: souls-like shapes (an arming/longsword, about 0.8 m of blade on a 1.1 m sword) in chunky
     // Blockbench proportions, so they read in a fist four pixels wide and at the low render resolution:
@@ -1341,7 +1405,7 @@ function AshenModels() {
     bandit: () => humanoid({ name: 'bandit', skin: 'skinTan', hair: 'hairDark', hairColor: '#251e19', scar: true,
       top: 'clothGrey', leatherArmor: 'leatherDark', headband: 'clothCrimson', mask: 'clothGrey', bracers: 'leatherDark', tunicSkirt: 'clothGrey', scabbard: true }),
     captain: () => humanoid({ name: 'captain', build: 'strong', hair: 'hairDark', top: 'clothCrimson', plate: 'darkSteel', helmet: 'darkSteel', tabard: 'clothCrimson', cape: 'clothCrimson', noPouch: true, boots: 'boot' }),
-    wolf, weapons, deer, fox, hare, crow, props, trees, cave_props: caveProps,
+    wolf, weapons, deer, fox, hare, crow, props, trees, cave_props: caveProps, backpack,
     ...Object.fromEntries(Object.keys(HORSES).map(v => [`horse_${v}`, () => horse(v)])),
     ...Object.fromEntries(Object.entries(GOBLIN_MODELS).map(([name, o]) => [name, () => goblin({ name, ...o })])),
   };

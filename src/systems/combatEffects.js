@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { block, boxGeometry } from '../art/blocks.js';
 import { pixelMaterial } from '../art/pixelTextures.js';
+import { createBlood } from './blood.js';
 
 export function createCombatEffects(scene,world) {
-  const bits=[],stains=[],wounds=[],numbers=[],arcs=[];
+  const bits=[],numbers=[],arcs=[];
   const texel=1/16,geometries=[boxGeometry(texel,texel,texel),boxGeometry(texel*2,texel*2,texel*2)];
   const bloodMaterial=pixelMaterial('clothRed',{tint:0xae4550});
   const emberMaterial=pixelMaterial('ember',{emissive:.9});
@@ -31,19 +31,7 @@ export function createCombatEffects(scene,world) {
     const material=new THREE.MeshLambertMaterial({color:0xc8bfae,transparent:true,depthWrite:false});const mesh=new THREE.Mesh(unit,material);mesh.visible=false;scene.add(mesh);
     return {mesh,material,velocity:new THREE.Vector3(),life:0,duration:1,size:2};
   });
-  const canvas=document.createElement('canvas');canvas.width=canvas.height=16;
-  const context=canvas.getContext('2d');context.imageSmoothingEnabled=false;
-  // Integer rectangles only: transparent holes and a jagged, hard pixel edge.
-  for(let y=0;y<16;y++)for(let x=0;x<16;x++){
-    const dx=x-7.5,dy=y-7.5,noise=(x*17+y*31+x*y*7)%23;
-    if(dx*dx/25+dy*dy/14<1+noise/32||(noise<4&&dx*dx+dy*dy<57)){
-      context.fillStyle=['#b3a5a5','#d0bdbd','#eee0d8'][noise%3];context.fillRect(x,y,1,1);
-    }
-  }
-  const splatter=new THREE.CanvasTexture(canvas);
-  splatter.magFilter=splatter.minFilter=THREE.NearestFilter;splatter.generateMipmaps=false;splatter.colorSpace=THREE.SRGBColorSpace;
-  const decalMaterial=new THREE.MeshLambertMaterial({color:0x720916,map:splatter,transparent:true,alphaTest:.5,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4});
-  const ray=new THREE.Raycaster(),look=new THREE.Object3D(),projected=new THREE.Vector3();
+  const projected=new THREE.Vector3();
   let audio=null,hitTime=0,shake=0;
   function sound(kind){
     try{
@@ -78,7 +66,10 @@ export function createCombatEffects(scene,world) {
     }
   }
   const rand=(a,b)=>a+Math.random()*(b-a),tmpDir=new THREE.Vector3();
+  // Blood is its own system (blood.js): pixel fluid on the ground, wounds painted into the characters' textures.
+  const blood=createBlood(scene,world,{spark:(point,normal,count)=>spray(point,normal,'ember',count),sound:kind=>sound(kind)});
   function spray(position,direction,color='blood',count=18){
+    if(color==='blood'){blood.spurt(position,direction,count);return;}
     const k=KINDS[color]||KINDS.ember;
     if(k.puff){
       // Dust puffs: soft, swelling, fading, tinted by the ground they came from.
@@ -99,48 +90,51 @@ export function createCombatEffects(scene,world) {
       p.kind=k;p.size=m.scale.x;p.life=p.duration=rand(...k.life);p.resting=0;p.bounced=false;p.heavy=k.gravity>0;bits.push(p);
     }
   }
-  function groundStain(position,size=.55){
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(size,size),decalMaterial);
-    m.position.set(position.x,world.heightAt(position.x,position.z)+.022,position.z);
-    const normal=new THREE.Vector3(world.heightAt(position.x-.08,position.z)-world.heightAt(position.x+.08,position.z),.16,world.heightAt(position.x,position.z-.08)-world.heightAt(position.x,position.z+.08)).normalize();
-    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),normal);m.rotateZ(Math.random()*6.28);scene.add(m);stains.push(m);
-    if(stains.length>90){const old=stains.shift();old.removeFromParent();old.geometry.dispose();}
+  /** A blot of blood on the ground; `size` is roughly its width in metres. */
+  function groundStain(position,size=.55){blood.pool(position.x,position.z,size*size*55,Math.min(9,Math.max(2,size*5)));}
+  /** An old wound on an enemy that was saved hurt: the cut is drawn, nothing sprays. */
+  function wound(enemy,from){blood.strike(enemy,from,{kind:'sword',combo:0,amount:12,quiet:true});}
+  // The player's own body takes cuts the same way (visible in third person); main.js hands over the actor.
+  let playerActor=null;
+  function setPlayer(actor){playerActor=actor;}
+  /** An enemy's blade or arrow lands on the player from `from`. */
+  function hurtPlayer(from,{kind='sword',amount=14}={}){
+    if(!playerActor?.model){return null;}
+    const result=blood.strike(playerActor,from,{kind,combo:(Math.random()*3)|0,amount});
+    if(result?.armoured)sound('parry');
+    return result;
   }
-  function wound(enemy,from){
-    if(wounds.filter(w=>w.enemy===enemy).length>=7)return;
-    enemy.model.updateWorldMatrix(true,true);
-    const target=enemy.model.position.clone().add(new THREE.Vector3((Math.random()-.5)*.25,enemy.aim??(enemy.kind==='wolf'?.88:1.58+(Math.random()-.5)*.4),0));
-    const origin=from.clone();ray.set(origin,target.clone().sub(origin).normalize());ray.far=origin.distanceTo(target)+1;
-    const hit=ray.intersectObject(enemy.model,true).find(h=>h.face&&!h.object.userData.wound);
-    if(!hit)return;
-    const normal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-    look.position.copy(hit.point);look.lookAt(hit.point.clone().add(normal));
-    const decal=new THREE.Mesh(new DecalGeometry(hit.object,hit.point,look.rotation,new THREE.Vector3(.36,.5,.32)),decalMaterial);
-    decal.geometry.applyMatrix4(hit.object.matrixWorld.clone().invert());
-    decal.userData.wound=true;decal.name='Blood and torn surface';hit.object.add(decal);wounds.push({mesh:decal,enemy});
-  }
+  /** The actor has fallen: a pool under the body, wounds bleed on by region. Safe to call twice. */
+  function killed(enemy,quiet=false){if(enemy.bloodKilled)return;enemy.bloodKilled=true;blood.killed(enemy,quiet);}
   function damageNumber(position,amount,kind){
     const node=document.createElement('span');node.className='damage-number '+kind;node.textContent=String(Math.round(amount));document.getElementById('combat-feedback').append(node);
     numbers.push({node,position:position.clone(),life:1.1});
     if(numbers.length>18)numbers.shift().node.remove();
   }
-  function hit(enemy,from,amount,magic){
+  // info: { kind: 'sword' | 'arrow' | 'magic', combo }. The blow is raycast onto the body: what it hits (skin,
+  // cloth, leather, mail, plate; head, neck, limb) decides the wound, the spray, the sound and how it bleeds.
+  function hit(enemy,from,amount,magic,info={}){
     const point=enemy.model.position.clone().add(new THREE.Vector3(0,enemy.aim??(enemy.kind==='wolf'?.9:1.6),0));
     const direction=point.clone().sub(from).normalize();
-    // A sword wound sprays and spatters the ground along the blow; a kill leaves a pool.
-    wound(enemy,from);spray(point,direction,'blood',magic?14:34);
-    for(let i=0;i<(magic?1:3);i++)groundStain(enemy.model.position.clone().addScaledVector(direction.clone().setY(0).normalize(),.4+i*.55+Math.random()*.3),.35+Math.random()*.45);
-    if(enemy.hp<=0){groundStain(enemy.model.position,1.5+Math.random()*.6);spray(point,new THREE.Vector3(0,1,0),'blood',24);}
-    damageNumber(point,amount,enemy.hp<=0?'fatal':'');hitTime=.17;shake=.035;if(!magic)sound('impact');
+    let result=null;
+    if(magic)blood.spurt(point,direction,6,{speed:1.8});
+    else result=blood.strike(enemy,from,{kind:info.kind||'sword',combo:info.combo??0,amount});
+    if(enemy.hp<=0)killed(enemy);
+    damageNumber(point,amount,enemy.hp<=0?'fatal':'');hitTime=.17;shake=.035;
+    if(!magic)sound(result?.armoured?'parry':'impact');
     document.getElementById('hit-marker').classList.toggle('fatal',enemy.hp<=0);
+    return result;
   }
   function burnDamage(enemy,amount){
     const point=enemy.model.position.clone();point.y+=enemy.kind==='wolf'?.9:1.6;
     damageNumber(point,amount,enemy.dead?'fatal':'');
   }
+  // Slash ribbons borrow a material from a fixed pool. Cloning one per swing and disposing it afterwards
+  // made three.js compile a shader and throw it away again on every blow (an 80-120 ms hitch each time).
+  const slashPool=Array.from({length:6},()=>{const m=pixelMaterial('iron',{tint:0xe5d3ad,emissive:.3}).clone();m.transparent=true;m.opacity=0;m.depthWrite=false;return m;});
   function slash(position,yaw,combo){
-    const m=new THREE.Group(),material=pixelMaterial('iron',{tint:0xe5d3ad,emissive:.3}).clone();
-    material.transparent=true;material.opacity=.5;material.depthWrite=false;
+    const material=slashPool.find(m=>!m.userData.busy)||slashPool[0];material.userData.busy=true;material.opacity=.5;
+    const m=new THREE.Group();
     const snap=v=>Math.round(v/texel)*texel,sign=combo%2?-1:1;
     let previous=null;
     for(let i=0;i<=12;i++){
@@ -158,6 +152,7 @@ export function createCombatEffects(scene,world) {
     scene.add(m);arcs.push({mesh:m,material,life:.13});
   }
   function update(dt,camera){
+    blood.update(dt,camera);
     hitTime=Math.max(0,hitTime-dt);shake*=Math.exp(-dt*18);
     document.getElementById('hit-marker').classList.toggle('hidden',hitTime<=0);
     for(let i=bits.length-1;i>=0;i--){const p=bits[i],k=p.kind||KINDS.blood;p.life-=dt;
@@ -173,19 +168,22 @@ export function createCombatEffects(scene,world) {
       if(p.life<=0){p.mesh.visible=false;p.mesh.scale.setScalar(1);bits.splice(i,1);}}
     for(const p of puffs)if(p.life>0){p.life-=dt;const f=Math.max(0,p.life/p.duration);p.velocity.multiplyScalar(Math.exp(-dt*2.5));p.velocity.y+=dt*.25;
       p.mesh.position.addScaledVector(p.velocity,dt);p.mesh.scale.setScalar(p.size*(1+(1-f)*1.6));p.material.opacity=.55*f;if(p.life<=0)p.mesh.visible=false;}
-    for(let i=arcs.length-1;i>=0;i--){const a=arcs[i];a.life-=dt;const fade=Math.max(0,a.life/.13);a.material.opacity=fade*fade*.5;if(a.life<=0){a.mesh.removeFromParent();a.material.dispose();arcs.splice(i,1);}}
+    for(let i=arcs.length-1;i>=0;i--){const a=arcs[i];a.life-=dt;const fade=Math.max(0,a.life/.13);a.material.opacity=fade*fade*.5;if(a.life<=0){a.mesh.removeFromParent();a.material.userData.busy=false;arcs.splice(i,1);}}
     for(let i=numbers.length-1;i>=0;i--){const n=numbers[i];n.life-=dt;const p=projected.copy(n.position);p.y+=(1.1-n.life)*.8;p.project(camera);
       n.node.style.transform=`translate(-50%,-50%) translate(${(p.x*.5+.5)*innerWidth}px,${(-p.y*.5+.5)*innerHeight}px)`;n.node.style.opacity=String(Math.min(1,n.life*3));n.node.hidden=p.z>1||p.z< -1;
       if(n.life<=0){n.node.remove();numbers.splice(i,1);}}
   }
   function reset(){
     for(const p of bits){p.mesh.visible=false;p.life=0;p.mesh.scale.setScalar(1);}bits.length=0;for(const p of puffs){p.life=0;p.mesh.visible=false;}
-    for(const m of stains){m.removeFromParent();m.geometry.dispose();}stains.length=0;
-    for(const w of wounds){w.mesh.removeFromParent();w.mesh.geometry.dispose();}wounds.length=0;
+    blood.reset();
     for(const n of numbers)n.node.remove();numbers.length=0;
-    // Arc boxes use the shared geometry cache; only their per-arc material is owned.
-    for(const a of arcs){a.mesh.removeFromParent();a.material.dispose();}arcs.length=0;hitTime=0;shake=0;
+    // Arc boxes use the shared geometry cache; the pooled materials stay alive so their program does too.
+    for(const a of arcs){a.mesh.removeFromParent();a.material.userData.busy=false;}arcs.length=0;hitTime=0;shake=0;
   }
-  return {hit,wound,spray,groundStain,slash,sound,burnDamage,update,reset,
-    get shake(){return shake;},state:()=>({wounds:wounds.length,bloodStains:stains.length,particles:bits.length})};
+  // Shows every pooled material for one shader-compile pass (graphics.compile) so the first blow, spark or
+  // pool never compiles a shader mid-fight; call warm(false) right after.
+  const warmMeshes=[...new Set([...Object.values(bitMaterials),sparkMaterial,...slashPool])].map(material=>{const m=new THREE.Mesh(unit,material);m.visible=false;m.frustumCulled=false;scene.add(m);return m;});
+  function warm(on){for(const m of warmMeshes)m.visible=on;for(const p of puffs)p.mesh.visible=on;blood.warm(on);}
+  return {hit,wound,killed,hurtPlayer,setPlayer,spray,groundStain,slash,sound,burnDamage,update,reset,warm,blood,
+    get shake(){return shake;},state:()=>({wounds:blood.state().wounds,bloodStains:blood.state().tiles,particles:bits.length,blood:blood.state()})};
 }

@@ -202,6 +202,14 @@ function ridePose(pose, ride) {
 }
 const GUARD = { arm_upper_right: [.8, .45, .22], arm_lower_right: [1.2, 0, 0], hand_right: [.2, .3, -.9], arm_upper_left: [.85, -.4, -.18], arm_lower_left: [1.4, 0, 0], chest: [0, -.12, 0], torso: [-.1, 0, 0], head: [-.05, .12, 0], leg_upper_right: [.18, 0, .04], leg_lower_right: [-.32, 0, 0], leg_upper_left: [-.1, 0, -.04], leg_lower_left: [-.2, 0, 0], hipsY: -.06 };
 
+function packPose(pose, { reach, open, look }) {
+  const flap = Math.sin(open * Math.PI);
+  pose.add('arm_upper_right', .78 * reach, -.28 * reach, -.12 * reach); pose.add('arm_lower_right', 1.12 * reach); pose.add('hand_right', -.2 * reach);
+  pose.add('arm_upper_left', (.78 + .22 * flap) * reach, .28 * reach, .12 * reach); pose.add('arm_lower_left', (1.12 + .3 * flap) * reach); pose.add('hand_left', (-.2 + .5 * flap) * reach);
+  pose.add('torso', -.14 * reach - .05 * look); pose.add('chest', -.06 * look); pose.add('head', -.46 * look); pose.add('neck', -.12 * look);
+  pose.hipsY -= .03 * reach;
+}
+
 // Looping work and life activities (NPC daily routines), layered over idle.
 function activityPose(pose, activity, t) {
   const swing = Math.sin(t * 2.6), beat = Math.max(0, Math.sin(t * 2.6));
@@ -407,6 +415,9 @@ export function createAnimator(character) {
         return;
       }
       locomotion(pose, input);
+      // Opening the backpack (systems/inventoryAccess.js): both arms hold it against the chest, the free hand
+      // lifts the flap and the head bows over it. `reach` is how far it has come round, `open` the flap, `look` the bow.
+      if (input.pack) packPose(pose, input.pack);
       // Holding something (a cart, a body, a bow) keeps the pose while walking.
       if (input.activity && (state.move < .3 || ['pull', 'carry', 'aim_low', 'aim', 'draw_bow', 'swim', 'sneak', 'guardReady', 'search', 'warn', 'shieldUp'].includes(input.activity))) activityPose(pose, input.activity, state.time);
     }

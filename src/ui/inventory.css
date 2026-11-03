@@ -127,3 +127,10 @@
   .inventory-layout { grid-template-columns:135px minmax(250px,1fr) 230px; overflow-x:auto; }
   .inventory-footer { flex-wrap:wrap; gap:8px; }#inventory #inventory-stats { flex-basis:100%; }.inventory-carry { flex:1; }
 }
+
+/* Opening the pack (systems/inventoryAccess.js): the menu rises out of the view into the open backpack and the world behind it softens. */
+#inventory:not(.hidden) { animation: inv-veil .34s ease-out both; }
+#inventory:not(.hidden) .inventory-shell { animation: inv-rise .38s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes inv-veil { from { background-color: #080c1000; backdrop-filter: blur(0); } to { background-color: #080c1080; backdrop-filter: blur(2px); } }
+@keyframes inv-rise { from { opacity: 0; transform: translateY(34px) scale(.955); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #inventory:not(.hidden), #inventory:not(.hidden) .inventory-shell { animation: none; } }

@@ -31,6 +31,9 @@ import { createInventory } from './systems/inventory.js';
 import { createInventoryUI } from './ui/inventoryUI.js';
 import { createGraphics } from './systems/graphics.js';
 import { createCombat, ARCHER_DRAW } from './systems/combat.js';
+import { createWildfire } from './systems/wildfire.js';
+import { loadBackpack } from './characters/backpack.js';
+import { createInventoryAccess } from './systems/inventoryAccess.js';
 import { BOW } from './systems/archery.js';
 import { createFirstPerson } from './characters/firstPerson.js';
 import { createAmbience } from './audio/ambience.js';
@@ -80,7 +83,7 @@ const rpg = createRPGSystems();
 
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const clamp = THREE.MathUtils.clamp;
-const [physics] = await Promise.all([createPhysics({ water: (x, z) => world.water.at(x, z) }), loadCharacterModels(), loadModularLibrary()]);
+const [physics] = await Promise.all([createPhysics({ water: (x, z) => world.water.at(x, z) }), loadCharacterModels(), loadModularLibrary(), loadBackpack().catch(() => false)]);
 physics.addStaticColliders(world.colliders.filter(c => c.kind !== 'door'));
 // Terrain tiles and chunk scenery join the physics world as the streamer loads them.
 world.streamer.attachPhysics(physics);
@@ -680,6 +683,8 @@ function openInventory(mode = 'inventory') {
   } else if (context.kind === 'corpse') context = {kind:'take',name:context.enemy.name,items:context.enemy.loot};
   else if (context.kind === 'chest') context = {kind:'take',name:'Truhe',items:context.spot.items};
   else if (context.kind === 'merchant') context.name = 'Bryn · Schmiede';
+  // Your own pack: the backpack is taken off and opened first; the menu appears when the flap is open.
+  if (context.kind === 'inventory' && !game.modal && game.started && !game.cinematic && !horses.riding && access.begin(() => setModal('inventory', context))) { keys.clear(); return; }
   setModal('inventory', context);
 }
 function closeInventory() { setModal(null); }
@@ -846,7 +851,7 @@ function resetGame(clearSave = true) {
   }
   physics.release();
   if (inCave) leaveCave({ teleport: false });
-  resetCharacter(player); rpg.reset(); keys.clear(); combat.reset(); firstPerson.reset(); talkingNPC=null; horseLoad(null);
+  resetCharacter(player); rpg.reset(); keys.clear(); combat.reset(); wildfire.reset(); access.reset(); firstPerson.reset(); talkingNPC=null; horseLoad(null);
   syncDropBags();
   if (game.modal === 'inventory') inventoryUI.open();
   stopVoice(); game.cinematic = null; game.cinematicTime = 0;
@@ -883,7 +888,7 @@ let touchHelpShown=false;
 function setModal(id, inventoryContext) {
   keys.clear();combat.setGuard(false);
   const closingInventory = game.modal === 'inventory' && id !== 'inventory';
-  if (closingInventory) inventoryUI.close();
+  if (closingInventory) { inventoryUI.close(); if (access.phase === 'open') access.end(); }
   if(game.modal==='dialog'&&id!=='dialog'&&talkingNPC){talkingNPC.model.rotation.y=talkingNPC.savedFacing;talkingNPC=null;}
   if(id!=='dialog')dialogCamReady=false;
   if (game.modal === 'dialog' && id !== 'dialog') stopVoice();
@@ -1475,7 +1480,7 @@ function spawnBurst(position, color, amount = 12) {
   }
 }
 function attack() {
-  if(!game.started||game.paused||game.cinematic||horses.riding&&!horses.mounted)return;
+  if(!game.started||game.paused||game.cinematic||access.locked()||horses.riding&&!horses.mounted)return;
   if(motion.locked(playerModel))return;
   if(motion.holding(playerModel)){motion.command(playerModel,'shove');return;}
   if(motion.heldBy(playerModel)){if(player.stamina>=12){player.stamina-=12;motion.command(playerModel,'wrench');motion.command(playerModel,'wrench');combat.effects.sound('impact');}return;}
@@ -1510,6 +1515,7 @@ function hurt(amount) {
 }
 function updatePlayer(dt) {
   player.invuln = Math.max(0, player.invuln - dt);
+  if (access.locked()) keys.clear();
   if (horses.riding) { updateRider(dt); updatePlayerGear(); return; }
 
   // The touch stick adds an analogue direction; a light push walks, a full one runs, past the ring sprints.
@@ -1757,7 +1763,8 @@ function toggleFlight() {
 /** After a teleport: no interpolation smear, camera and body snap to the new spot. */
 function snapPlayerView() { player.renderPosition = null; player.prevPosition = null; player.modelYaw = player.yaw; if (player.velocity) player.velocity.set(0, 0, 0); cameraRig.pivotY = null; }
 const cameraRig = { zoom: 4.6, distance: 4.6, length: 4.6, pivotY: null };
-function updateCamera(dt) {
+function updateCamera(dt) { updateCameraBase(dt); access.applyCamera(camera); }
+function updateCameraBase(dt) {
   if (debugCamera) { const t = debugCamera.follow ? player.position.clone().add(debugCamera.target) : debugCamera.target; camera.position.copy(debugCamera.follow ? player.position.clone().add(debugCamera.position) : debugCamera.position); camera.lookAt(t); return; }
   if(talkingNPC&&game.modal==='dialog'){
       // Over the shoulder: the camera stands behind the wanderer's right shoulder, the speaker faces you
@@ -1847,7 +1854,13 @@ window.addEventListener('keydown', (event) => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) event.preventDefault();
   if (game.cinematic) { if (['Escape','Space','Enter'].includes(event.code)) endCinematic(); return; }
   if (event.code === 'Escape') { if (game.modal) setModal(null); else if (game.started) setModal('pause'); return; }
-  if (event.code === 'KeyI' && game.started) { setModal(game.modal === 'inventory' ? null : 'inventory'); return; }
+  if (event.code === 'KeyI' && game.started) {
+    // The pack is still swinging open: put it away again. Closing plays on its own, a second press is ignored.
+    if (access.phase === 'opening') { access.end(); return; }
+    if (access.phase === 'closing') return;
+    if (game.modal === 'inventory') setModal(null); else if (game.modal) setModal('inventory'); else openInventory('inventory');
+    return;
+  }
   if (event.code === 'KeyJ' && game.started) { setModal(game.modal === 'journal' ? null : 'journal'); return; }
   if (game.paused) return;
   keys.add(event.code);
@@ -2025,7 +2038,7 @@ function animate(now) {
     camera.lookAt(p.x, 2, p.z);
   }
   else accumulator = 0;
-  if (game.started) updateCamera(dt);
+  if (game.started) { access.update(dt); updateCamera(dt); }
   const visualDt = game.modal&&game.modal!=='dialog' ? 0 : dt;
   const voice=voiceStatus();
   profile.mark('camera'); updatePhysics(game.started && !game.paused && !game.cinematic ? dt : 0); profile.mark('physics');
@@ -2033,11 +2046,14 @@ function animate(now) {
   updateSoundscape(dt);
   compass.update(player.yaw,player.position,compassMarkers());
   profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) leaveTracks(visualDt); profile.mark('world');
+  wildfire.update(game.paused ? 0 : visualDt, camera);
+  if (game.started && !game.paused && (fireTick -= dt) <= 0) { fireTick = .25; fireHazards(); }
   updateParticles(visualDt);
   combat.effects.update(game.paused?0:dt,camera);
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
   renderer.info.autoReset=false;renderer.info.reset();
   const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first'&&(!horses.riding||horses.mounted);
+  firstPerson.setPack(access.fpPose());
   if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
   aimZoom();
   profile.mark('effects'); graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
@@ -2046,7 +2062,27 @@ function animate(now) {
   if (total > profile.worst.total || now - profile.worst.at > 4000) profile.worst = { total, at: now, ...Object.fromEntries(Object.entries(profile.sections).map(([k, v]) => [k, +v.toFixed(1)])), world: { ...world.profile } };
 }
 // Compile every shader up front (all sites are still visible here), so nothing compiles mid-game.
+combat.effects.setPlayer({ get model() { return playerModel; }, get hp() { return player.hp; }, get maxHp() { return player.maxHp; }, aim: 1.5 });
+// Wildfire (systems/wildfire.js): spells, brands and burning men set grass and trees alight; water puts them out.
+const wildfire = createWildfire({ scene, world, sound: kind => combat.effects.sound(kind) });
+combat.spellFx.onIgnite = (point, normal, enemy, opts) => { if (world.water?.at(point.x, point.z)) { wildfire.steam(point.x, point.z, 4); return; } wildfire.ignite(point, opts || { power: 1, radius: 2.2 }); };
+combat.spellFx.onSteam = (x, z, n) => wildfire.steam(x, z, n);
+let fireTick = 0, fireWarned = 0;
+// Opening the inventory is an act (systems/inventoryAccess.js): the backpack swings round, the flap opens, the camera
+// glides in, then the menu fades in over it. While it plays the wanderer neither walks nor fights.
+const access = createInventoryAccess({ scene, player, firstPerson, puff: p => combat.effects.spray(p, v3(0, 1, 0), 'dust', 9), sound: kind => combat.effects.sound(kind === 'packOpen' ? 'drink' : 'slosh') });
+/** Whoever stands in a burning cell catches fire (enemies) or is burnt (the player, unless wading). */
+function fireHazards() {
+  for (const e of enemies) if (!e.dead && wildfire.heatAt(e.model.position.x, e.model.position.z) > .5) combat.spellFx.ignite(e, 12);
+  if (player.swimming || WATER_LEVEL - world.terrainHeightAt(player.position.x, player.position.z) > .3) return;
+  if (wildfire.heatAt(player.position.x, player.position.z) > .5 && !game.cinematic) {
+    hurt(3);
+    if (performance.now() - fireWarned > 6000) { fireWarned = performance.now(); toast('DU STEHST IN FLAMMEN!', 1400); }
+  }
+}
+combat.effects.warm(true); combat.spellFx.warm(true);
 graphics.compile(scene, camera);
+combat.effects.warm(false); combat.spellFx.warm(false);
 nextFrame(animate);
 
 // ── Physics: carrying, corpses, kicking props.
@@ -2359,7 +2395,7 @@ function aimZoom() {
   // A gallop pulls the view a little wider.
   const gallop = horses.mounted ? clamp((Math.abs(horses.ride.horse.speed) - RIDE_SPEEDS[2]) / (RIDE_SPEEDS[3] - RIDE_SPEEDS[2]), 0, 1) : 0;
   cameraRig.gallop = (cameraRig.gallop || 0) + (gallop - (cameraRig.gallop || 0)) * .06;
-  const fov = settings.fov * (1 - .12 * bowView.draw * bowView.draw) + 7 * cameraRig.gallop;
+  const fov = settings.fov * (1 - .12 * bowView.draw * bowView.draw) * (1 - access.fovCut()) + 7 * cameraRig.gallop;
   if (Math.abs(camera.fov - fov) > .01) { camera.fov = fov; camera.updateProjectionMatrix(); }
 }
 // The bow came after the first saves were made: an old save finds it (and arrows) in the pack once.
@@ -2399,7 +2435,7 @@ function animateActors(dt, voice) {
   // Tying a horse up and whistling for one are short gestures.
   player.tieT = Math.max(0, (player.tieT || 0) - dt); player.whistleT = Math.max(0, (player.whistleT || 0) - dt);
   const gesture = player.tieT > 0 ? 'operate' : player.whistleT > 0 ? 'salute' : null;
-  if (!motion.isDown(playerModel) && !horses.riding) playerAnimator.update(dt, cine ? { action: cine.action, activity: cine.poses.wanderer ?? null } : { ...motion.animInput(playerModel), lookAt: playerLook(), vy: player.velocityY || 0, action: combat.action, guard: combat.guarding, airborne: !player.grounded, stagger: Math.max(0, player.invuln - .25), activity: player.swimming ? 'swim' : player.sneaking ? 'sneak' : gesture, bow: bowView.raise, bowPitch: player.pitch });
+  if (!motion.isDown(playerModel) && !horses.riding) playerAnimator.update(dt, cine ? { action: cine.action, activity: cine.poses.wanderer ?? null } : { ...motion.animInput(playerModel), lookAt: playerLook(), vy: player.velocityY || 0, action: combat.action, guard: combat.guarding, airborne: !player.grounded, stagger: Math.max(0, player.invuln - .25), activity: player.swimming ? 'swim' : player.sneaking ? 'sneak' : gesture, bow: bowView.raise, bowPitch: player.pitch, pack: access.pose() });
   poseBow(cine);
   // Funken ready (tool 2): a flame burns in the left hand in third person (first person: firstPerson.js).
   const handFire = player.tool === 1 && player.mode === 'third' && !cine && playerModel.visible && !motion.isDown(playerModel) && (!horses.riding || horses.mounted);
@@ -2538,7 +2574,8 @@ window.__ASHEN_TEST__ = {
     lifeState:()=>npcs.map(n=>({id:n.id,activity:n.life?.activity,x:+n.model.position.x.toFixed(1),z:+n.model.position.z.toFixed(1),inside:n.life?.inside,bark:n.life?.bark})),
     snapshot:async(file='shot')=>{graphics.render(scene,camera,player.mode==='first'&&game.started&&!game.paused?firstPerson.render:null);const blob=await new Promise(r=>renderer.domElement.toBlob(r,'image/png'));return fetch('http://127.0.0.1:5299/save?file=work/screens/'+file+'.png',{method:'POST',body:blob}).then(r=>r.text());},
     rootPosition:()=>playerModel.position.toArray(),
-    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses}),
+    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access}),
+    fire:()=>wildfire.state(),igniteAt:(x,z,power=1,radius=2.2)=>wildfire.ignite(v3(x,0,z),{power,radius}),douse:(x,z,r=6)=>wildfire.extinguish(x,z,r),
     horses:()=>horses.state(),mount:(name='Asche')=>{const h=horses.horses.find(o=>o.name===name);if(h){player.position.copy(h.pos).add(v3(-Math.cos(h.yaw)*1.4,0,Math.sin(h.yaw)*1.4));snapPlayerView();mountHorse(h);}return horses.state().ride;},
     dismount:()=>horses.dismount(player),reins:horseReins,whistle:horseWhistle,
     cave:id=>{if(id)enterCave(id);else leaveCave();return inCave?.id??null;},caveState:()=>inCave&&({id:inCave.id,opened:[...inCave.opened],goblins:goblins.list.map(g=>({name:g.name,kind:g.gkind,state:g.state,hp:g.hp,dead:g.dead,pos:g.model.position.toArray().map(v=>+v.toFixed(1))}))}),spur:()=>{rideKeys.spur=true;},jumpHorse:()=>{rideKeys.jump=true;},ai:()=>ai.state(),aiDebug:()=>ai.debugLines(player.position,10),aiDays:n=>{game.flags.ai_day=(game.flags.ai_day||0)+n;campCheckAt=0;},introTime:()=>game.cinematic?.director?.time??null,

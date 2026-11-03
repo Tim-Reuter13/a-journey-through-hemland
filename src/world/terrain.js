@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { pixelTexture, textureSize } from '../art/pixelTextures.js';
 import { BOUNDS, CHUNK, WATER_LEVEL } from './hemland.js';
 import { cityGroundMap, CITY_MAP } from './streets.js';
+import { burnUniforms, BURN_GLSL } from './burnMap.js';
 
 // Smooth heightfield, pixel surface: every texel picks exactly one ground
 // texture by dithered thresholding, so transitions stay crisp. Per-vertex
@@ -20,7 +21,9 @@ export function terrainMaterial() {
     shader.vertexShader = 'attribute vec4 splatA;\nattribute vec4 splatB;\nattribute float shade;\nvarying vec4 vSplatA;\nvarying vec4 vSplatB;\nvarying float vShade;\nvarying vec3 vTerrainPos;\nvarying vec3 vTerrainNormal;\n' +
       shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         vSplatA = splatA; vSplatB = splatB; vShade = shade; vTerrainPos = (modelMatrix * vec4(position, 1.)).xyz; vTerrainNormal = normal;`);
-    shader.fragmentShader = `uniform sampler2D ${Object.keys(uniforms).filter(n => n !== 'cityBounds').join(', ')}; uniform vec4 cityBounds;
+    Object.assign(shader.uniforms, burnUniforms);
+    shader.fragmentShader = `${BURN_GLSL}
+      uniform sampler2D ${Object.keys(uniforms).filter(n => n !== 'cityBounds').join(', ')}; uniform vec4 cityBounds;
       varying vec4 vSplatA; varying vec4 vSplatB; varying float vShade; varying vec3 vTerrainPos; varying vec3 vTerrainNormal;
       float terrainHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float terrainNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
@@ -80,7 +83,20 @@ export function terrainMaterial() {
         if (vSplatA.z + RELIEF(rock, .43) > pick) { ground = rock; living = 0.; }
         if (vSplatA.w + RELIEF(snow, .8) > pick) { ground = snow; living = 0.; }
         vec3 tone = mix(vec3(1.), vec3(.86 + macro * .26, .9 + macro * .2, .84 + macro * .2), living);
-        diffuseColor.rgb *= ground * tone * mix(vec3(1.), vColor, living) * (1. - vShade);`);
+        diffuseColor.rgb *= ground * tone * mix(vec3(1.), vColor, living) * (1. - vShade);
+        // Fire (world/burnMap.js): melted snow shows bare wet earth; scorched ground chars, with a ragged
+        // pixel edge, ash flecks and glowing embers while it is still hot.
+        vec4 bg = burnGround(vTerrainPos);
+        if (bg.b > .03 && bg.b + (terrainHash(texel + 31.) - .5) * .5 > .45) diffuseColor.rgb = mix(diffuseColor.rgb, mud * vec3(.8, .75, .7), .85);
+        if (bg.r > .02) {
+          float edge = bg.r + (terrainHash(texel + 17.) - .5) * .55, ashPick = terrainHash(texel * 1.7 + 3.);
+          if (edge > .5) {
+            vec3 charred = mix(vec3(.05, .046, .042), vec3(.17, .16, .15), step(.82, ashPick));
+            diffuseColor.rgb = mix(diffuseColor.rgb * .4, charred, smoothstep(.5, .75, edge));
+            gBurnEmit += vec3(1., .36, .07) * bg.g * step(.86, terrainHash(texel + floor(uBurnTime * 3.))) * 1.2;
+          } else if (edge > .32) diffuseColor.rgb *= .55;
+        }`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n        totalEmissiveRadiance += gBurnEmit;');
   };
   return material;
 }

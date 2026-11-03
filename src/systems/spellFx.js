@@ -104,10 +104,13 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
   const group=new THREE.Group();group.name='Funken effects';scene.add(group);
   const ember=pixelMaterial('ember',{emissive:1}),shellMaterial=pixelMaterial('ember',{tint:0xff713b,emissive:1});
   const emberMap=pixelTexture('ember'),smokeMap=pixelTexture('stone');
+  // Each particle owns a glowing material (fire, ember) and a smoke material and swaps between them. Toggling
+  // map/blending on one material and flagging needsUpdate made three.js rebuild shader programs mid-fight.
   const particles=Array.from({length:SPELL_PARTICLES},()=>{
-    const material=new THREE.MeshBasicMaterial({map:pixelTexture('ember'),color:0xffad54,transparent:true,depthWrite:false});
-    const mesh=new THREE.Mesh(boxGeometry(TEXEL,TEXEL,TEXEL),material);mesh.visible=false;group.add(mesh);
-    return {mesh,material,velocity:new THREE.Vector3(),life:0,duration:0,type:'',bounce:false,size:1};
+    const glow=new THREE.MeshBasicMaterial({color:0xffad54,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+    const haze=new THREE.MeshBasicMaterial({map:pixelTexture('stone'),color:0x4a4648,transparent:true,depthWrite:false});
+    const mesh=new THREE.Mesh(boxGeometry(TEXEL,TEXEL,TEXEL),glow);mesh.visible=false;group.add(mesh);
+    return {mesh,glow,haze,material:glow,velocity:new THREE.Vector3(),life:0,duration:0,type:'',bounce:false,size:1};
   });
   function fireball(){
     const root=new THREE.Group();root.visible=false;group.add(root);
@@ -143,7 +146,7 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
       p.size=(smoke?3+Math.random()*2.5:fire?1.6+Math.random()*1.8:1)*scale;
       p.mesh.visible=true;p.mesh.position.copy(point);p.mesh.scale.setScalar(p.size);
       p.mesh.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);
-      p.material.map=smoke?smokeMap:null;p.material.blending=smoke?THREE.NormalBlending:THREE.AdditiveBlending;p.material.needsUpdate=true;
+      p.material=smoke?p.haze:p.glow;p.mesh.material=p.material;
       p.material.color.setHex(smoke?0x4a4648:fire?0xfff3c8:0xffc860);
       p.material.opacity=smoke?.4:1;
       if(fire){p.velocity.copy(direction).multiplyScalar(.6*scale);p.velocity.x+=(Math.random()-.5)*.9*scale;p.velocity.z+=(Math.random()-.5)*.9*scale;p.velocity.y+=1+Math.random()*1.2*scale;}
@@ -201,6 +204,8 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
       const patch=patches.find(p=>p.life<=0)||patches[0];patch.point.set(point.x,world.heightAt(point.x,point.z)+.04,point.z);patch.life=3.6;patch.emit=0;
     }
     sound('fireImpact');onImpact?.(point,direction,2.5);
+    // The fire catches in the world (systems/wildfire.js): on the ground, grass and trees; on a wall only what is below it.
+    if(enemy||normal.y>.3||!object)api.onIgnite?.(point,normal,enemy);
   }
   function ignite(enemy,damage=12){
     if(enemy.dead)return;
@@ -236,6 +241,10 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
     for(const state of burns.values()){
       const enemy=state.enemy;
       if(enemy.dead){burns.delete(enemy);continue;}
+      // Wading into water puts a burning man out in a cloud of steam; a burning man sets dry grass alight.
+      const wet=world.water?.at(enemy.model.position.x,enemy.model.position.z);
+      if(wet&&wet.depth>.35){burns.delete(enemy);api.onSteam?.(enemy.model.position.x,enemy.model.position.z,5);continue;}
+      state.spread=(state.spread||0)+dt;if(state.spread>.7){state.spread=0;api.onIgnite?.(enemy.model.position,UP,false,{power:.3,radius:.9});}
       const damage=advanceBurn(state.burn,dt);if(damage>0)onBurnDamage?.(enemy,damage);
       if(enemy.dead||state.burn.done){burns.delete(enemy);continue;}
       state.emit+=dt;if(state.emit>.09){state.emit%=.09;emitPoint.copy(enemy.model.position);
@@ -252,8 +261,11 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
     for(const p of patches)p.life=0;burns.clear();ledger.reset();
     for(const mesh of decals){mesh.visible=false;mesh.removeFromParent();group.add(mesh);}
   }
-  return {startBall,updateBall,releaseBall,setCharge,impact,ignite,update,reset,handFlame,
+  const api={startBall,updateBall,releaseBall,setCharge,impact,ignite,update,reset,handFlame,onIgnite:null,onSteam:null,
     state:()=>({spellParticles:particles.reduce((n,p)=>n+(p.life>0),0),scorches:ledger.items.length,burning:burns.size,smoulders:patches.filter(p=>p.life>0).length}),
-    dispose(){reset();group.removeFromParent();for(const p of particles)p.material.dispose();for(const m of decals){m.geometry.dispose();m.material.dispose();}},
+    /** Shows every pooled material for one shader-compile pass (see graphics.compile), then hides them again. */
+    warm(on){for(const p of particles){p.mesh.visible=on;}for(const m of decals)m.visible=on;},
+    dispose(){reset();group.removeFromParent();for(const p of particles){p.glow.dispose();p.haze.dispose();}for(const m of decals){m.geometry.dispose();m.material.dispose();}},
   };
+  return api;
 }

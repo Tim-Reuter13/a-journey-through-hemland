@@ -22,7 +22,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   const effects=createCombatEffects(scene,world),projectiles=[];
   const spellFx=createSpellFx(scene,world,{onImpact,sound:effects.sound,onBurnDamage(enemy,amount){
     onHit(enemy,amount,true);effects.burnDamage(enemy,amount);
-    if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.groundStain(enemy.model.position,1.1);}
+    if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}
   }});
   let action=null,guard=false,guardStart=0,time=0,combo=0,lastAttack=-10,queued=false,hitPause=0;
   const before=new THREE.Vector3(),next=new THREE.Vector3(),center=new THREE.Vector3(),segment=new THREE.Vector3(),offset=new THREE.Vector3();
@@ -35,7 +35,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   const targets=()=>prey?[...enemies,...prey.targets()]:enemies;
   function strike(target,amount,magic,from){
     if(!target.prey){hit(target,amount,magic,from);return;}
-    prey.hit(target,amount,magic);effects.hit(target,from,amount,magic);hitPause=.04;
+    prey.hit(target,amount,magic);effects.hit(target,from,amount,magic,{kind:strikeKind||(magic?'magic':'sword'),combo});hitPause=.04;
   }
   const archery=bow?createArchery({scene,world,player,toast,sound:effects.sound,spray:effects.spray,ammo:bow.ammo,damage:bow.damage,aim:bow.aim,arrowModel:bow.arrowModel,drawTime:bow.drawTime,steady:bow.steady,scored:bow.scored,
     targets:()=>prey?[...enemies,...prey.targets(100)]:enemies,strike:(target,amount,from)=>{strikeKind='arrow';strike(target,amount,false,from);strikeKind=null;},
@@ -46,7 +46,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     hurtPlayer:(amount,from)=>{
       const dx=from.x-player.position.x,dz=from.z-player.position.z;
       if(guard&&inAttackArc(dx,dz,player.yaw,999,.3)&&player.stamina>=8){player.stamina-=8;effects.sound('parry');effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',8);onHurt(Math.round(amount*.15));return;}
-      onHurt(amount);effects.sound('arrowFlesh');effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(-dx,0,-dz).normalize(),'blood',12);
+      onHurt(amount);effects.sound('arrowFlesh');if(!effects.hurtPlayer(from,{kind:'arrow',amount}))effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(-dx,0,-dz).normalize(),'blood',12);
     }}):null;
   // Enemy archers loose at the wanderer's chest, leading a moving target and allowing for the drop;
   // they miss more the further they shoot, and not at all through walls.
@@ -99,12 +99,12 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     if(!magic&&enemy.blocking>0){enemy.blocking=0;enemy.stagger=.25;effects.sound('parry');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'ember',10);amount*=.2;hitPause=.03;
       if(amount<4){onHit(enemy,amount,magic);return;}}
     ai?.hurt(enemy,amount,from);ai?.noise('fight',enemy.model.position);
-    onHit(enemy,amount,magic);effects.hit(enemy,from,amount,magic);enemy.stagger=magic?.32:.43;enemy.windup=0;
+    onHit(enemy,amount,magic);effects.hit(enemy,from,amount,magic,{kind:strikeKind||(magic?'magic':'sword'),combo});enemy.stagger=magic?.32:.43;enemy.windup=0;
     // Bodies with HUMANITY MOTION take the force themselves (steps, falls); the rest slide back.
     if(motion?.handles?.(enemy))motion.impact(enemy,{kind:strikeKind||(magic?'spell':'sword'),from,combo,amount,magic});
     else enemy.knock=enemy.model.position.clone().sub(player.position).setY(0).normalize().multiplyScalar(combo===2?3.2:1.8);
     hitPause=.055;
-    if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.groundStain(enemy.model.position,1.1);}
+    if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}
   }
   function resolveSword(){
     effects.slash(player.position,player.yaw,combo);
@@ -275,7 +275,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
         else {onHurt(3);effects.sound('parry');}
         effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',13);
         motion?.playerHit?.(e,{blocked:true});
-      }else{onHurt(prof.damage*(e.storyId?1.3:1));onEvent(b,'hitPlayer',{},time);effects.sound('impact');effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(dx,0,dz).normalize().negate(),'blood',16);
+      }else{onHurt(prof.damage*(e.storyId?1.3:1));onEvent(b,'hitPlayer',{},time);effects.sound('impact');if(!effects.hurtPlayer(p.clone().add(vector(0,1.5,0)),{amount:prof.damage}))effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(dx,0,dz).normalize().negate(),'blood',16);
         motion?.playerHit?.(e,{damage:prof.damage*(e.storyId?1.3:1),heavy:!!e.storyId});}
       ai?.noise('fight',p);
     }
@@ -408,7 +408,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
               if(time-guardStart<.24){e.stagger=1;toast('PARIERT',1000);effects.sound('parry');}
               else {onHurt(3);effects.sound('parry');}
               effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',13);
-            }else{onHurt(t.damage*(e.storyId?1.3:1));effects.sound('impact');effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(dx,0,dz).normalize().negate(),'blood',16);}}
+            }else{onHurt(t.damage*(e.storyId?1.3:1));effects.sound('impact');if(!effects.hurtPlayer(e.model.position.clone().add(vector(0,1.5,0)),{amount:t.damage}))effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(dx,0,dz).normalize().negate(),'blood',16);}}
           // Bandits sometimes follow up at once; then everyone backs off a step.
           if(e.kind==='bandit'&&Math.random()<(e.storyId?.55:.3)&&!e.combo){e.combo=true;e.windup=.45;}
           else{e.combo=false;e.cooldown=e.kind==='wolf'?1.4+Math.random():1.8+Math.random()*1.2;e.plan='retreat';e.planTime=.8+Math.random()*.6;}
@@ -432,7 +432,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     enemies.forEach(e=>{e.stagger=0;e.windup=0;e.strikeT=0;e.deathTime=0;e.knock=null;});}
   function restore(){enemies.forEach(e=>{e.model.visible=true;
     if(e.hp<e.maxHp)effects.wound(e,e.model.position.clone().add(vector(0,1.7,-3)));
-    if(e.dead){e.deathTime=1;effects.groundStain(e.model.position,1.1);}
+    if(e.dead){e.deathTime=1;effects.killed(e,true);}
   });}
   return {attack,drink,setGuard,update,reset,restore,effects,spellFx,archery,
     get action(){return action;},get guarding(){return guard;},

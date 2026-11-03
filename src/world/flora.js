@@ -3,6 +3,7 @@ import { block, blockOn, beam, crossGeometry } from '../art/blocks.js';
 import { registerPixelTexture, pixelCanvas, pixelMaterial } from '../art/pixelTextures.js';
 import { landscapeChunk } from './rocks.js';
 import { wind, treesLoaded, placeTree, setFarTrees } from './trees.js';
+import { burnUniforms, BURN_GLSL } from './burnMap.js';
 export { wind };
 
 // Blockbench-style vegetation: trunks and crowns are boxes, leaves are cutout
@@ -191,17 +192,33 @@ let spriteMaterial = null, spriteGeometry = null;
 function groundMaterial() {
   if (spriteMaterial) return spriteMaterial;
   spriteMaterial = new THREE.MeshLambertMaterial({ map: spriteAtlas(), alphaTest: .5, side: THREE.DoubleSide });
+  spriteMaterial.customProgramCacheKey = () => 'ground-sprites-burn';
   spriteMaterial.onBeforeCompile = shader => {
     shader.uniforms.uWind = wind;
     // Sprites carry up-facing normals; never flip them on back faces, or half of
     // every crossed quad renders unlit.
     shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>',
       THREE.ShaderChunk.normal_fragment_begin.replace('gl_FrontFacing ? 1.0 : - 1.0', '1.0'));
-    shader.vertexShader = 'uniform float uWind;\nattribute float aSprite;\n' + shader.vertexShader
+    // Fire: where the ground is scorched (world/burnMap.js) grass chars, then is gone; embers glow.
+    Object.assign(shader.uniforms, burnUniforms);
+    shader.fragmentShader = 'varying vec3 vSpriteWorld;\n' + BURN_GLSL + shader.fragmentShader
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      {
+        vec4 bg = burnGround(vSpriteWorld);
+        if (bg.r > .02) {
+          float n = burnHash(floor(vSpriteWorld.xz * 3.));
+          if (bg.r > .3 + n * .45) discard;
+          diffuseColor.rgb *= 1. - smoothstep(.04, .26, bg.r) * .88;
+          gBurnEmit += vec3(1., .4, .08) * bg.g * step(.55, n) * (.6 + .4 * sin(uBurnTime * 13. + n * 50.));
+        }
+      }`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n      totalEmissiveRadiance += gBurnEmit;');
+    shader.vertexShader = 'uniform float uWind;\nattribute float aSprite;\nvarying vec3 vSpriteWorld;\n' + shader.vertexShader
       .replace('#include <uv_vertex>', '#include <uv_vertex>\nvMapUv.x = (vMapUv.x + aSprite) / ' + SPRITES.length + '.;')
       .replace('#include <begin_vertex>', [
         '#include <begin_vertex>',
         'vec3 spriteWorld = (modelMatrix * instanceMatrix * vec4(0., 0., 0., 1.)).xyz;',
+        'vSpriteWorld = spriteWorld;',
         'float sway = sin(uWind * 1.7 + spriteWorld.x * .31 + spriteWorld.z * .23) + .45 * sin(uWind * 3.1 + spriteWorld.z * .7);',
         '// Snap the sway to 1/16 steps so tips move in whole texels.',
         'transformed.x += floor(sway * uv.y * 2.4 + .5) / 16.;',

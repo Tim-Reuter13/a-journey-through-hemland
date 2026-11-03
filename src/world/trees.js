@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { burnUniforms, BURN_GLSL } from './burnMap.js';
 
 // Trees and bushes built in Blockbench (art/blockbench/models.js › trees → public/models/trees.gltf).
 // Every cube of a tree is baked into one geometry around the foot of its trunk. Foliage gets rounded
@@ -24,15 +25,54 @@ function treeMaterial(map, lod) {
     // or every crown would look hollow and black inside.
     shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>',
       THREE.ShaderChunk.normal_fragment_begin.replace('gl_FrontFacing ? 1.0 : - 1.0', '1.0'));
-    shader.vertexShader = 'uniform float uWind;\nattribute float sway;\n' + shader.vertexShader.replace('#include <begin_vertex>', [
+    // Fire (world/burnMap.js, systems/wildfire.js): the burn map says how far a flame front has climbed a tree.
+    // Below the front bark chars black and foliage dissolves, ragged and glowing at the edge; once burnt the
+    // crown is gone and the trunk stands black.
+    Object.assign(shader.uniforms, burnUniforms);
+    shader.fragmentShader = 'varying vec3 vBurnWorld;\nvarying float vLeaf;\n' + BURN_GLSL + shader.fragmentShader
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      {
+        vec4 bt = burnTree(vBurnWorld);
+        if (bt.r > .004) {
+          vec4 bo = burnOrigin(vBurnWorld);
+          float treeH = bt.g * 25.5, by = (bt.b * 255. * 256. + bt.a * 255.) / 256. - 64.;
+          float rel = (vBurnWorld.y - by) / max(treeH, 1.);
+          float n = burnHash(floor(vBurnWorld.xz * 16.) + floor(vBurnWorld.y * 16.) * 1.7);
+          // The fire creeps outward from where it caught, lumpily: broad noise makes it flare up in one limb and
+          // lag in another; a second ignition point in the crown joins after a while.
+          float lump = burnNoise(vBurnWorld * .55 + bo.a * 31.) * .5 + burnNoise(vBurnWorld * 1.7 + bo.a * 17.) * .25;
+          float reach1 = bt.r * 1.45 - abs(rel - bo.r) - lump;
+          float reach2 = (bt.r - bo.b) * 1.6 - abs(rel - bo.g) - lump;
+          float age = burnGround(vBurnWorld).a;
+          // Whatever the front missed smoulders and goes later (age grows long after the front has passed).
+          float front = max(reach1, bt.r > bo.b ? reach2 : -1.) + age * 1.2;
+          float below = front * (treeH * .55 + .6);   // roughly metres behind the flame front
+          if (below > 0.) {
+            if (vLeaf > .5) {
+              // Leaves go patchily: scorched brown first, then gone, long after the front has passed.
+              float gone = clamp((below - .8) * .22 + age * 1.6 - lump * .6, 0., 1.);
+              if (n < gone) discard;
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.12, .075, .04) * (.7 + n * .6), clamp(below * .9, 0., 1.) * .8);
+              diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.05, .043, .038) * (.7 + n * .6), clamp((below - 1.2) * .5 + age, 0., 1.));
+            } else diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.055, .048, .042) * (.6 + n * .8), clamp(below * 1.3, 0., 1.));
+          }
+          float band = smoothstep(-.05, .35, below) * (1. - smoothstep(.4, 2.2, below)), live = 1. - age * .85, flick = .65 + .35 * sin(uBurnTime * 9. + n * 40. + bo.a * 20.);
+          gBurnEmit += vec3(1., .4, .08) * band * live * flick * (.45 + n * .9);
+          // Embers glow in cracks of burnt wood and under half-burnt leaves for a long time.
+          if (below > .3 && n > .88) gBurnEmit += vec3(1., .26, .05) * live * flick * (vLeaf > .5 ? .5 : .85);
+        }
+      }`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n      totalEmissiveRadiance += gBurnEmit;');
+    shader.vertexShader = 'uniform float uWind;\nattribute float sway;\nattribute float leaf;\nvarying vec3 vBurnWorld;\nvarying float vLeaf;\n' + shader.vertexShader.replace('#include <begin_vertex>', [
       '#include <begin_vertex>',
       'vec3 treeWorld = (modelMatrix * vec4(position, 1.)).xyz;',
+      'vBurnWorld = treeWorld; vLeaf = leaf;',
       '// A slow gust leans the whole crown, a quicker flutter rustles each part of it.',
       'float gust = sin(uWind * .9 + treeWorld.x * .05 + treeWorld.z * .04) * .5 + .5;',
       'transformed.x += sway * (gust * .09 + sin(uWind * 2.1 + treeWorld.x * .4 + treeWorld.y * .3) * .035);',
       'transformed.z += sway * (gust * .04 + cos(uWind * 1.7 + treeWorld.z * .4 + treeWorld.y * .2) * .035);'].join('\n'));
   };
-  material.customProgramCacheKey = () => 'trees-sway';
+  material.customProgramCacheKey = () => 'trees-sway-burn';
   return material;
 }
 
@@ -78,6 +118,7 @@ export async function loadTreeModels(base = `${import.meta.env.BASE_URL}models/`
         normal.setXYZ(i, n.x, n.y, n.z);
       }
       p.geometry.setAttribute('sway', new THREE.BufferAttribute(sway, 1));
+      p.geometry.setAttribute('leaf', new THREE.BufferAttribute(new Float32Array(pos.count).fill(p.leaf ? 1 : 0), 1));
     }
     // The far version: trunk and limbs (no twigs), and the bigger half of the foliage, a little
     // swollen to close the gaps the small clumps leave.

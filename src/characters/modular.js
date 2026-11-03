@@ -207,3 +207,31 @@ export function restyleCharacter(root, changes) {
 }
 
 export const modularLibraryLoaded = () => BODIES.every(b => libraries[b]);
+
+// ── What a pixel of the atlas is: skin, hair, cloth, leather, mail or plate, and which face island it sits on.
+// Blood (systems/blood.js) paints into the atlas copy of a character, so it needs to know whether a blow
+// landed on bare skin, on a tunic or on a breastplate, and to stay inside the one face it hit.
+const PART_CLASS = {
+  body: 'skin', underwear: 'cloth',
+  chainmail: 'mail', plate: 'plate', iron_helmet: 'plate', great_helm: 'plate', guard_helmet: 'plate', crown: 'plate',
+  leather_armor: 'leather', vest: 'leather', bracers: 'leather', gloves: 'leather', boots: 'leather', shoes: 'leather', belt: 'leather', apron: 'leather',
+  quiver: 'gear', scabbard: 'gear', satchel: 'gear', straw_hat: 'cloth',
+};
+const classOf = part => PART_CLASS[part] || (part.startsWith('hair_') || part.startsWith('beard_') ? 'hair' : 'cloth');
+const atlasMaps = {};
+/** { width, height, classes: ['skin', …], classAt: Uint8Array (class index + 1, 0 = none), islandAt: Int16Array (face island id, −1 = none), islands: [[u, v, w, h]] } */
+export function atlasMapFor(root) {
+  const body = root.userData.appearance?.body, lib = libraries[body];
+  if (!lib) return null;
+  if (atlasMaps[body]) return atlasMaps[body];
+  const [width, height] = lib.meta.atlas, classes = ['skin', 'hair', 'cloth', 'leather', 'mail', 'plate', 'gear'];
+  const classAt = new Uint8Array(width * height), islandAt = new Int16Array(width * height).fill(-1), islands = [];
+  for (const [part, meta] of Object.entries(lib.meta.parts)) {
+    const cls = classes.indexOf(classOf(part)) + 1;
+    for (const [u, v, w, h] of meta.rects) {
+      const id = islands.push([u, v, w, h]) - 1;
+      for (let y = v; y < v + h && y < height; y++) for (let x = u; x < u + w && x < width; x++) { classAt[y * width + x] = cls; islandAt[y * width + x] = id; }
+    }
+  }
+  return atlasMaps[body] = { width, height, classes, classAt, islandAt, islands };
+}

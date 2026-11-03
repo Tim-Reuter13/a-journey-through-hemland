@@ -250,6 +250,8 @@ export function createFirstPerson() {
   key.position.set(-1, 2, 3); scene.add(sky, key, lamp);
   const viewInverse = new THREE.Quaternion();
   const rig = new THREE.Group(); scene.add(rig);
+  let packRoot = null, packPose = null;
+  const _v = new THREE.Vector3();
   const right = new THREE.Group(), left = new THREE.Group(); rig.add(right, left);
   // Light neutral ramp, tinted to the player's skin tone in update().
   const skin = painted('skin', ['#d8d0c8', '#ece6e0', '#f8f4f0']);
@@ -494,6 +496,17 @@ export function createFirstPerson() {
     core.rotation.set(time * .25, time * .5, .35); core.scale.setScalar(1 + Math.sin(time * 31) * .15);
     if (tool === 1) burn(dt, action?.kind === 'cast' ? Math.sin(Math.min(1, action.progress) * Math.PI) : 0);
     else { palmLight.intensity = 0; for (const f of flames) { f.life = 0; f.mesh.visible = false; } }
+    // Opening the inventory (systems/inventoryAccess.js): both hands take the backpack that rises into view.
+    if (packPose) {
+      const m = packPose.k, ease3 = m * m * (3 - 2 * m);
+      sword.visible = flask.bottle.visible = spell.visible = false; hideBow(); right.visible = left.visible = true;
+      right.position.lerp(_v.set(.3, -.42, -.7), ease3); left.position.lerp(_v.set(-.3, -.42, -.7), ease3);
+      right.rotation.x = THREE.MathUtils.lerp(right.rotation.x, -.95, ease3); right.rotation.y = THREE.MathUtils.lerp(right.rotation.y, -.4, ease3); right.rotation.z = THREE.MathUtils.lerp(right.rotation.z, -.25, ease3);
+      left.rotation.x = THREE.MathUtils.lerp(left.rotation.x, -.95 - packPose.open * .35, ease3); left.rotation.y = THREE.MathUtils.lerp(left.rotation.y, .4, ease3); left.rotation.z = THREE.MathUtils.lerp(left.rotation.z, .25, ease3);
+      // The free hand lifts the flap as it opens.
+      left.position.y += Math.sin(packPose.open * Math.PI) * .07; left.position.z -= Math.sin(packPose.open * Math.PI) * .06;
+    }
+    if (packRoot) packRoot.visible = !!packPose;
     flask.update(dt, player, worldCamera, action);
     motionLayer(dt, player, tool);
     if (camera.aspect !== worldCamera.aspect) { camera.aspect = worldCamera.aspect; camera.updateProjectionMatrix(); }
@@ -508,6 +521,8 @@ export function createFirstPerson() {
   reset();
   return {
     update, reset,
+    /** The backpack of the inventory animation lives in the hand scene (systems/inventoryAccess.js). */
+    attachPack(object) { packRoot = object; scene.add(object); }, setPack(pose) { packPose = pose; },
     /** Strength (0..1) of a slosh against the glass worth a sound since the last call, else 0. */
     sloshCue: () => flask.takeCue(),
     /** The free hand reaches out (taking, opening, looting). */
