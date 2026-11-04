@@ -36,7 +36,8 @@ function aimSword(character, input, state, dt) {
   const swinging = input.action?.kind === 'sword' || input.windup > 0 || input.strike > 0;
   if (swinging) {
     rig.arm_lower_right.getWorldQuaternion(_arm);
-    _blade.set(0, -1, 0).applyQuaternion(_arm).addScaledVector(_side.set(0, 1, 0), .2).normalize();
+    // The wrist bends: the blade rises out of the fist instead of running on in line with the forearm.
+    _blade.set(0, -1, 0).applyQuaternion(_arm).addScaledVector(_side.set(0, 1, 0), .55).normalize();
     if (state.hand && dt > 0) _edge.subVectors(_hand, state.hand); else _edge.set(0, 0, 0);
   } else {
     _blade.fromArray(BLADE[input.guard ? 'guard' : input.combat ? 'ready' : 'rest']).applyQuaternion(_body).normalize();
@@ -202,6 +203,21 @@ function ridePose(pose, ride) {
 }
 const GUARD = { arm_upper_right: [.8, .45, .22], arm_lower_right: [1.2, 0, 0], hand_right: [.2, .3, -.9], arm_upper_left: [.85, -.4, -.18], arm_lower_left: [1.4, 0, 0], chest: [0, -.12, 0], torso: [-.1, 0, 0], head: [-.05, .12, 0], leg_upper_right: [.18, 0, .04], leg_lower_right: [-.32, 0, 0], leg_upper_left: [-.1, 0, -.04], leg_lower_left: [-.2, 0, 0], hipsY: -.06 };
 
+// Where it hurts the body shows it: a hand pressed to the wound, the back bent over the belly, the head held, a crouch on a bad leg.
+function painPose(pose, { region, side, k }) {
+  const other = side === 'left' ? 'right' : 'left', sign = side === 'right' ? 1 : -1;
+  if (region === 'chest' || region === 'torso' || region === 'hips') {
+    for (const s of ['right', 'left']) { pose.add(`arm_upper_${s}`, .5 * k, (s === 'right' ? -.35 : .35) * k, 0); pose.add(`arm_lower_${s}`, 1.7 * k); }
+    pose.add('torso', -.38 * k); pose.add('chest', -.12 * k); pose.add('head', -.28 * k); pose.hipsY -= .05 * k;
+  } else if (region === 'head' || region === 'neck') {
+    pose.add(`arm_upper_${side}`, 2.35 * k, 0, -sign * .2 * k); pose.add(`arm_lower_${side}`, 1.9 * k); pose.add('head', -.3 * k, 0, sign * .2 * k); pose.add('torso', -.22 * k);
+  } else if (region === 'arm' || region === 'hand') {
+    pose.add(`arm_upper_${other}`, .7 * k, -sign * .6 * k, 0); pose.add(`arm_lower_${other}`, 1.4 * k); pose.add('torso', -.2 * k); pose.add('head', -.15 * k);
+  } else {
+    pose.hipsY -= .1 * k; pose.add('torso', -.32 * k);
+    for (const s of ['right', 'left']) { pose.add(`arm_upper_${s}`, .4 * k); pose.add(`arm_lower_${s}`, .5 * k); }
+  }
+}
 function packPose(pose, { reach, open, look }) {
   const flap = Math.sin(open * Math.PI);
   pose.add('arm_upper_right', .95 * reach, -.1 * reach, 0); pose.add('arm_lower_right', 1.0 * reach); pose.add('hand_right', -.15 * reach);
@@ -418,6 +434,7 @@ export function createAnimator(character) {
       // Opening the backpack (systems/inventoryAccess.js): both arms hold it against the chest, the free hand
       // lifts the flap and the head bows over it. `reach` is how far it has come round, `open` the flap, `look` the bow.
       if (input.pack) packPose(pose, input.pack);
+      if (input.pain) painPose(pose, input.pain);
       // Holding something (a cart, a body, a bow) keeps the pose while walking.
       if (input.activity && (state.move < .3 || ['pull', 'carry', 'aim_low', 'aim', 'draw_bow', 'swim', 'sneak', 'guardReady', 'search', 'warn', 'shieldUp'].includes(input.activity))) activityPose(pose, input.activity, state.time);
     }

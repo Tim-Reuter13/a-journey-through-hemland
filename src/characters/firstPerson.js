@@ -250,7 +250,8 @@ export function createFirstPerson() {
   key.position.set(-1, 2, 3); scene.add(sky, key, lamp);
   const viewInverse = new THREE.Quaternion();
   const rig = new THREE.Group(); scene.add(rig);
-  let packRoot = null, packPose = null;
+  let packRoot = null, packPose = null, handBlood = 0;
+  const _bloodHand = new THREE.Color(0x6a0a14);
   const _v = new THREE.Vector3(), _qa = new THREE.Quaternion(), _ea = new THREE.Euler();
   const right = new THREE.Group(), left = new THREE.Group(); rig.add(right, left);
   // Light neutral ramp, tinted to the player's skin tone in update().
@@ -444,7 +445,7 @@ export function createFirstPerson() {
   }
   function update(dt, player, worldCamera, action, guard, bow = { raise: 0, draw: 0, release: 0, nocked: false, equipped: false }, worldLight = null) {
     light(worldLight, worldCamera);
-    skin.color.set(APPEARANCE_OPTIONS.skins[player.appearance?.skin ?? 2] || APPEARANCE_OPTIONS.skins[2]);
+    skin.color.set(APPEARANCE_OPTIONS.skins[player.appearance?.skin ?? 2] || APPEARANCE_OPTIONS.skins[2]).lerp(_bloodHand, handBlood * .6);   // a bloody fist darkens the hand
     sleeve.color.set(player.sleeveColor || '#3a4a5a').multiplyScalar(.85);
     // Gloves and bracers from the hands slot (main.js handGear), in their own colours.
     const gear = player.handGear || {};
@@ -524,6 +525,8 @@ export function createFirstPerson() {
     update, reset,
     /** The backpack of the inventory animation lives in the hand scene (systems/inventoryAccess.js). */
     attachPack(object) { packRoot = object; scene.add(object); }, setPack(pose) { packPose = pose; },
+    /** The sword model in view and the arm that holds it (systems/bladeBlood.js stains them). */
+    swordItem: () => weapon.sword.children[0] || null, setBlood(amount) { handBlood = amount; },
     /** Strength (0..1) of a slosh against the glass worth a sound since the last call, else 0. */
     sloshCue: () => flask.takeCue(),
     /** The free hand reaches out (taking, opening, looting). */

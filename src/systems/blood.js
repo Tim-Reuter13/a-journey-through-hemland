@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { atlasMapFor } from '../characters/modular.js';
+import { traceSpellSurface } from './spellFx.js';
 import { createHeightCache } from '../world/heightCache.js';
 import { TILE, CELL, FILM, KIND, CORE, flowStep, absorb, poolPixel, bodyPixel, uvFrame, pixelStep, linePixels, regionOf, REGIONS, cellHash } from './bloodSim.js';
 
@@ -66,7 +67,7 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
     const data = new Uint8Array(TILE * TILE * 4), tex = new THREE.DataTexture(data, TILE, TILE, THREE.RGBAFormat);
     tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace; tex.generateMipmaps = false; tex.needsUpdate = true;
     const geometry = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG); geometry.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: .5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: .5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .2 });
     const mesh = new THREE.Mesh(geometry, mat); mesh.visible = false; mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.name = 'Blood pool'; root.add(mesh);
     return { vol: new Float32Array(TILE * TILE), next: new Float32Array(TILE * TILE), ground: new Float32Array(TILE * TILE), spill: new Float32Array(TILE * 4), data, tex, mesh,
       ix: 0, iz: 0, key: '', used: false, lastAdd: 0, lastStep: 0, settled: true, dirty: false, shade: -1, absorbRate: .03, total: 0 };
@@ -267,6 +268,25 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
     }
   }
 
+  // ── Blood thrown against a wall stays there: a splat with drips, from a small pool of decals.
+  const splatMaterials = [3, 11, 29].map(seed => {
+    const data = new Uint8Array(16 * 16 * 4), rnd = (x, y) => { let h = Math.imul(x * 73 + seed, 668265263) ^ Math.imul(y * 41 + seed * 7, 374761393); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    const cx = 7.5 + rnd(1, 1) * 1.5 - .7, cy = 10.5 + rnd(2, 2) * 1.5, r = 3 + rnd(3, 3) * 2.2;     // row 0 is the bottom of the image
+    const put = (x, y, rim) => { if (x < 0 || y < 0 || x > 15 || y > 15) return; const i = (y * 16 + x) * 4, c = rim ? [96, 8, 16] : [150, 14, 24]; data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = 255; };
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const d = Math.hypot(x - cx, (y - cy) * 1.1), edge = r * (.7 + rnd(x, y) * .55); if (d < edge) put(x, y, d > edge * .78); }
+    for (let k = 0; k < 3; k++) { const x = Math.round(cx - 2 + k * 2 + rnd(k, 9) * 1.5), len = 2 + Math.floor(rnd(k, 5) * 6); for (let j = 0; j < len; j++) put(x, Math.round(cy - r * .6) - j, j === len - 1); }
+    const tex = new THREE.DataTexture(data, 16, 16, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.NearestFilter; tex.colorSpace = THREE.SRGBColorSpace; tex.generateMipmaps = false; tex.needsUpdate = true;
+    return new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: .5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: .2 });
+  });
+  const splatGeometry = new THREE.PlaneGeometry(1, 1), splats = Array.from({ length: 18 }, (_, i) => { const m = new THREE.Mesh(splatGeometry, splatMaterials[i % 3]); m.visible = false; m.name = 'Blood splat'; root.add(m); return m; });
+  let splatCursor = 0;
+  const _trace = { point: new THREE.Vector3(), normal: new THREE.Vector3() }, _look = new THREE.Vector3();
+  function wallSplat(point, normal, size) {
+    const m = splats[splatCursor++ % splats.length];
+    m.material = splatMaterials[(Math.random() * 3) | 0];
+    m.position.copy(point).addScaledVector(normal, .014); m.lookAt(_look.copy(point).add(normal)); m.scale.setScalar(size); m.visible = true;
+  }
+
   // ── Character skins.
   const skins = new WeakMap(), allEntries = new Set();
   function makeEntry(canvas, texture, atlas, model) {
@@ -398,7 +418,7 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
       w.loss = dead ? 0 : ({ light: .45, heavy: 1.2, artery: 2.4 }[w.bleed] || .5) * w.severity * Math.max(0, 1 - w.t / w.clot);
       if (dead) {
         const k = 1 - w.deadT / w.region.after;
-        rate = (w.bleed === 'artery' ? 30 : w.bleed === 'heavy' ? 20 : 8) * w.severity * k * k;
+        rate = (w.bleed === 'artery' ? 46 : w.bleed === 'heavy' ? 32 : 13) * w.severity * k * k;
       } else if (w.bleed === 'artery') {
         // A pulse every ~0.8 s: a hard jet, fading as the pressure drops.
         w.pulse += dt * (1.2 + (1 - hpFrac) * .6);
@@ -412,14 +432,14 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
         }
         rate = 6 * Math.max(0, 1 - w.t / w.clot);
       } else {
-        rate = (w.bleed === 'heavy' ? 5 : 2.2) * w.severity * Math.max(0, 1 - w.t / w.clot) * (hpFrac < .4 ? 1.4 : 1);
+        rate = (w.bleed === 'heavy' ? 8 : 3.6) * w.severity * Math.max(0, 1 - w.t / w.clot) * (hpFrac < .4 ? 1.4 : 1);
       }
       w.acc += rate * dt;
       while (w.acc >= 1) {
         w.acc--;
         _v.copy(wn).multiplyScalar(dead ? .5 : 1.1).addScaledVector(wv, .6); _v.x += rand(-.35, .35); _v.z += rand(-.35, .35);
         _w.copy(wp); _w.x += rand(-.03, .03); _w.z += rand(-.03, .03);
-        emitDrop(_w, _v, 1, .38, 1.3, .3);
+        emitDrop(_w, _v, 1, .46, 1.3, .3);
       }
     }
   }
@@ -437,7 +457,9 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
     const kind = info.kind || 'sword', combo = info.combo ?? 0, amount = info.amount ?? 20;
     model.updateWorldMatrix(true, true);
     const skin = skinOf(model), meshes = skin.meshes;
-    const base = model.getWorldPosition(new THREE.Vector3()), height = actor.aim ?? (actor.kind === 'wolf' ? .9 : (1.6 * (model.scale?.y || 1)));
+    const base = model.getWorldPosition(new THREE.Vector3());
+    if (actor.dead && actor.ragdoll?.position) { base.copy(actor.ragdoll.position()); base.y -= .45; }
+    const height = actor.aim ?? (actor.kind === 'wolf' ? .9 : (1.6 * (model.scale?.y || 1)));
     const fwd = new THREE.Vector3(base.x - from.x, 0, base.z - from.z); if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1); fwd.normalize();
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     const target = new THREE.Vector3(), origin = new THREE.Vector3(), dir = new THREE.Vector3(), blow = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
@@ -465,6 +487,7 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
       const atlas = entry.atlas, idx = py * W + px;
       let cls = atlas ? atlas.classes[atlas.classAt[idx] - 1] || 'skin' : 'skin';
       if (mesh.name === 'shield:mesh') cls = 'plate';
+      if (info.armored && cls !== 'mail') cls = 'plate';   // a full suit shows no flesh anywhere: sparks and nicks, never blood
       result.cls = cls;
       if (info.dry) return result;   // only asked what it would hit (armour decides how much a blow hurts)
       const clip = atlas ? atlas.islandAt[idx] : 0;
@@ -527,6 +550,7 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
       skin.entries.forEach(flush);
     } else {
       result.region = height > 0 && target.y - base.y > height * .85 ? REGIONS.head : target.y - base.y < height * .4 ? REGIONS.leg : REGIONS.torso;
+      if (info.armored) result.armoured = true;
     }
     // Spray: toward the attacker as the blade bites, and out the back along the blow when it is a deep one.
     if (info.dry) return result;
@@ -534,17 +558,22 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
       const severity = result.region.severity, heavy = kind === 'sword' && (combo === 2 || amount > 30);
       const spot = result.point, jet = new THREE.Vector3();
       jet.copy(normal).multiplyScalar(.7).addScaledVector(blow, .5).normalize();
-      spurt(spot, jet, Math.round((5 + severity * 4) * (heavy ? 1.25 : 1)), { speed: 2.1 + severity * .5, spread: .7 });
+      spurt(spot, jet, Math.round((10 + severity * 7) * (heavy ? 1.3 : 1)), { speed: 2.1 + severity * .5, spread: .75 });
       // Cast-off: drops thrown along the swing land in a line across the ground (the pools build the pattern).
       if (kind === 'sword') {
         jet.copy(blow).multiplyScalar(-1).addScaledVector(fwd, .6); jet.y = Math.abs(jet.y) * .5 + .2;
-        spurt(spot, jet, 4 + (heavy ? 3 : 0), { speed: 3.1, spread: .3, size: 1, vol: .45 });
+        spurt(spot, jet, 7 + (heavy ? 4 : 0), { speed: 3.1, spread: .3, size: 1, vol: .45 });
       }
       if (result.region.bleed === 'artery') {
         jet.copy(normal).multiplyScalar(2.2); jet.y += 2.2;
-        spurt(spot, jet, 8, { speed: 3.8, spread: .25 });
+        spurt(spot, jet, 13, { speed: 3.8, spread: .25 });
       }
       pool(spot.x + normal.x * .15, spot.z + normal.z * .15, 1.2 + severity, 2);
+      // A hard blow throws blood against a wall behind or beside the wounded.
+      if (severity > .7 && Math.random() < .55) {
+        jet.copy(blow).addScaledVector(normal, .4).normalize();
+        if (traceSpellSurface(world, spot, _a.copy(spot).addScaledVector(jet, 2.8), _trace) && !_trace.ground && Math.abs(_trace.normal.y) < .5) wallSplat(_trace.point, _trace.normal, .45 + severity * .22);
+      }
     }
     return result;
   }
@@ -556,7 +585,9 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
     bodies.set(actor, { x: p.x, z: p.z, age: 0 });
     const mine = wounds.filter(w => w.actor === actor);
     const sev = mine.reduce((s, w) => Math.max(s, w.severity), .8);
-    pool(p.x, p.z, 70 + sev * 45, 6);
+    // A suit of plate keeps the blood in: only a little seeps out at the joints.
+    if (actor.suited) { pool(p.x, p.z, 18, 3); return; }
+    pool(p.x, p.z, 120 + sev * 70, 7);
     if (quiet) return;
     // A gush as the body drops.
     spurt(new THREE.Vector3(p.x, p.y + 1.1, p.z), new THREE.Vector3(0, .6, 0), 14, { speed: 2.2, spread: 1 });
@@ -587,11 +618,12 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
     for (let i = 0; i < DROPS; i++) dropMesh.setMatrixAt(i, hidden);
     for (const c of clouds) c.life = 0;
     for (const t of tiles.values()) { t.mesh.visible = false; spare.push(t); }
+    for (const m of splats) m.visible = false;
     tiles.clear(); wounds.length = 0; runs.length = 0; runners.length = 0; bodies.clear();
     for (const e of allEntries) { e.layer.fill(0); e.box = [0, 0, e.w - 1, e.h - 1]; e.wetPixels = 0; flush(e); }
   }
   /** Shows the pooled meshes for one shader-compile pass, then hides them again. */
-  function warm(on) { for (const t of spare) t.mesh.visible = on; cloudMesh.visible = true; }
+  function warm(on) { for (const t of spare) t.mesh.visible = on; for (const m of splats) m.visible = on; cloudMesh.visible = true; }
   return {
     strike, killed, spurt, pool, update, reset, warm, wetAt: volumeAt, addWound,
     /** Hit points an actor is losing to its open wounds, per second. */

@@ -34,6 +34,7 @@ import { createCombat, ARCHER_DRAW } from './systems/combat.js';
 import { createWildfire } from './systems/wildfire.js';
 import { loadBackpack } from './characters/backpack.js';
 import { createInventoryAccess } from './systems/inventoryAccess.js';
+import { createBloodScreen } from './ui/bloodScreen.js';
 import { BOW } from './systems/archery.js';
 import { createFirstPerson } from './characters/firstPerson.js';
 import { createAmbience } from './audio/ambience.js';
@@ -559,7 +560,7 @@ function rememberSpared(e) {
 const ambientFx = createAmbientFx(scene, { heightAt: world.heightAt, biomeWeights, waterLevel: WATER_LEVEL });
 const ambientSun = v3(0, 1, 0);
 // Prints in sand, road dust, mud and snow (world/tracks.js), left by everyone walking near the wanderer.
-const tracks = createTracks(scene, { heightAt: world.terrainHeightAt, groundAt: world.groundAt });
+const tracks = createTracks(scene, { heightAt: world.terrainHeightAt, groundAt: world.groundAt, bloodAt: (x, z) => combat.effects.blood.wetAt(x, z) });
 const PAWS = { wolf: 'paw', fox: 'paw', hare: 'paw', deer: 'hoof' };
 function leaveTracks(dt) {
   const near = p => Math.abs(p.x - player.position.x) < 40 && Math.abs(p.z - player.position.z) < 40;
@@ -851,7 +852,7 @@ function resetGame(clearSave = true) {
   }
   physics.release();
   if (inCave) leaveCave({ teleport: false });
-  resetCharacter(player); rpg.reset(); keys.clear(); combat.reset(); wildfire.reset(); access.reset(); firstPerson.reset(); talkingNPC=null; horseLoad(null);
+  resetCharacter(player); rpg.reset(); keys.clear(); combat.reset(); wildfire.reset(); access.reset(); bloodScreen.clear(); firstPerson.reset(); talkingNPC=null; horseLoad(null);
   syncDropBags();
   if (game.modal === 'inventory') inventoryUI.open();
   stopVoice(); game.cinematic = null; game.cinematicTime = 0;
@@ -1500,6 +1501,7 @@ function applyHeal(){
   toast('HEILTRANK · +45 LEBEN',2000);updateHUD();saveGame(false);
 }
 function hurt(amount) {
+  bloodScreen.splat(clamp(amount / Math.max(1, player.maxHp), .05, 1) * (player.mode === 'first' ? 1 : .55));
   if (player.invuln > 0 || player.hp <= 0 || player.fly) return;
   const stats = itemStats();
   amount = Math.max(1, amount - stats.armor);
@@ -2046,10 +2048,12 @@ function animate(now) {
   updateSoundscape(dt);
   compass.update(player.yaw,player.position,compassMarkers());
   profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) leaveTracks(visualDt); profile.mark('world');
-  wildfire.update(game.paused ? 0 : visualDt, camera);
+  wildfire.update(game.paused ? 0 : visualDt, camera); bloodScreen.update(dt);
   if (game.started && !game.paused && (fireTick -= dt) <= 0) { fireTick = .25; fireHazards(); bleedTick(.25); }
   updateParticles(visualDt);
   combat.effects.update(game.paused?0:dt,camera);
+  combat.effects.blade.sync(playerModel.userData.weapon);
+  if (player.mode === 'first') { combat.effects.blade.sync(firstPerson.swordItem()); firstPerson.setBlood(combat.effects.blade.amount); }
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
   renderer.info.autoReset=false;renderer.info.reset();
   const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first'&&(!horses.riding||horses.mounted);
@@ -2068,6 +2072,7 @@ const wildfire = createWildfire({ scene, world, sound: kind => combat.effects.so
 combat.spellFx.onIgnite = (point, normal, enemy, opts) => { if (world.water?.at(point.x, point.z)) { wildfire.steam(point.x, point.z, 4); return; } wildfire.ignite(point, opts || { power: 1, radius: 2.2 }); };
 combat.spellFx.onSteam = (x, z, n) => wildfire.steam(x, z, n);
 let fireTick = 0, fireWarned = 0;
+const bloodScreen = createBloodScreen();   // blood on the lens when the wanderer is hurt
 // Opening the inventory is an act (systems/inventoryAccess.js): the backpack swings round, the flap opens, the camera
 // glides in, then the menu fades in over it. While it plays the wanderer neither walks nor fights.
 const access = createInventoryAccess({ scene, player, firstPerson, blocked: (x, z, y) => world.blocked(x, z, .3, y - .4, .6), puff: p => combat.effects.spray(p, v3(0, 1, 0), 'dust', 9), sound: kind => combat.effects.sound(kind === 'packOpen' ? 'drink' : 'slosh') });
@@ -2087,6 +2092,12 @@ function bleedTick(dt) {
       motion.impact(e.model, { force: .9 + (1 - e.hp / e.maxHp), dir: v3(Math.random() - .5, 0, Math.random() - .5).normalize() });
     }
   }
+}
+/** How the pain of a recent wound (or a body low on blood) shows in an enemy's pose: { region, side, k }. */
+function painInput(e) {
+  if (!e.pain) return e.hp < e.maxHp * .3 ? { region: 'torso', side: 'left', k: .35 } : null;
+  const k = Math.max(0, 1 - (performance.now() - e.pain.at) / 1700), weak = e.hp < e.maxHp * .3 ? .35 : 0;
+  return Math.max(k, weak) > .02 ? { region: e.pain.region, side: e.pain.side, k: Math.max(k, weak) } : null;
 }
 function fireHazards() {
   for (const e of enemies) if (!e.dead && wildfire.heatAt(e.model.position.x, e.model.position.z) > .5) combat.spellFx.ignite(e, 12);
@@ -2212,15 +2223,15 @@ function registerBodies() {
   for (const model of [...motion.actors.keys()]) if (!model.parent) motion.remove(model);
 }
 /** A blow from the wanderer lands: where it lands follows the swing (high or low with the view, from the side the blade comes). */
-function enemyImpact(e, { kind, from, combo = 0, amount = 0, shield = false, magic = false, force }) {
+function enemyImpact(e, { kind, from, combo = 0, amount = 0, shield = false, magic = false, force, point: aimed = null, region = null }) {
   if (shield) return motion.impact(e.model, { shield: true, force, from });
   const p = e.model.position, s = e.model.scale.y || 1, fwd = v3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), right = v3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
   const centre = p.clone().add(v3(0, 1.4 * s, 0));
   if (kind === 'arrow') { const dir = centre.clone().sub(from).normalize(); return motion.impact(e.model, { from, point: from.clone().addScaledVector(dir, 2), force: .55, damage: amount, dir }); }
   const side = combo === 0 ? 1 : combo === 1 ? -1 : 0;
-  const point = p.clone().add(v3(0, THREE.MathUtils.clamp(1.45 + player.pitch * 1.6, .45, 2.1) * s, 0)).addScaledVector(right, side * .25);
+  const point = aimed ? aimed.clone() : p.clone().add(v3(0, THREE.MathUtils.clamp(1.45 + player.pitch * 1.6, .45, 2.1) * s, 0)).addScaledVector(right, side * .25);
   const dir = fwd.clone().addScaledVector(right, -side * .7).normalize();
-  const strength = kind === 'parried' ? 1.7 : magic ? 1.9 : combo === 2 ? 2.3 : 1.15;
+  const strength = (kind === 'parried' ? 1.7 : magic ? 1.9 : combo === 2 ? 2.3 : 1.15) * (region === 'leg' || region === 'foot' ? 1.5 : region === 'head' ? 1.3 : 1);
   return motion.impact(e.model, { from: player.position, point, force: strength, damage: amount, dir });
 }
 function playerImpact(e, { damage = 0, heavy = false, blocked = false }) {
@@ -2484,7 +2495,7 @@ function animateActors(dt, voice) {
     const pose = e.ai && !e.dead ? (e.shieldUp && e.ai.intent.pose !== 'surrender' ? 'shieldUp' : e.ai.intent.pose) : e.goblin && !e.dead ? e.goblinPose : null, fighting = near && !e.calm && (!e.ai || e.ai.hostility === 'hostile');
     const spell = e.casting || e.castRelease > 0 ? { kind: 'cast', progress: e.casting ? .3 * (1 - e.windup / (e.windupTotal || 1)) : .3 + .7 * (1 - e.castRelease / .5) } : null;
     if (e.casting && near && Math.random() < .5) combat.effects.spray(e.model.userData.rig?.hand_left?.getWorldPosition(v3(0, 0, 0)) ?? e.model.position.clone().add(v3(0, 1.5, 0)), v3(0, .6, 0), e.casting === 'heal' ? 'heal' : 'ember', 1);
-    if (!e.ragdoll && !motion.isDown(e.model)) e.animator.update(dt, { ...motion.animInput(e.model), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
+    if (!e.ragdoll && !motion.isDown(e.model)) e.animator.update(dt, { ...motion.animInput(e.model), pain: painInput(e), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
     if (e.guardBroken > 0) e.guardBroken = Math.max(0, e.guardBroken - dt);
     if (e.ai && !e.dead) holdWeapons(e);
     if (e.archer) poseEnemyBow(e, drawing);

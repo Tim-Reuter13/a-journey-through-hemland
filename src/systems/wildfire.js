@@ -101,7 +101,8 @@ export function createWildfire({ scene, world, sound = () => {} }) {
       b.duration = b.life = 1.4 + Math.random() * 1.2; b.size = .25 + Math.random() * .3; b.swirl = Math.random() * 6;
     }
   }
-  const sim = createFireSim({ fuelAt, canopiesNear, heightAt: (x, z) => groundY(x, z), wind, onCell, onTree, onBrand, onSteam });
+  // No flying brands: a fire spreads only along the ground and through crowns that touch, never by sparks (decorative embers stay close and die at once).
+  const sim = createFireSim({ fuelAt, canopiesNear, heightAt: (x, z) => groundY(x, z), wind, onCell, onTree, onBrand: () => {}, onSteam });
 
   // ── Emission.
   const slope = new THREE.Vector3();
@@ -119,8 +120,8 @@ export function createWildfire({ scene, world, sound = () => {} }) {
   }
   function emitEmber(x, y, z, up = 1.5) {
     const b = embers.take(); if (!b) return;
-    b.p.set(x, y, z); b.duration = b.life = .9 + Math.random() * 1.6;
-    b.v.set((Math.random() - .5) * .8 + wind.x * 1.3, up * (.6 + Math.random()), (Math.random() - .5) * .8 + wind.z * 1.3);
+    b.p.set(x, y, z); b.duration = b.life = .35 + Math.random() * .55;
+    b.v.set((Math.random() - .5) * .6 + wind.x * .35, up * (.5 + Math.random() * .6), (Math.random() - .5) * .6 + wind.z * .35);
     b.size = .04 + Math.random() * .03; b.swirl = Math.random() * 6; b.brand = false;
   }
   function emitAsh(x, y, z) {

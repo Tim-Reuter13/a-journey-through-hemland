@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { block, boxGeometry } from '../art/blocks.js';
 import { pixelMaterial } from '../art/pixelTextures.js';
 import { createBlood } from './blood.js';
+import { createBladeBlood } from './bladeBlood.js';
 
 export function createCombatEffects(scene,world) {
   const bits=[],numbers=[],arcs=[];
@@ -68,6 +69,8 @@ export function createCombatEffects(scene,world) {
   const rand=(a,b)=>a+Math.random()*(b-a),tmpDir=new THREE.Vector3();
   // Blood is its own system (blood.js): pixel fluid on the ground, wounds painted into the characters' textures.
   const blood=createBlood(scene,world,{spark:(point,normal,count)=>spray(point,normal,'ember',count),sound:kind=>sound(kind)});
+  // The blade (and the hand that holds it) takes the blood of every cut that goes into flesh; main.js keeps the slabs on whatever is held.
+  const blade=createBladeBlood({drip:point=>blood.spurt(point,new THREE.Vector3(0,-1,0),1,{speed:.2,spread:.1})});
   function spray(position,direction,color='blood',count=18){
     if(color==='blood'){blood.spurt(position,direction,count);return;}
     const k=KINDS[color]||KINDS.ember;
@@ -95,7 +98,7 @@ export function createCombatEffects(scene,world) {
   /** What a blow would hit (skin, cloth, leather, mail, plate): nothing is painted. */
   function probe(enemy,from,info){return blood.strike(enemy,from,{...info,dry:true});}
   /** A blow on a corpse: it is cut, and bleeds from the new wound. */
-  function corpseHit(enemy,from,combo=0){return blood.strike(enemy,from,{kind:'sword',combo,amount:26});}
+  function corpseHit(enemy,from,combo=0,point=null){const r=blood.strike(enemy,from,{kind:'sword',combo,amount:30,point});if(r&&!r.armoured)blade.add(.18);return r;}
   /** An old wound on an enemy that was saved hurt: the cut is drawn, nothing sprays. */
   function wound(enemy,from){blood.strike(enemy,from,{kind:'sword',combo:0,amount:12,quiet:true});}
   // The player's own body takes cuts the same way (visible in third person); main.js hands over the actor.
@@ -122,9 +125,10 @@ export function createCombatEffects(scene,world) {
     const direction=point.clone().sub(from).normalize();
     let result=null;
     if(magic)blood.spurt(point,direction,6,{speed:1.8});
-    else result=blood.strike(enemy,from,{kind:info.kind||'sword',combo:info.combo??0,amount,point:info.point});
+    else result=blood.strike(enemy,from,{kind:info.kind||'sword',combo:info.combo??0,amount,point:info.point,armored:info.armored});
     if(enemy.hp<=0)killed(enemy);
     damageNumber(point,amount,enemy.hp<=0?'fatal':'');hitTime=.17;shake=.035;
+    if(result&&!result.armoured)blade.add(.22+(result.region?.severity||1)*.1);
     if(!magic)sound(result?.armoured?'parry':'impact');
     document.getElementById('hit-marker').classList.toggle('fatal',enemy.hp<=0);
     return result;
@@ -156,7 +160,7 @@ export function createCombatEffects(scene,world) {
     scene.add(m);arcs.push({mesh:m,material,life:.13});
   }
   function update(dt,camera){
-    blood.update(dt,camera);
+    blood.update(dt,camera);blade.update(dt);
     hitTime=Math.max(0,hitTime-dt);shake*=Math.exp(-dt*18);
     document.getElementById('hit-marker').classList.toggle('hidden',hitTime<=0);
     for(let i=bits.length-1;i>=0;i--){const p=bits[i],k=p.kind||KINDS.blood;p.life-=dt;
@@ -179,7 +183,7 @@ export function createCombatEffects(scene,world) {
   }
   function reset(){
     for(const p of bits){p.mesh.visible=false;p.life=0;p.mesh.scale.setScalar(1);}bits.length=0;for(const p of puffs){p.life=0;p.mesh.visible=false;}
-    blood.reset();
+    blood.reset();blade.reset();
     for(const n of numbers)n.node.remove();numbers.length=0;
     // Arc boxes use the shared geometry cache; the pooled materials stay alive so their program does too.
     for(const a of arcs){a.mesh.removeFromParent();a.material.userData.busy=false;}arcs.length=0;hitTime=0;shake=0;
@@ -188,6 +192,6 @@ export function createCombatEffects(scene,world) {
   // pool never compiles a shader mid-fight; call warm(false) right after.
   const warmMeshes=[...new Set([...Object.values(bitMaterials),sparkMaterial,...slashPool])].map(material=>{const m=new THREE.Mesh(unit,material);m.visible=false;m.frustumCulled=false;scene.add(m);return m;});
   function warm(on){for(const m of warmMeshes)m.visible=on;for(const p of puffs)p.mesh.visible=on;blood.warm(on);}
-  return {hit,probe,corpseHit,wound,killed,hurtPlayer,setPlayer,spray,groundStain,slash,sound,burnDamage,update,reset,warm,blood,
+  return {hit,probe,corpseHit,blade,wound,killed,hurtPlayer,setPlayer,spray,groundStain,slash,sound,burnDamage,update,reset,warm,blood,
     get shake(){return shake;},state:()=>({wounds:blood.state().wounds,bloodStains:blood.state().tiles,particles:bits.length,blood:blood.state()})};
 }

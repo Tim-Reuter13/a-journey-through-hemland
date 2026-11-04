@@ -335,8 +335,12 @@ a backpack animation for the inventory in first and third person, made in Blockb
   trees drawn by the shaders; burning men light grass and are put out by water; a burning shield is thrown away by its bearer.
 - [x] Backpack (art/blockbench/models.js › backpack, characters/backpack.js, systems/inventoryAccess.js): swings round, flap opens,
   camera glides in, menu rises; first and third person.
-- [ ] Not built yet: blood on the blade and on the first-person hand, bloody footprints, screen blood, wall splatter decals, fire on
-  buildings and thatch, rain, burning arrows, animals and villagers fleeing fire, regrowth of burnt ground.
+- [x] Round 3 (2026-11-04): blood on the blade and the first-person hand, bloody footprints, blood on the lens, wall splats; no sparks
+  that carry fire; ground and body blood share one palette; blows have a real height and arc (pitch, distance, angle), hit legs / head /
+  arms with pain and a limp, shield covers the body but not the legs; heavy suits (Rauk) never bleed from physical blows; corpses
+  (ragdoll position) can be cut and shoved; hurt fighters clutch the wound.
+- [ ] Not built yet: fire on buildings and thatch, rain, burning arrows, animals and villagers fleeing fire, regrowth of burnt ground,
+  muscle-driven ragdoll reactions beyond HUMANITY MOTION's existing zones.
 - Feedback 2026-11-03 (fixed): fire spread far too fast and wide; trees burned out too fast and always bottom-up; blood sprays too
   long, too thick; Rauk took belly damage through visible armour; arrows did not always leave blood; shield particles overdone;
   first-person sword hand came in from the left; third-person backpack view was terrible.

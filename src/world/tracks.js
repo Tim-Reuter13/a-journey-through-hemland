@@ -88,7 +88,8 @@ function printTextures(kind) {
  * heightAt(x, z): the ground under a point; groundAt(x, z): 'sand' | 'wetsand' | 'path' | 'mud' | 'snow' | null.
  * Floors that are not the terrain (cave floors) pass their own ground kind and height to step() and stamp().
  */
-export function createTracks(scene, { heightAt, groundAt, capacity = 360 }) {
+const BLOOD_PRINT = new THREE.Color(0x6e0a14);
+export function createTracks(scene, { heightAt, groundAt, capacity = 360, bloodAt = null }) {
   const root = new THREE.Group(); root.name = 'tracks'; scene.add(root);
   const color = new THREE.Color(), matrix = new THREE.Matrix4(), q = new THREE.Quaternion(), turn = new THREE.Quaternion(), normal = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
   const pos = new THREE.Vector3(), scale = new THREE.Vector3(1, 1, 1);
@@ -115,15 +116,16 @@ export function createTracks(scene, { heightAt, groundAt, capacity = 360 }) {
   }));
   const walkers = new Map();
 
-  function place(kind, x, z, yaw, ground, weight = 1, y = null) {
+  function place(kind, x, z, yaw, ground, weight = 1, y = null, stain = 0) {
     const set = sets[kind], g = GROUND[ground], i = set.next; set.next = (i + 1) % set.prints.length;
     const gy = y ?? heightAt(x, z);
     // Lie on the slope: the ground's normal from its height a step either way (flat on a cave floor).
     if (y === null) normal.set(heightAt(x - .3, z) - heightAt(x + .3, z), .6, heightAt(x, z - .3) - heightAt(x, z + .3)).normalize(); else normal.copy(up);
     turn.setFromAxisAngle(up, yaw); q.setFromUnitVectors(up, normal).multiply(turn);
     set.mesh.setMatrixAt(i, matrix.compose(pos.set(x, gy + .02, z), q, scale));
-    set.mesh.setColorAt(i, color.setHex(g.color));
-    Object.assign(set.prints[i], { age: 0, life: g.life * (.85 + Math.random() * .3), alpha: g.alpha, depth: g.depth * weight * (WEIGHT[kind] ?? 1), settle: g.settle });
+    color.setHex(g.color); if (stain > .05) color.lerp(BLOOD_PRINT, Math.min(1, stain * 1.3));   // feet that stood in blood print it, fainter with every step
+    set.mesh.setColorAt(i, color);
+    Object.assign(set.prints[i], { age: 0, life: g.life * (.85 + Math.random() * .3) * (stain > .05 ? 1.8 : 1), alpha: stain > .05 ? Math.max(g.alpha, .35 + stain * .5) : g.alpha, depth: g.depth * weight * (WEIGHT[kind] ?? 1), settle: g.settle });
     set.mesh.count = Math.max(set.mesh.count, i + 1);
     set.mesh.instanceMatrix.needsUpdate = true; set.mesh.instanceColor.needsUpdate = true;
   }
@@ -144,9 +146,11 @@ export function createTracks(scene, { heightAt, groundAt, capacity = 360 }) {
       if (w.run < def.stride || d < 1e-4) return;
       w.run %= def.stride; w.side = -w.side;
       if (!floor && Math.abs(y - heightAt(x, z)) > .3) return;
-      const ground = floor || groundAt(x, z); if (!ground) return;
+      if (bloodAt && bloodAt(x, z) > .25) w.stain = 1;
+      const ground = floor || groundAt(x, z) || ((w.stain || 0) > .12 ? 'mud' : null); if (!ground) return;
       const yaw = Math.atan2(-dx, -dz), px = Math.cos(yaw) * def.offset * w.side, pz = -Math.sin(yaw) * def.offset * w.side;
-      place(kind, x + px, z + pz, yaw, ground, weight, floor ? y : null);
+      place(kind, x + px, z + pz, yaw, ground, weight, floor ? y : null, w.stain || 0);
+      w.stain = (w.stain || 0) * .82;
     },
     /** A print exactly where a foot or hoof came down (an animator's footfall), facing yaw. */
     stamp(x, z, yaw, kind = 'horseshoe', weight = 1, y = null, floor = null) {
