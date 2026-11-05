@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BOUNDS, CHUNK, WATER_LEVEL, biomeWeights } from './hemland.js';
 import { buildChunkMesh } from './terrain.js';
-import { scatterChunk, groundCoverChunk } from './flora.js';
+import { scatterChunk, groundCoverChunk, plantsChunk } from './flora.js';
 import { batchScenery } from './batching.js';
 import { collidersFrom } from './navigation.js';
 import { treeMeshes, showTreeDetail } from './trees.js';
@@ -23,7 +23,7 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
 
   function chunk(cx, cz) {
     const k = key(cx, cz);
-    if (!chunks.has(k)) chunks.set(k, { cx, cz, lod: -1, mesh: null, water: null, scatter: null, trees: null, near: null, ground: null, colliders: [], physicsBodies: [], terrainCollider: null });
+    if (!chunks.has(k)) chunks.set(k, { cx, cz, lod: -1, mesh: null, water: null, scatter: null, trees: null, near: null, ground: null, colliders: [], physicsBodies: [], terrainCollider: null, flora: null });
     return chunks.get(k);
   }
   const jobs = {
@@ -41,6 +41,12 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
       showTreeDetail(c.trees, c.near);
       root.add(group); c.scatter = group;
       for (const col of c.colliders) collision.add(col);
+    },
+    flora(c) {
+      const group = new THREE.Group(); group.name = `plants ${c.cx},${c.cz}`;
+      plantsChunk(group, field, biomeWeights, WATER_LEVEL, c.cx * CHUNK, c.cz * CHUNK, CHUNK, seeded(c.cx * 6700417 + c.cz * 1299709 + 29), avoidTrees);
+      batchScenery(group, new Set(), 64);
+      root.add(group); c.flora = group;
     },
     water(c) {
       const mesh = water.chunkMesh(c.cx, c.cz);
@@ -63,6 +69,12 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
     c.scatter.traverse(o => { if (o.isMesh && o.name === 'Static scenery cell') o.geometry.dispose(); });
     collision.remove(c.colliders); c.colliders = []; c.scatter = null; c.trees = null;
   }
+  function dropFlora(c) {
+    if (!c.flora) return;
+    root.remove(c.flora);
+    c.flora.traverse(o => { if (o.isMesh && o.name === 'Static scenery cell') o.geometry.dispose(); });
+    c.flora = null;
+  }
   function dropGround(c) { if (c.ground && c.ground !== 'empty') { root.remove(c.ground); c.ground.geometry.dispose(); c.ground.dispose(); } c.ground = null; }
   function dropPhysics(c) {
     if (c.terrainCollider) physics.removeCollider(c.terrainCollider);
@@ -70,7 +82,7 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
     c.terrainCollider = null; c.physicsBodies = [];
   }
   function drop(c) {
-    dropScatter(c); dropGround(c); if (physics) dropPhysics(c);
+    dropScatter(c); dropFlora(c); dropGround(c); if (physics) dropPhysics(c);
     if (c.mesh) { root.remove(c.mesh); c.mesh.geometry.dispose(); onTerrain?.(c.cx, c.cz, false); }
     if (c.water && c.water !== 'dry') { root.remove(c.water); c.water.userData.dispose?.(); }
     chunks.delete(key(c.cx, c.cz));
@@ -87,10 +99,13 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
       if (!inside(cx, cz)) continue;
       const ring = Math.max(Math.abs(dx), Math.abs(dz)), c = chunk(cx, cz);
       const lod = ring <= 1 ? 0 : ring === 2 ? 1 : 2;
-      if (c.lod !== lod) todo.push([ring, () => jobs.terrain(c, lod), `terrain${lod}`]);
+      // The heights (about 18 ms for a chunk) are their own job, a frame before the mesh is built from them: no single job takes both.
+      if (c.lod !== lod) { todo.push([ring - .1, () => field.grid(c.cx, c.cz), 'heights']); todo.push([ring, () => jobs.terrain(c, lod), `terrain${lod}`]); }
       if (water && !c.water) todo.push([ring + .2, () => jobs.water(c), 'water']);
       if (ring <= 2 && !c.scatter) todo.push([ring + .3, () => jobs.scatter(c), 'scatter']);
       if (ring > 3 && c.scatter) dropScatter(c);
+      if (ring <= 1 && c.scatter && !c.flora) todo.push([ring + .35, () => jobs.flora(c), 'flora']);
+      if (ring > 1 && c.flora) dropFlora(c);
       // Blockbench trees: full detail in the near rings, their far version two rings out.
       if (c.trees && c.near !== (ring <= 1)) { c.near = ring <= 1; showTreeDetail(c.trees, c.near); }
       if (ring <= 1 && !c.ground) todo.push([ring + .5, () => jobs.ground(c), 'ground']);

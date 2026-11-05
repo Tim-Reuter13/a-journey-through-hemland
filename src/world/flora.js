@@ -4,7 +4,7 @@ import { registerPixelTexture, pixelCanvas, pixelMaterial } from '../art/pixelTe
 import { landscapeChunk } from './rocks.js';
 import { TREELINE, SNOWLINE } from './hemland.js';
 import { placePlant, plantsLoaded } from './props.js';
-import { wind, treesLoaded, placeTree, setFarTrees, setTreeGround, groundSlope } from './trees.js';
+import { wind, treesLoaded, placeTree, setFarTrees, setTreeGround, groundSlope, canopiesNear } from './trees.js';
 import { burnUniforms, BURN_GLSL } from './burnMap.js';
 export { wind };
 
@@ -452,16 +452,13 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
         else if (roll < .09 && h < 16) species(parent, 'acacia', x, h, z, s0, random);
         else if (roll < .11) species(parent, 'cypress', x, h, z, s0, random);
         else if (roll < .15) deadTree(parent, x, h, z, s0, random);
-        else if (roll < .21) bush(parent, x, h, z, .5 + random() * .5, random);
-        else if (roll < .26) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
+        else if (roll < .21) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
       } else if (w.dunes > .4) {
         const oasis = Math.sin(x * .021 + 1) * Math.cos(z * .018 + .4) > .72;
         if (oasis && roll < .3) species(parent, 'palm', x, h, z, s0, random);
-        else if (oasis && roll < .42) bush(parent, x, h, z, .6 + random() * .5, random);
         else if (roll < .045) species(parent, 'cactus', x, h, z, s0, random);
         else if (roll < .06) species(parent, 'acacia', x, h, z, s0, random);
         else if (roll < .09) deadTree(parent, x, h, z, s0, random);
-        else if (roll < .13) bush(parent, x, h, z, .5 + random() * .5, random);
       } else {
         if (roll < .06) species(parent, 'charred', x, h, z, s0, random);
         else if (roll < .17) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
@@ -513,7 +510,6 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
     else if (random() < .04) deadTree(parent, x, h, z, s, random);
     else broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn');
   }
-  plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
   details(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
 }
 
@@ -532,13 +528,14 @@ function plantFor(w, x, z, h, roll, k, drift) {
   if (z > 380) return roll < .09 ? v('pampas') : roll < .14 ? v('dry_shrub') : roll < .16 ? 'agave_1' : null;
   return roll < .012 ? v('fern_big') : null;
 }
-function plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
+/** The plants of one chunk (their own job after the trees, near rings only). They stay a trunk's width away from every tree. */
+export function plantsChunk(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
   if (!plantsLoaded()) return;
   const drifts = (x, z) => .5 + .5 * Math.sin(x * .031) * Math.cos(z * .037 - 1.3);
   for (let i = 0; i < 150; i++) {
     const x = x0 + random() * size, z = z0 + random() * size, h = field.heightAt(x, z);
     if (h < waterLevel + .9 || h > TREELINE - 4 || field.roadClearance(x, z) < 2.5 || avoid(x, z)) continue;
-    if (Math.abs(field.heightAt(x + 1.5, z) - h) + Math.abs(field.heightAt(x, z + 1.5) - h) > 2.6) continue;
+    if (Math.abs(field.heightAt(x + 1.5, z) - h) + Math.abs(field.heightAt(x, z + 1.5) - h) > 2.6 || canopiesNear(x, z, 2.2).length) continue;
     const name = plantFor(biomeWeights(x, z), x, z, h, random(), random(), drifts(x, z));
     if (name) placePlant(parent, name, x, h, z, .9 + random() * .5, random, field.heightAt);
   }

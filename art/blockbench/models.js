@@ -677,7 +677,7 @@ function AshenModels() {
     const birch = (t, o) => {
       o = { leaves: 'leavesBirch', heart: 'leavesBirchHeart', ...o };
       const { r } = t, trunk = [[0, 0, 0]];
-      buttress(t, 4, 7, 'birchBark'); t.foot(11, 'birchBark');
+      buttress(t, 3, 7, 'barkGrey'); t.foot(10, 'barkGrey');
       let w = 7;
       for (const [len, tilt] of o.segments) { trunk.push(t.limb(trunk[trunk.length - 1], len, w, tilt, r() * 360, 'birchBark')); w = Math.max(4, w - 1); }
       const ends = [.5, .6, .7, .8, .9, 1].map(f => along(trunk, f));

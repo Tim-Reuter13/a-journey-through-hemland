@@ -50,7 +50,9 @@ export function buildWilds(ctx) {
       const a = k / 9 * Math.PI * 2 + .3, lx = Math.cos(a) * 4.6, lz = Math.sin(a) * 6.4, wx = site.x + lx * c + lz * s, wz = site.z - lx * s + lz * c;
       placePlant(ctx.root, k % 3 ? 'mushroom_red_1' : 'mushroom_red_2', wx, ctx.heightAt(wx, wz), wz, 1.1, ctx.random, ctx.heightAt);
     }
-    const rx = site.x + p.read[0] * c + p.read[1] * s, rz = site.z - p.read[0] * s + p.read[1] * c;
+    // Reading spot: in front (-z) of everything solid, 1.6 units clear of it.
+    const front = Math.max(0, ...p.solids.map(([, z, , d]) => -(z - d / 2))) / 16 * p.scale + 1.6, dist = Math.max(-p.read[1], front);
+    const rx = site.x + p.read[0] * c - dist * s, rz = site.z - p.read[0] * s - dist * c;
     ctx.marker({ id: p.id, kind: p.kind, label: site.name, x: site.x, z: site.z, discover: true, radius: p.radius, xp: p.xp, lore: p.lore, read: { x: rx, z: rz }, readLabel: 'Ansehen' });
   }
   return {};

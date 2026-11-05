@@ -409,3 +409,7 @@ the pictures on them are 47 textures made by Codex's image tool (art/textures/co
   (height-driven rock starts at the treeline); strata on canyon walls stay level (the turned reading of a picture made them vertical stripes); broad wall ribs only (the fine rib aliased
   on the 2-unit grid); footings sunk deeper (the far terrain lies 1.5 units lower than the near one); peat hut walls turf, hollow log round.
   QC walked: ten places, trees by species, plants, grounds of all regions, the six colour presets. Not checked: night; a full playthrough.
+- [x] QC round 3 (same day, at player height, day and night, sprint run): birches have dark grey feet (the white root boards read as a star); no dark bush blobs in the dry lands (the dry shrubs
+  are the plants there); plants are their own chunk job and keep a trunk's width from every tree; the heights of a chunk are their own job before its mesh; the reading spots of the places
+  lie in front of what stands there (the caravan's and the log's were inside it); heather and peat a little lighter (the moor was pitch black at night); rock-family noise only where there is rock.
+  Measured: sprint over 180 units, p50 13 ms, p95 20 ms, p99 35 ms, 5 frames over 40 ms in 22 s (worst 69 ms, a mesh job); scatter job 16 ms on average, plants 1 ms.

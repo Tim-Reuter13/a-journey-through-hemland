@@ -336,9 +336,12 @@ export function createHeightfield() {
     const wild = Math.max(w.badlands, w.dunes, w.volcanic, w.highland, w.pillars);
     // Rock of more than one kind: where the land is bare stone outside the regions it is the old grey picture, mossy rock where the ground is damp (woods, the low
     // ground of the marsh and the lake), dark rock in broad areas, gravel where a slope crumbles. Nothing pale: it never looked like this country.
-    const dark = ss(.12, .42, fbm(x * .0036 + 17, z * .0036 - 9, 2, 91)), wetRock = ss(48, 14, h) * Math.max(w.autumn, w.taiga, w.forest * .7, w.marsh), scree = ss(.9, 1.6, slope) * ss(.3, .7, fbm(x * .02, z * .02, 2, 92) * .5 + .5);
-    const bare = rock * (1 - wild), mossy = wetRock * .9, darkW = dark * (1 - mossy);
-    if (bare > .02) { give('moss_rock', bare * mossy * 1.2); give('basalt', bare * darkW * 1.1); give('gravel', bare * scree * .8); rock *= 1 - Math.min(.97, (mossy + darkW) * (1 - wild)); }
+    const bare = rock * (1 - wild);
+    if (bare > .02) {
+      const dark = ss(.12, .42, fbm(x * .0036 + 17, z * .0036 - 9, 2, 91)), wetRock = ss(48, 14, h) * Math.max(w.autumn, w.taiga, w.forest * .7, w.marsh), scree = ss(.9, 1.6, slope) * ss(.3, .7, fbm(x * .02, z * .02, 2, 92) * .5 + .5);
+      const mossy = wetRock * .9, darkW = dark * (1 - mossy);
+      give('moss_rock', bare * mossy * 1.2); give('basalt', bare * darkW * 1.1); give('gravel', bare * scree * .8); rock *= 1 - Math.min(.97, (mossy + darkW) * (1 - wild));
+    }
     give('clover_meadow', (1 - wild) * (1 - w.taiga) * (1 - w.autumn * .6) * (1 - w.marsh) * ss(.55, .82, patches) * .7 * (1 - under) * (1 - shore));
     return {
       a: [roadW * (1 - paved) * (1 - streets), dirt, rock, snow],
