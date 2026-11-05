@@ -40,6 +40,17 @@ export const SITES = {
   // Goblin caves (systems/caves.js, sites/caveMouths.js): holes in the ground on the flank of a rise of earth
   // (heightfield.js burrows). x, z is the hole; hole is its radius, mound the height of the rise. A walk-in cave has a
   // sunken way sloping down into the hill instead of a shaft.
+  // Points of interest of the wild regions (sites/wilds.js): small authored places, each on ground flattened for it.
+  mine: { name: 'Die Verlassene Grube', x: -720, z: 488, radius: 13, blend: 14, mode: 'flatten' },
+  ribs: { name: 'Das Rippenfeld', x: 8, z: 740, radius: 28, blend: 14, mode: 'flatten' },
+  obelisk: { name: 'Der Sonnenobelisk', x: -132, z: 866, radius: 17, blend: 14, mode: 'flatten' },
+  caravan: { name: 'Karawanenrast', x: -62, z: 614, radius: 15, blend: 14, mode: 'flatten' },
+  altar: { name: 'Der Obsidianaltar', x: 1198, z: 670, radius: 17, blend: 14, mode: 'flatten' },
+  burnt_hut: { name: 'Die Brandhütte', x: 1254, z: 334, radius: 14, blend: 14, mode: 'flatten' },
+  circle: { name: 'Der Steinkreis', x: -314, z: -772, radius: 27, blend: 14, mode: 'flatten' },
+  peat_hut: { name: 'Torfstecherhütte', x: -734, z: -898, radius: 14, blend: 14, mode: 'flatten' },
+  jade_shrine: { name: 'Der Jadeschrein', x: 1338, z: -296, radius: 18, blend: 14, mode: 'flatten' },
+  hollow_log: { name: 'Der Hohle Stamm', x: -430, z: -150, radius: 14, blend: 14, mode: 'flatten' },
   cave_klagende: { name: 'Die Klagende Grube', x: -200, z: -420, radius: 2, blend: 12, mode: 'burrow', hole: 1.7, mound: 2.4, walkIn: true },
   cave_moder: { name: 'Die Moderhöhle', x: 150, z: 560, radius: 2, blend: 12, mode: 'burrow', hole: 1.9, mound: 2.1, walkIn: true },
   cave_eisen: { name: 'Die Eisengrube', x: 700, z: -1000, radius: 2, blend: 12, mode: 'burrow', hole: 1.7, mound: 1.7 },

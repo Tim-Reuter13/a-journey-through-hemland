@@ -91,6 +91,53 @@ function AshenModels() {
     needlesPine: { style: 'leaves', clump: 1, ramp: ['#1c2c22', '#24382a', '#2e4432', '#38523c', '#446046', '#506e50'], holes: .1 },
     snowCap: { style: 'leaves', ramp: ['#8f9ba4', '#aab6be', '#c4ced4', '#d8e0e4', '#e8eef0', '#f4f8f8'], holes: .06 },
     leavesBush: { style: 'leaves', ramp: ['#1e3018', '#283e20', '#324c26', '#3e5c2e', '#4a6a36', '#56763e'] },
+    // Trees of the new regions. `image` materials are pictures by Codex (art/textures/codex); until a picture is there they paint
+    // from their ramp in the `fallback` style, so a model always builds.
+    barkRedwood: { style: 'image', image: 'bark_redwood', fallback: 'bark', ramp: ['#3a1a12', '#522818', '#6a3a22', '#80502f', '#946a44'] },
+    barkWillow: { style: 'image', image: 'bark_willow', fallback: 'bark', ramp: ['#2e2a24', '#443d34', '#58504a', '#6c645a', '#80786c'] },
+    barkAcacia: { style: 'image', image: 'bark_acacia', fallback: 'bark', ramp: ['#1e1814', '#2c231c', '#3a2e24', '#493a2d', '#5a4838'] },
+    barkCharred: { style: 'image', image: 'bark_charred', fallback: 'bark', ramp: ['#0e0c0b', '#171412', '#221d1a', '#2e2823', '#3d352e'] },
+    barkJade: { style: 'image', image: 'bark_jade', fallback: 'bark', ramp: ['#4a5446', '#5e6a58', '#738068', '#8a9880', '#a0ae98'], moss: .3, mossColor: '#4e7a3a' },
+    barkPalm: { style: 'image', image: 'bark_palm', fallback: 'bark', ramp: ['#5c4a30', '#74603e', '#8c7650', '#a08a60', '#b49c70'] },
+    cactusSkin: { style: 'image', image: 'cactus_skin', fallback: 'bark', ramp: ['#2c4a2a', '#385c34', '#446e3e', '#528048', '#629256'] },
+    barkCypress: { style: 'image', image: 'bark_cypress', fallback: 'bark', ramp: ['#3e342c', '#52463a', '#665848', '#7a6a58', '#8e7e68'] },
+    barkHeath: { style: 'image', image: 'bark_heath', fallback: 'bark', ramp: ['#4a2c18', '#62381e', '#7a4824', '#92592c', '#a86c38'] },
+    leavesRedwood: { style: 'image', image: 'leaves_redwood', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#16282a', '#1e3633', '#28443c', '#335246', '#3f6050', '#4c6e5a'] },
+    leavesWillow: { style: 'image', image: 'leaves_willow', fallback: 'leaves', holes: .55, ramp: ['#3a4a1e', '#4a5c26', '#5c7030', '#70853a', '#869c46', '#9cb256'] },
+    leavesAcacia: { style: 'image', image: 'leaves_acacia', fallback: 'leaves', clump: 1, holes: .25, ramp: ['#3a4620', '#4c5a28', '#5e6e30', '#738338', '#8a9944', '#a0ae52'] },
+    leavesPalm: { style: 'image', image: 'leaves_palm', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#24401e', '#2e5224', '#3a652c', '#487836', '#588c42', '#6aa050'] },
+    leavesCypress: { style: 'image', image: 'leaves_cypress', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#14281c', '#1c3624', '#25442c', '#305236', '#3c6040', '#486e4a'] },
+    leavesJade: { style: 'leaves', ramp: ['#1c4a4a', '#245c58', '#2e6e66', '#3c8076', '#4e9488', '#62a89a'] },
+    leavesBlossom: { style: 'image', image: 'leaves_blossom', fallback: 'leaves', ramp: ['#8a4458', '#a05468', '#b8667a', '#cc7c8e', '#dc94a2', '#eaacb6'] },
+    leavesPurple: { style: 'image', image: 'leaves_purple', fallback: 'leaves', ramp: ['#4c3a78', '#5e4890', '#7058a4', '#8468b8', '#9a7ccc', '#b092dc'] },
+    leavesOlive: { style: 'image', image: 'leaves_olive', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#3e4a30', '#4e5c3c', '#606e4a', '#748258', '#8a966a', '#a0aa7c'] },
+    leavesBlossomHeart: { style: 'leaves', ramp: ['#3a2630', '#4a303c', '#5a3a48', '#6a4454'], holes: .03 },
+    leavesPurpleHeart: { style: 'leaves', ramp: ['#2a2040', '#342850', '#3e3060', '#483a70'], holes: .03 },
+    leavesJadeHeart: { style: 'leaves', ramp: ['#102c2c', '#163838', '#1e4444', '#265050'], holes: .03 },
+    leavesOliveHeart: { style: 'leaves', ramp: ['#2a3224', '#343e2c', '#3e4a34', '#48563c'], holes: .03 },
+    // Plants, mushrooms and the stone and wood of the wild points of interest.
+    plantHeather: { style: 'image', image: 'plant_heather_bloom', fallback: 'leaves', ramp: ['#3a2a52', '#563a74', '#72508e', '#8c68a6', '#a684be', '#bea0d2'] },
+    plantLavender: { style: 'image', image: 'plant_lavender', fallback: 'leaves', ramp: ['#3a3a5e', '#4c4c7a', '#62629a', '#7a7ab4', '#9494c8', '#aeaede'] },
+    plantPoppy: { style: 'image', image: 'plant_poppy', fallback: 'leaves', ramp: ['#7a1c1c', '#962424', '#b02e2e', '#c84040', '#3a5a2a', '#4a6e34'] },
+    plantBluebell: { style: 'image', image: 'plant_bluebell', fallback: 'leaves', ramp: ['#26366a', '#34468a', '#4660aa', '#5e7cc4', '#3a5a2a', '#4a6e34'] },
+    plantThistle: { style: 'image', image: 'plant_thistle', fallback: 'leaves', ramp: ['#3e4e3a', '#4e6048', '#607458', '#8a4a8a', '#a860a8', '#c07cc0'] },
+    plantPampas: { style: 'image', image: 'plant_pampas', fallback: 'leaves', ramp: ['#7a704a', '#968a5c', '#b2a470', '#cabc88', '#dcd0a0', '#ece4bc'] },
+    plantDryShrub: { style: 'image', image: 'plant_dry_shrub', fallback: 'leaves', ramp: ['#4a3a24', '#5e4a2c', '#745c36', '#8a7042', '#a08850', '#b8a05e'] },
+    mushCardRed: { style: 'image', image: 'mushroom_red', fallback: 'leaves', ramp: ['#5a1a16', '#7a2420', '#962e28', '#b0443a', '#d8d0bc', '#ece4d0'] },
+    mushCardBrown: { style: 'image', image: 'mushroom_brown', fallback: 'leaves', ramp: ['#2e1e14', '#442d1e', '#5c3e2a', '#785238', '#947050', '#b08c68'] },
+    mushCardGlow: { style: 'image', image: 'mushroom_glow', fallback: 'leaves', ramp: ['#1c4a46', '#26645e', '#3a8478', '#58a898', '#82c8b8', '#b0e4d4'] },
+    mushStem: { style: 'flat', ramp: ['#b8ac94', '#cdc2aa', '#ddd3bc'] }, mushRed: { style: 'flat', ramp: ['#7a1c18', '#962420', '#b02e26'] },
+    mushBrown: { style: 'flat', ramp: ['#4a3022', '#5e3e2c', '#744e38'] }, mushGlow: { style: 'glow', ramp: ['#3aa89a', '#58c8b4', '#8ae8d0'], unshaded: true },
+    mushGlowStem: { style: 'flat', ramp: ['#7a9a94', '#94b4ac', '#aecac2'] },
+    agaveLeaf: { style: 'flat', ramp: ['#3a5c52', '#486e62', '#588274'] }, agaveBloom: { style: 'flat', ramp: ['#a88a2a', '#c4a43a', '#dcbe52'] },
+    fernFrond: { style: 'leaves', clump: 1, holes: .08, ramp: ['#2c4a20', '#38602a', '#447434', '#52883e', '#629c4a', '#74b058'] },
+    sandstone: { style: 'fur', ramp: ['#9c8258', '#b09468', '#c4a87a', '#d4ba8c'] }, sandstoneDark: { style: 'fur', ramp: ['#6a5638', '#7a6644', '#8c7650', '#a08a60'] },
+    obsidian: { style: 'metal', ramp: ['#0e0c12', '#16131c', '#201c2a', '#2c2638', '#3a3248'] }, basalt: { style: 'fur', ramp: ['#1e1e22', '#2a2a2e', '#34343a', '#3e3e46'] },
+    bone: { style: 'fur', ramp: ['#a89c84', '#bcb098', '#cfc4ac', '#e0d6c0'] }, boneDark: { style: 'fur', ramp: ['#7c705a', '#8c8068', '#a09478', '#b4a88c'] },
+    graniteStone: { style: 'fur', ramp: ['#5a5a58', '#6c6c68', '#7e7e7a', '#90908a'] }, mossGreen: { style: 'fur', ramp: ['#2e4a22', '#3a5c2a', '#486e32', '#58823c'] },
+    canvas: { style: 'cloth', ramp: ['#8a7e66', '#a09478', '#b4a88a', '#c6bc9e'] }, canvasRed: { style: 'cloth', ramp: ['#6a2a22', '#823428', '#9a4030', '#b05038'] },
+    jadeStone: { style: 'fur', ramp: ['#3a5a4a', '#4a7060', '#5c8672', '#70a088'] }, jadeRoof: { style: 'fur', ramp: ['#1c3c3c', '#264c4a', '#325c58', '#406e68'] },
+    charcoal: { style: 'fur', ramp: ['#0c0a09', '#161311', '#201c19', '#2c2723'] },
     leavesBerry: { style: 'leaves', ramp: ['#1e3018', '#283e20', '#324c26', '#3e5c2e', '#4a6a36', '#56763e'], berries: .05, berry: '#8e1c2a' },
     // Hunting bow and arrows (weapons()).
     bowWood: { style: 'wood', ramp: ['#4a2a14', '#62391c', '#7a4a24', '#8e5a2e'] },
@@ -573,8 +620,13 @@ function AshenModels() {
           const a = tilt * rad, b = yaw * rad;
           return [base[0] + Math.sin(a) * Math.sin(b) * len, base[1] + Math.cos(a) * len, base[2] + Math.sin(a) * Math.cos(b) * len];
         },
+        // A collar round the foot of the trunk, sunk deep: on a slope the downhill side never shows a gap.
+        foot(w, mat) {
+          const top = (s, hi) => cubes.push(box(`${name}_root${n++}`, name, at([-s / 2, -18, -s / 2]), at([s / 2, hi, s / 2]), mat, { origin: at([0, 0, 0]), rotation: [0, r() * 90, 0] }));
+          top(w, 2); top(w - 5, 6);
+        },
         // A root flare: a low box from the trunk axis outward, its outer end dipping into the ground.
-        root(len, wide, high, yaw, mat) { cubes.push(box(`${name}_wood${n++}`, name, at([-wide / 2, -3, 0]), at([wide / 2, high, len]), mat, { origin: at([0, 0, 0]), rotation: [9 + r() * 6, yaw, 0] })); },
+        root(len, wide, high, yaw, mat) { cubes.push(box(`${name}_root${n++}`, name, at([-wide / 2, -3, 0]), at([wide / 2, high, len]), mat, { origin: at([0, 0, 0]), rotation: [9 + r() * 6, yaw, 0] })); },
         leaf(c, s, h, mat, extra = {}) {
           s = q(s); h = q(h); const tilt = extra.tilt ?? 0;
           cubes.push(box(`${name}_leaf${n++}`, name, at([c[0] - s / 2, c[1] - h / 2, c[2] - s / 2]), at([c[0] + s / 2, c[1] + h / 2, c[2] + s / 2]), mat,
@@ -620,7 +672,7 @@ function AshenModels() {
     // Broadleaf: flared roots, a leaning, tapering trunk, a few main limbs into the crown.
     const broadleaf = (t, o) => {
       const { r } = t, leaf = () => o.leaves[Math.floor(r() * o.leaves.length)];
-      for (let k = 0; k < 4; k++) t.root(o.trunk / 2 + 6, 6, 5, k * 90 + r() * 40 - 20, 'barkMoss');
+      buttress(t, 6, o.trunk, 'barkMoss'); t.foot(o.trunk + 6, 'barkMoss');
       let p = [0, 0, 0], w = o.trunk;
       for (const [len, tilt] of o.segments) { p = t.limb(p, len, w, tilt, r() * 360, w === o.trunk ? 'barkMoss' : 'bark'); w = Math.max(4, w - 2); }
       const centre = [p[0], p[1] + o.Ry * .55, p[2]], ends = [p];
@@ -635,7 +687,7 @@ function AshenModels() {
     const birch = (t, o) => {
       o = { leaves: 'leavesBirch', heart: 'leavesBirchHeart', ...o };
       const { r } = t, trunk = [[0, 0, 0]];
-      for (let k = 0; k < 3; k++) t.root(7, 3, 3, k * 120 + r() * 30, 'birchBark');
+      buttress(t, 4, 7, 'birchBark'); t.foot(11, 'birchBark');
       let w = 7;
       for (const [len, tilt] of o.segments) { trunk.push(t.limb(trunk[trunk.length - 1], len, w, tilt, r() * 360, 'birchBark')); w = Math.max(4, w - 1); }
       const ends = [.5, .6, .7, .8, .9, 1].map(f => along(trunk, f));
@@ -644,7 +696,7 @@ function AshenModels() {
     // Spruce: a broad cone of drooping boughs, tier on tier, each tier turned against the last.
     const spruce = (t, o) => {
       const { r } = t;
-      for (let k = 0; k < 4; k++) t.root(10, 4, 4, k * 90 + r() * 30, 'barkPine');
+      buttress(t, 5, 8, 'barkPine'); t.foot(12, 'barkPine');
       t.limb([0, 0, 0], o.height - 12, 8, 0, 0, 'barkPine');
       for (let k = 0; k < o.tiers; k++) {
         const f = k / (o.tiers - 1), y = o.base + f * (o.height - o.base - 6), R = o.radius * Math.pow(1 - f, .9) + 6;
@@ -658,7 +710,7 @@ function AshenModels() {
     // with a tuft at every second tier's tips.
     const fir = (t, o) => {
       const { r } = t, trunk = [[0, 0, 0]];
-      for (let k = 0; k < 4; k++) t.root(11, 5, 4, k * 90 + r() * 30, 'barkPine');
+      buttress(t, 5, 9, 'barkPine'); t.foot(13, 'barkPine');
       [[60, 1], [60, 2], [54, 3]].forEach(([len, tilt], k) => trunk.push(t.limb(trunk[k], len, 9 - k, tilt, r() * 360, 'barkPine')));
       for (let k = 0; k < 4; k++) t.limb(along(trunk, .12 + k * .06), 5 + r() * 4, 2, 70 + r() * 20, r() * 360, 'barkPine');
       for (let k = 0; k < o.tiers; k++) {
@@ -673,19 +725,159 @@ function AshenModels() {
       t.leaf([top[0], top[1] + 6, top[2]], 4, 16, o.needles, { yaw: 0, faceMat: o.snow });
     };
     // Dead tree: grey, crooked, broken limbs and bare twigs.
-    const dead = t => {
+    const dead = (t, wood = 'barkGrey') => {
       const { r } = t, trunk = [[0, 0, 0]];
-      for (let k = 0; k < 3; k++) t.root(11, 6, 5, k * 120 + r() * 40, 'barkGrey');
-      [[26, 5], [22, 9], [18, 12], [12, 16]].forEach(([len, tilt], k) => trunk.push(t.limb(trunk[k], len, 10 - k * 2, tilt, k * 70 + r() * 40, 'barkGrey')));
+      buttress(t, 5, 10, wood); t.foot(14, wood);
+      [[26, 5], [22, 9], [18, 12], [12, 16]].forEach(([len, tilt], k) => trunk.push(t.limb(trunk[k], len, 10 - k * 2, tilt, k * 70 + r() * 40, wood)));
       for (let k = 0; k < 5; k++) {
         const base = along(trunk, .42 + k * .12), yaw = k * 137.5 + r() * 30, tilt = 45 + r() * 30;
-        const tip = t.limb(base, 16 + r() * 12, k < 2 ? 4 : 3, tilt, yaw, 'barkGrey');
-        for (let j = 0; j < 1 + (k % 2); j++) t.limb(tip.map((v, i) => v + (base[i] - v) * .25), 8 + r() * 5, 2, tilt - 25 + r() * 20, yaw + (j ? 40 : -40), 'barkGrey');
+        const tip = t.limb(base, 16 + r() * 12, k < 2 ? 4 : 3, tilt, yaw, wood);
+        for (let j = 0; j < 1 + (k % 2); j++) t.limb(tip.map((v, i) => v + (base[i] - v) * .25), 8 + r() * 5, 2, tilt - 25 + r() * 20, yaw + (j ? 40 : -40), wood);
       }
     };
     const bush = (t, mat) => {
       for (let k = 0; k < 3; k++) t.limb([0, 0, 0], 7, 2, 30 + t.r() * 30, k * 120, 'bark');
       crown(t, { clumps: 12, floor: -.5, R: 13, Ry: 9, leaf: 14, lobes: .6, heart: 'leavesHeart', twigs: false }, [0, 9, 0], () => mat, [[0, 2, 0]]);
+    };
+    // ── Roots and forks. A buttress is a flare of low boxes running out from the trunk, some splitting in two; the game bends
+    // them over the ground under each tree, so on a slope the uphill roots climb and the downhill ones grip the drop.
+    function buttress(t, count, trunkW, mat) {
+      const { r } = t;
+      for (let k = 0; k < count; k++) {
+        const yaw = (k + r() * .6) * 360 / count, len = trunkW * .5 + 8 + r() * 10, wide = Math.max(3, Math.round(trunkW * .34 + r() * 2)), high = Math.max(3, Math.round(trunkW * .28));
+        t.root(len, wide, high, yaw, mat);
+        if (trunkW >= 9 && r() < .75) t.root(len * 1.55, Math.max(2, wide - 3), Math.max(2, high - 3), yaw + (r() < .5 ? -1 : 1) * (14 + r() * 20), mat);
+      }
+    }
+    // A limb that forks: every tip is returned, so a crown can hang off the real ends of the wood instead of floating over it.
+    function ramify(t, from, yaw, tilt, len, thick, depth, mat, tips) {
+      const { r } = t, tip = t.limb(from, len, thick, tilt, yaw, mat);
+      if (depth <= 0) { tips.push(tip); return; }
+      const forks = 2 + (r() < .35 ? 1 : 0);
+      for (let k = 0; k < forks; k++) {
+        const base = from.map((v, i) => v + (tip[i] - v) * (k ? .72 : 1));
+        ramify(t, base, yaw + (k - (forks - 1) / 2) * (40 + r() * 34), Math.min(88, tilt + 6 + r() * 22), len * (.6 + r() * .16), Math.max(2, thick - 2), depth - 1, mat, tips);
+      }
+    }
+    // A grand broadleaf: buttress roots, a tapering trunk, limbs leaving it at different heights in a spiral, each forking, a
+    // crown clumped on the ends of that wood.
+    const grand = (t, o) => {
+      const { r } = t, leaf = () => o.leaves[Math.floor(r() * o.leaves.length)], bark = o.bark || 'barkMoss', pts = [[0, 0, 0]], tips = [];
+      buttress(t, o.roots ?? 7, o.trunk, bark); t.foot(o.trunk + 8, bark);
+      let w = o.trunk;
+      for (const [len, tilt] of o.segments) { pts.push(t.limb(pts[pts.length - 1], len, w, tilt, r() * 360, w === o.trunk ? bark : (o.wood || 'bark'))); w = Math.max(5, w - 3); }
+      for (let k = 0; k < o.limbs; k++) ramify(t, along(pts, .42 + .55 * k / o.limbs), k * 137.5 + r() * 30, 34 + r() * 26, o.reach * (.8 + r() * .35), 5, 1, o.wood || 'bark', tips);
+      const top = pts[pts.length - 1], centre = [top[0], top[1] + o.Ry * .42, top[2]];
+      tips.push(limbTo(t, top, [centre[0], centre[1] + o.Ry * .35, centre[2]], 5, o.wood || 'bark'));
+      crown(t, o, centre, leaf, tips, o.wood || 'bark');
+    };
+    // Redwood: a giant. A buttressed trunk with a bare lower half and dead stubs, then tiers of broad spray, narrowing to a spire.
+    const redwood = (t, o) => {
+      const { r } = t, trunk = [[0, 0, 0]];
+      buttress(t, 9, 24, 'barkRedwood'); t.foot(32, 'barkRedwood');
+      let w = 24;
+      o.segments.forEach(([len, tilt], k) => { trunk.push(t.limb(trunk[k], len, w, tilt, r() * 360, 'barkRedwood')); w = Math.max(8, w - 4); });
+      for (let k = 0; k < 7; k++) t.limb(along(trunk, .1 + k * .055), 5 + r() * 5, 2, 72 + r() * 18, r() * 360, 'barkRedwood');
+      for (let k = 0; k < o.tiers; k++) {
+        const f = k / (o.tiers - 1), c = along(trunk, o.crown + f * (.97 - o.crown)), R = o.radius * (1 - f * .82) + 8, turn = k * 47 + r() * 30;
+        for (let j = 0; j < 4; j++) t.bough(c, R * (.8 + r() * .4), Math.max(8, 18 - f * 10), 6, 10 + r() * 14 - f * 6, turn + j * 90 + r() * 20, 'leavesRedwood');
+        t.leaf([c[0], c[1] + 2, c[2]], R * .9, 8, 'leavesRedwood', { yaw: (k % 2) * 45 });
+      }
+      const top = trunk[trunk.length - 1];
+      t.leaf([top[0], top[1] + 8, top[2]], 6, 24, 'leavesRedwood', { yaw: 0 });
+    };
+    // Willow: a short thick trunk, a low spreading dome and long strands hanging from it almost to the ground.
+    const willow = (t, o) => {
+      const { r } = t, trunk = [[0, 0, 0]], tips = [];
+      buttress(t, 7, 14, 'barkWillow'); t.foot(20, 'barkWillow');
+      [[22, 4], [20, 9], [14, 13]].forEach(([len, tilt], k) => trunk.push(t.limb(trunk[k], len, 14 - k * 3, tilt, r() * 360, 'barkWillow')));
+      const top = trunk[3];
+      for (let k = 0; k < 7; k++) ramify(t, [top[0], top[1] - 6 - r() * 6, top[2]], k * 51 + r() * 30, 52 + r() * 20, 22 + r() * 8, 5, 1, 'barkWillow', tips);
+      crown(t, { clumps: 12, floor: -.05, R: o.R * .85, Ry: 18, leaf: 20, lobes: .3, heart: 'leavesHeart' }, [top[0], top[1] + 14, top[2]], () => 'leavesWillow', tips, 'barkWillow');
+      // Long thin curtains hanging from the rim of the dome, two rings of them, nearly to the ground.
+      for (let k = 0; k < 46; k++) { const a = k * 2.399 + r() * .4, d = o.R * (.3 + (k % 2 ? .45 : .7) * (.7 + r() * .3)), len = o.strand * (.75 + r() * .4); t.leaf([top[0] + Math.cos(a) * d, top[1] + 12 - len / 2, top[2] + Math.sin(a) * d], 4, len, 'leavesWillow', { tilt: 6 }); }
+    };
+    // Acacia: a thin trunk forking into a few limbs, each carrying a wide flat pad of leaf: the silhouette of the dry lands.
+    const acacia = (t, o) => {
+      const { r } = t, tips = [];
+      buttress(t, 5, 9, 'barkAcacia'); t.foot(13, 'barkAcacia');
+      const fork = t.limb([0, 0, 0], o.trunk, 9, 3 + r() * 5, r() * 360, 'barkAcacia');
+      for (let k = 0; k < 3; k++) ramify(t, fork, k * 120 + r() * 40, 38 + r() * 14, o.reach, 6, 1, 'barkAcacia', tips);
+      tips.forEach((tip, k) => t.leaf([tip[0], tip[1] + 5, tip[2]], o.R * (.55 + r() * .25), 8, 'leavesAcacia', { tilt: 6 }));
+      t.leaf([fork[0], fork[1] + 18, fork[2]], o.R * 1.1, 9, 'leavesAcacia', { tilt: 4 });
+    };
+    // Palm: a curved trunk ringed with old leaf scars and a ring of long fronds that arch and droop.
+    const palm = (t, o) => {
+      const { r } = t, yaw = r() * 360;
+      buttress(t, 5, 9, 'barkPalm'); t.foot(13, 'barkPalm');
+      let p = [0, 0, 0];
+      for (let k = 0; k < o.segments; k++) p = t.limb(p, 24, Math.max(6, 9 - k * .5), 3 + k * o.bend, yaw + (r() - .5) * 8, 'barkPalm');
+      for (let j = 0; j < 11; j++) t.bough([p[0], p[1] - 2, p[2]], 44 + r() * 16, 12, 3, 4 + (j % 3) * 20 + r() * 10, j * 32.7 + r() * 8, 'leavesPalm');
+      for (let k = 0; k < 3; k++) t.leaf([p[0] + (r() - .5) * 8, p[1] - 6, p[2] + (r() - .5) * 8], 6, 7, 'barkAcacia', { tilt: 10 });
+    };
+    // Cypress: a dark spindle of foliage, wide in the middle, close to the trunk.
+    const cypress = (t, o) => {
+      const { r } = t;
+      buttress(t, 5, 7, 'barkCypress'); t.foot(10, 'barkCypress');
+      t.limb([0, 0, 0], o.height - 16, 7, 0, 0, 'barkCypress');
+      const levels = Math.round(o.height / 13);
+      for (let k = 0; k < levels; k++) {
+        const f = k / (levels - 1), rr = o.R * Math.sin(Math.PI * Math.min(1, .1 + f * .9)) * (1 - f * .35) + 3, a = k * 2.4;
+        for (let j = 0; j < 2; j++) t.leaf([Math.cos(a + j * 3.1) * rr * .45, 10 + f * (o.height - 18), Math.sin(a + j * 3.1) * rr * .45], rr * 1.5 + 8, 14, 'leavesCypress', { tilt: 10 });
+      }
+      t.leaf([0, o.height - 4, 0], 6, 14, 'leavesCypress', { yaw: 0 });
+    };
+    // Jade tree: a trunk twisting in an S and a few broad, round layers of blue-green leaf stacked like a pagoda, with a fringe hanging.
+    const jade = (t, o) => {
+      const { r } = t, trunk = [[0, 0, 0]];
+      buttress(t, 6, 12, 'barkJade'); t.foot(18, 'barkJade');
+      [[26, 8], [26, -1], [24, 10], [22, 2]].forEach(([len, tilt], k) => trunk.push(t.limb(trunk[k], len, 12 - k * 2, Math.abs(tilt), (k % 2 ? 200 : 20) + r() * 40, 'barkJade')));
+      for (let k = 0; k < o.layers; k++) {
+        const c = along(trunk, .5 + k * (.5 / o.layers)), R = o.R * (1 - k * .2), y = c[1] + 6;
+        t.limb(c, 12, 4, 55 + r() * 15, r() * 360, 'barkJade');
+        t.leaf([c[0], y, c[2]], R * 2, 10, 'leavesJade', { tilt: 6 });
+        t.leaf([c[0], y + 8, c[2]], R * 1.4, 8, 'leavesJade', { tilt: 6 });
+        for (let j = 0; j < 7; j++) { const a = j * .9 + k, d = R * .85; t.leaf([c[0] + Math.cos(a) * d, y - 8, c[2] + Math.sin(a) * d], 10, 14, 'leavesJade', { tilt: 8 }); }
+      }
+    };
+    // Scrub pine of the moor: bent by the wind, a leaning twisted trunk and a flat, one-sided crown.
+    const heath = (t, o) => {
+      const { r } = t, lean = r() * 360, pts = [[0, 0, 0]], tips = [];
+      buttress(t, 6, 10, 'barkHeath'); t.foot(15, 'barkHeath');
+      [[22, 10], [24, 16], [20, 22]].forEach(([len, tilt], k) => pts.push(t.limb(pts[k], len, 10 - k * 2, tilt, lean + (r() - .5) * 50, 'barkHeath')));
+      for (let k = 0; k < 4; k++) ramify(t, along(pts, .5 + k * .14), lean + (k - 1.5) * 38 + r() * 20, 50 + r() * 25, o.reach, 4, 1, 'barkHeath', tips);
+      tips.forEach(tip => { t.leaf([tip[0], tip[1] + 3, tip[2]], o.R * (.6 + r() * .4), 10, 'needlesPine', { tilt: 14 }); });
+      const top = pts[pts.length - 1];
+      t.leaf([top[0], top[1] + 6, top[2]], o.R, 12, 'needlesPine', { tilt: 10 });
+    };
+    // Mangrove: the trunk stands on a cage of arched stilt roots, with a round crown above.
+    const mangrove = (t, o) => {
+      const { r } = t, tips = [];
+      const top = t.limb([0, 14, 0], 34, 9, 3, r() * 360, 'barkWillow');
+      for (let k = 0; k < 10; k++) { const a = k * 36 + r() * 26, d = 22 + r() * 18; limbTo(t, [0, 16 + r() * 16, 0], [Math.cos(a * rad) * d, -4, Math.sin(a * rad) * d], 3, 'barkWillow'); }
+      for (let k = 0; k < 4; k++) ramify(t, [top[0], top[1] - 8, top[2]], k * 90 + r() * 30, 44, 20, 4, 1, 'barkWillow', tips);
+      crown(t, { clumps: 18, floor: -.2, R: o.R, Ry: 24, leaf: 22, lobes: .5, heart: 'leavesHeart' }, [top[0], top[1] + 8, top[2]], () => 'leavesBush', tips, 'barkWillow');
+    };
+    // Cacti: stacked boxes of ribbed green, no leaves. The game keeps them upright and still (no sway).
+    const saguaro = t => {
+      const { r } = t;
+      t.limb([0, 0, 0], 74, 10, 0, 0, 'cactusSkin');
+      for (const [side, y, up] of [[1, 28, 26], [-1, 40, 20]]) {
+        const elbow = t.limb([0, y, 0], 16, 7, 90, side > 0 ? 90 : 270, 'cactusSkin');
+        t.limb(elbow, up + r() * 6, 7, 0, 0, 'cactusSkin');
+      }
+    };
+    const barrel = t => {
+      const { r } = t;
+      t.limb([0, 0, 0], 17, 16, 0, 0, 'cactusSkin'); t.limb([0, 14, 0], 6, 11, 0, 0, 'cactusSkin');
+      t.limb([0, 20, 0], 4, 5, 0, 0, 'cactusSkin');
+    };
+    const pear = t => {
+      const { r } = t, pads = [[0, 0, 0]];
+      for (let k = 0; k < 5; k++) {
+        const base = pads[Math.floor(r() * pads.length)], tip = t.limb(base, 14, 12, 18 + r() * 40, r() * 360, 'cactusSkin');
+        pads.push(tip);
+      }
     };
     const OAK = { leaves: ['leavesOak'], heart: 'leavesHeart' }, AUTUMN = { leaves: ['leavesAutumn', 'leavesGold', 'leavesAutumn'], heart: 'leavesAutumnHeart' };
     const CROWN = { clumps: 24, floor: -.55, lobes: .7 };
@@ -709,9 +901,232 @@ function AshenModels() {
     tree('pine_snow_1', 83, t => fir(t, { crown: .24, tiers: 10, radius: 30, needles: 'needlesPine', snow: { up: 'snowCap' } }));
     tree('pine_snow_2', 89, t => fir(t, { crown: .32, tiers: 9, radius: 26, needles: 'needlesPine', snow: { up: 'snowCap' } }));
     tree('dead_1', 97, dead);
+    tree('dead_2', 131, t => dead(t));
+    // More variants of the old species (the same species, other limbs): a wood of oaks no longer shows the same tree twice.
+    const GRAND = { ...CROWN, trunk: 16, segments: [[30, 3], [28, 4], [18, 5]], limbs: 6, reach: 44, R: 56, Ry: 46, leaf: 28, clumps: 32 };
+    tree('oak_4', 139, t => grand(t, { ...OAK, ...GRAND }));
+    tree('oak_5', 149, t => grand(t, { ...OAK, ...GRAND, trunk: 14, segments: [[34, 4], [26, 6], [14, 8]], limbs: 5, reach: 40, R: 48, Ry: 50, leaf: 26 }));
+    tree('oak_6', 157, t => grand(t, { ...OAK, ...GRAND, trunk: 18, segments: [[24, 2], [22, 3], [12, 5]], limbs: 7, reach: 50, R: 62, Ry: 40, clumps: 36 }));
+    tree('autumn_3', 163, t => grand(t, { ...AUTUMN, ...GRAND, trunk: 15, limbs: 6 }));
+    tree('maple_3', 167, t => grand(t, { ...MAPLE, ...GRAND, trunk: 14, segments: [[22, 3], [18, 5], [10, 6]], R: 52, Ry: 40, leaf: 26 }));
+    tree('birch_3', 173, t => birch(t, { segments: [[32, 3], [30, 4], [26, 4], [22, 5]], R: 19, Ry: 40 }));
+    tree('spruce_3', 179, t => spruce(t, { height: 140, base: 24, radius: 38, tiers: 11, needles: 'needlesSpruce' }));
+    tree('pine_3', 181, t => fir(t, { crown: .28, tiers: 11, radius: 28, needles: 'needlesPine' }));
+    tree('pine_snow_3', 181, t => fir(t, { crown: .28, tiers: 11, radius: 28, needles: 'needlesPine', snow: { up: 'snowCap' } }));
+    // The new regions.
+    tree('redwood_1', 191, t => redwood(t, { segments: [[70, .6], [64, 1], [60, 1.4], [44, 2]], tiers: 11, crown: .34, radius: 46 }));
+    tree('redwood_2', 193, t => redwood(t, { segments: [[76, .8], [70, 1.2], [64, 1.6], [46, 2.4]], tiers: 12, crown: .38, radius: 40 }));
+    tree('willow_1', 197, t => willow(t, { R: 46, strand: 44 }));
+    tree('willow_2', 199, t => willow(t, { R: 40, strand: 52 }));
+    tree('acacia_1', 211, t => acacia(t, { trunk: 36, reach: 30, R: 58 }));
+    tree('acacia_2', 223, t => acacia(t, { trunk: 44, reach: 34, R: 66 }));
+    tree('palm_1', 227, t => palm(t, { segments: 5, bend: 3.6 }));
+    tree('palm_2', 229, t => palm(t, { segments: 6, bend: 3 }));
+    tree('cypress_1', 233, t => cypress(t, { height: 150, R: 16 }));
+    tree('cypress_2', 239, t => cypress(t, { height: 180, R: 14 }));
+    tree('jade_1', 241, t => jade(t, { layers: 3, R: 30 }));
+    tree('jade_2', 251, t => jade(t, { layers: 4, R: 26 }));
+    tree('heath_1', 257, t => heath(t, { reach: 24, R: 28 }));
+    tree('heath_2', 263, t => heath(t, { reach: 28, R: 24 }));
+    tree('blossom_1', 269, t => grand(t, { leaves: ['leavesBlossom', 'leavesBlossom', 'leavesOak'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 12, segments: [[26, 4], [22, 6], [12, 8]], limbs: 5, reach: 36, R: 46, Ry: 36, leaf: 24, bark: 'bark' }));
+    tree('blossom_2', 271, t => grand(t, { leaves: ['leavesBlossom', 'leavesBlossom', 'leavesBlossom', 'leavesOak'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 13, segments: [[22, 5], [20, 7], [12, 9]], limbs: 6, reach: 38, R: 50, Ry: 34, leaf: 24, bark: 'bark' }));
+    tree('purple_1', 277, t => grand(t, { leaves: ['leavesPurple', 'leavesPurple', 'leavesOak'], heart: 'leavesPurpleHeart', ...GRAND, trunk: 11, segments: [[30, 4], [24, 6], [12, 8]], limbs: 5, reach: 34, R: 44, Ry: 34, leaf: 22, bark: 'bark' }));
+    tree('purple_2', 281, t => grand(t, { leaves: ['leavesPurple', 'leavesPurple', 'leavesBirch'], heart: 'leavesPurpleHeart', ...GRAND, trunk: 12, segments: [[26, 5], [22, 7], [12, 9]], limbs: 6, reach: 36, R: 48, Ry: 32, leaf: 22, bark: 'bark' }));
+    tree('olive_1', 283, t => grand(t, { leaves: ['leavesOlive'], heart: 'leavesOliveHeart', ...GRAND, trunk: 16, segments: [[14, 8], [14, 10], [10, 12]], limbs: 7, reach: 34, R: 40, Ry: 26, leaf: 20, bark: 'barkGrey', wood: 'barkGrey', roots: 5 }));
+    tree('olive_2', 293, t => grand(t, { leaves: ['leavesOlive'], heart: 'leavesOliveHeart', ...GRAND, trunk: 18, segments: [[12, 10], [12, 12], [10, 14]], limbs: 8, reach: 30, R: 36, Ry: 24, leaf: 20, bark: 'barkGrey', wood: 'barkGrey', roots: 5 }));
+    tree('charred_1', 307, t => dead(t, 'barkCharred'));
+    tree('charred_2', 311, t => dead(t, 'barkCharred'));
+    tree('cactus_1', 313, saguaro); tree('cactus_2', 317, barrel); tree('cactus_3', 331, pear);
+    tree('mangrove_1', 337, t => mangrove(t, { R: 34 }));
+    tree('mangrove_2', 347, t => mangrove(t, { R: 30 }));
     tree('bush_1', 101, t => bush(t, 'leavesBush'));
     tree('bush_2', 103, t => bush(t, 'leavesBerry'));
     return { name: 'trees', bones, cubes, materials: MATERIALS, atlasWidth: 512 };
+  }
+
+  // ── Plants of the landform regions (src/world/props.js › placePlant). Each top-level bone is one plant, the pivot is its foot on the ground.
+  // Cards (flat boxes one texel thick) carry pictures made by Codex; mushrooms, agaves and ferns are built from boxes.
+  function plants() {
+    const bones = [], cubes = [];
+    let slot = 0;
+    const rng = s => () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    function plant(name, seed) {
+      const x = slot, r = rng(seed); slot += 90; bones.push([name, null, [x, 0, 0]]);
+      let n = 0;
+      const put = (tag, from, to, mat, extra = {}) => cubes.push(box(`${name}_${tag}${n++}`, name, [from[0] + x, from[1], from[2]], [to[0] + x, to[1], to[2]], mat,
+        { ...extra, origin: extra.origin ? [extra.origin[0] + x, extra.origin[1], extra.origin[2]] : undefined }));
+      // A card: a picture standing on its foot, turned `yaw` about the vertical and leaning `tilt`.
+      const card = (c, w, h, mat, yaw, tilt = 0) => put('card', [c[0] - w / 2, c[1], c[2] - .5], [c[0] + w / 2, c[1] + h, c[2] + .5], mat, { origin: [c[0], c[1], c[2]], rotation: [tilt, yaw, 0], hide: ['up', 'down', 'east', 'west'] });
+      // A clump: `count` cards at random spots in a patch, each turned and leaning a little.
+      const clump = (mat, count, w, h, spread) => { for (let k = 0; k < count; k++) { const a = r() * 6.283, d = r() * spread; card([Math.cos(a) * d, -1, Math.sin(a) * d], w * (.8 + r() * .4), h * (.8 + r() * .4), mat, k * 60 + r() * 40, (r() - .5) * 18); } };
+      const mush = (cx, cz, h, capW, stem, cap, spots) => {
+        put('stem', [cx - 1.5, -1, cz - 1.5], [cx + 1.5, h, cz + 1.5], stem);
+        const dots = Array.from({ length: Math.round(capW) }, () => Array.from({ length: Math.round(capW) }, () => r() < spots ? 'W' : '.').join(''));
+        put('cap', [cx - capW / 2, h - 1, cz - capW / 2], [cx + capW / 2, h + 2, cz + capW / 2], cap, { decals: spots ? [{ face: 'up', palette: { W: '#e8dec8' }, x: 0, y: 0, map: dots }] : undefined });
+        put('crown', [cx - capW * .33, h + 2, cz - capW * .33], [cx + capW * .33, h + 4, cz + capW * .33], cap);
+      };
+      return { put, card, clump, mush, r };
+    }
+    const CLUMPS = [['heather_1', 3, 'plantHeather', 4, 28, 22, 9], ['heather_2', 5, 'plantHeather', 6, 24, 18, 14], ['lavender_1', 7, 'plantLavender', 5, 24, 24, 10],
+      ['poppy_1', 11, 'plantPoppy', 4, 22, 22, 9], ['bluebell_1', 13, 'plantBluebell', 4, 22, 22, 9], ['thistle_1', 17, 'plantThistle', 3, 24, 24, 7],
+      ['pampas_1', 19, 'plantPampas', 3, 28, 40, 7], ['pampas_2', 23, 'plantPampas', 5, 26, 34, 12]];
+    for (const [name, seed, mat, count, w, h, spread] of CLUMPS) plant(name, seed).clump(mat, count, w, h, spread);
+    // Dry shrub: a tangle of cards over a few woody sticks.
+    for (const [name, seed] of [['dry_shrub_1', 29], ['dry_shrub_2', 31]]) {
+      const p = plant(name, seed);
+      for (let k = 0; k < 5; k++) p.put('stick', [-.7, 0, -.7], [.7, 10 + p.r() * 8, .7], 'barkAcacia', { origin: [0, 0, 0], rotation: [30 + p.r() * 40, k * 72 + p.r() * 30, 0] });
+      p.clump('plantDryShrub', 3, 26, 22, 4);
+    }
+    // Agave: a rosette of thick leaves; the second one is in flower, on a tall stalk.
+    for (const [name, seed, tall] of [['agave_1', 37, false], ['agave_2', 41, true]]) {
+      const p = plant(name, seed);
+      for (let k = 0; k < 11; k++) { const len = 18 + p.r() * 8, tilt = 18 + (k % 3) * 22 + p.r() * 8; p.put('leaf', [-2.5, 0, -1], [2.5, len, 1], 'agaveLeaf', { origin: [0, 1, 0], rotation: [tilt, k * 32.7 + p.r() * 10, 0] }); }
+      p.put('heart', [-3, 0, -3], [3, 8, 3], 'agaveLeaf');
+      if (tall) { p.put('stalk', [-1, 6, -1], [1, 54, 1], 'barkPalm'); for (let k = 0; k < 5; k++) p.put('bloom', [-3, 38 + k * 3.4, -3], [3, 41 + k * 3.4, 3], 'agaveBloom', { origin: [0, 40, 0], rotation: [0, k * 40, 0] }); }
+    }
+    // Big fern: a rosette of arching fronds.
+    for (const [name, seed, n] of [['fern_big_1', 43, 9], ['fern_big_2', 47, 12]]) {
+      const p = plant(name, seed);
+      for (let k = 0; k < n; k++) { const len = 20 + p.r() * 10, tilt = 36 + p.r() * 34; p.put('frond', [-3.5, 0, -.5], [3.5, len, .5], 'fernFrond', { origin: [0, 1, 0], rotation: [tilt, k * 360 / n + p.r() * 20, 0], hide: ['east', 'west'] }); }
+    }
+    // Mushrooms: red toadstools with white spots, brown forest caps, pale glowing ones for caves and the deep wood; each with a card of its own kind behind.
+    { const p = plant('mushroom_red_1', 53); p.card([0, -1, 0], 28, 22, 'mushCardRed', 20); p.mush(-5, 4, 9, 11, 'mushStem', 'mushRed', .22); p.mush(5, 2, 6, 8, 'mushStem', 'mushRed', .25); p.mush(0, -6, 5, 6, 'mushStem', 'mushRed', .3); }
+    { const p = plant('mushroom_red_2', 59); p.mush(0, 0, 12, 14, 'mushStem', 'mushRed', .2); p.mush(8, 6, 6, 8, 'mushStem', 'mushRed', .25); p.mush(-7, 5, 4, 6, 'mushStem', 'mushRed', .3); }
+    { const p = plant('mushroom_brown_1', 61); p.card([0, -1, 0], 28, 22, 'mushCardBrown', -20); p.mush(-4, 3, 7, 9, 'mushStem', 'mushBrown', 0); p.mush(5, 1, 5, 7, 'mushStem', 'mushBrown', 0); }
+    { const p = plant('mushroom_brown_2', 67); for (let k = 0; k < 5; k++) p.mush(Math.cos(k * 1.3) * 7, Math.sin(k * 1.3) * 7, 3 + p.r() * 5, 5 + p.r() * 4, 'mushStem', 'mushBrown', 0); }
+    { const p = plant('mushroom_glow_1', 71); p.card([0, -1, 0], 28, 22, 'mushCardGlow', 10); p.mush(-4, 2, 8, 10, 'mushGlowStem', 'mushGlow', 0); p.mush(5, 3, 5, 7, 'mushGlowStem', 'mushGlow', 0); p.mush(1, -5, 6, 8, 'mushGlowStem', 'mushGlow', 0); }
+    return { name: 'plants', bones, cubes, materials: MATERIALS, atlasWidth: 256 };
+  }
+
+  // ── Points of interest of the wild regions (src/world/sites/wilds.js). Authored places of boxes; every one stands on a footing sunk into the
+  // ground, so the terrain, which is flattened round it, takes it without a seam. Pivot: the middle of the footprint on the ground; front -z.
+  function pois() {
+    const bones = [], cubes = [];
+    let slot = 0;
+    const rng = s => () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    function poi(name, seed) {
+      const x = slot, r = rng(seed); slot += 400; bones.push([name, null, [x, 0, 0]]);
+      let n = 0;
+      const put = (tag, from, to, mat, extra = {}) => cubes.push(box(`${name}_${tag}${n++}`, name, [from[0] + x, from[1], from[2]], [to[0] + x, to[1], to[2]], mat,
+        { ...extra, origin: extra.origin ? [extra.origin[0] + x, extra.origin[1], extra.origin[2]] : undefined }));
+      // A post / beam from `a` to `b` of square section `t` (any direction), as a box turned to lie along it.
+      const beam = (a, b, t, mat) => {
+        const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], len = Math.hypot(...d), tilt = Math.acos(d[1] / len) * 180 / Math.PI, yaw = Math.atan2(d[0], d[2]) * 180 / Math.PI;
+        put('beam', [a[0] - t / 2, a[1], a[2] - t / 2], [a[0] + t / 2, a[1] + len, a[2] + t / 2], mat, { origin: a, rotation: [tilt, yaw, 0] });
+      };
+      // A flat slab of ground under a place, sunk deep: the footing.
+      const footing = (w, d, mat, depth = 12, up = -3) => put('footing', [-w / 2, -depth, -d / 2], [w / 2, up, d / 2], mat);
+      return { put, beam, footing, r };
+    }
+    // 1. Verlassene Grube (Rotfelsen): a timber headframe over a shaft, a winch hut, an ore cart on rails.
+    { const p = poi('mine_headframe', 101);
+      p.footing(96, 96, 'sandstoneDark');
+      p.put('pit', [-18, 1, -18], [18, 1.6, 18], 'obsidian');
+      for (const [a, b] of [[[-22, 1, -22], [22, 6, -18]], [[-22, 1, 18], [22, 6, 22]], [[-22, 1, -18], [-18, 6, 18]], [[18, 1, -18], [22, 6, 18]]]) p.put('collar', a, b, 'woodDark');
+      for (const z of [-17, 17]) { p.beam([-27, 0, z], [-4, 104, z], 7, 'woodDark'); p.beam([27, 0, z], [4, 104, z], 7, 'woodDark'); p.put('rungs', [-14, 40, z - 3], [14, 44, z + 3], 'woodLight'); p.put('rungs', [-21, 18, z - 3], [21, 22, z + 3], 'woodLight'); p.put('rungs', [-9, 70, z - 3], [9, 74, z + 3], 'woodLight'); }
+      p.put('axle', [-6, 98, -20], [6, 106, 20], 'woodDark');
+      for (const rot of [0, 45]) p.put('wheel', [-1.5, 88, -12], [1.5, 116, 12], 'ironDark', { origin: [0, 102, 0], rotation: [rot, 0, 0] });
+      p.put('rope', [-.7, 2, -.7], [.7, 100, .7], 'hay');
+      p.put('hut', [34, 0, -14], [70, 30, 18], 'woodLight'); p.put('hutroof', [32, 30, -16], [72, 34, 20], 'woodDark'); p.put('hutroof', [36, 34, -12], [68, 38, 16], 'woodDark');
+      p.put('door', [33.5, 0, -7], [35, 20, 3], 'obsidian'); p.put('drum', [26, 8, -3], [34, 18, 7], 'barrelWood');
+      p.put('rail', [-50, 1, 30], [50, 2.5, 32], 'rust'); p.put('rail', [-50, 1, 38], [50, 2.5, 40], 'rust');
+      for (let k = 0; k < 11; k++) p.put('sleeper', [-48 + k * 9, .4, 28], [-44 + k * 9, 1.4, 42], 'woodDark');
+      p.put('cart', [-40, 4, 27], [-14, 16, 43], 'ironDark'); p.put('ore', [-37, 16, 30], [-17, 19, 40], 'rust');
+      for (const [wx, wz] of [[-37, 26], [-17, 26], [-37, 44], [-17, 44]]) p.put('cartwheel', [wx - 4, 0, wz - 1], [wx + 4, 8, wz + 1], 'ironDark', { origin: [wx, 4, wz] });
+      p.put('lantern', [-3, 58, -21], [3, 68, -15], 'ember'); }
+    // 2. Das Rippenfeld (Rotfelsen and the dunes): the bones of something huge, half buried: a spine, rib arches, a skull.
+    { const p = poi('ribcage', 103);
+      p.footing(40, 150, 'sandstone');
+      p.put('spine', [-5, 14, -64], [5, 22, 56], 'bone'); for (let k = 0; k < 12; k++) p.put('vertebra', [-7, 12, -62 + k * 10], [7, 24, -57 + k * 10], 'boneDark');
+      for (let k = 0; k < 9; k++) {
+        const z = -54 + k * 11, s = 1 - Math.abs(k - 4) * .09;
+        for (const side of [-1, 1]) {
+          p.beam([side * 6, 20, z], [side * 30 * s, 52 * s, z + 2], 5, 'bone'); p.beam([side * 30 * s, 52 * s, z + 2], [side * 40 * s, 22, z + 5], 4.5, 'bone'); p.beam([side * 40 * s, 22, z + 5], [side * 38 * s, 0, z + 6], 3.5, 'boneDark');
+        }
+      }
+      p.put('skull', [-18, 6, 64], [18, 40, 110], 'bone'); p.put('snout', [-11, 6, 108], [11, 24, 134], 'bone'); p.put('jaw', [-12, 0, 84], [12, 8, 134], 'boneDark');
+      for (const sx of [-1, 1]) { p.put('socket', [sx * 11 - 4, 22, 106], [sx * 11 + 4, 32, 110], 'obsidian'); for (let k = 0; k < 6; k++) p.put('tooth', [sx * 8 - 1, 8, 112 + k * 4], [sx * 8 + 1, 14, 114 + k * 4], 'horn'); }
+      p.put('tail', [-3, 12, -118], [3, 20, -64], 'boneDark'); }
+    // 3. Der Sonnenobelisk (Sandmark): a carved shaft on steps, broken, its fallen top in the sand beside it.
+    { const p = poi('obelisk', 107);
+      p.footing(100, 100, 'sandstoneDark');
+      p.put('step', [-48, 0, -48], [48, 4, 48], 'sandstoneDark'); p.put('step', [-38, 4, -38], [38, 8, 38], 'sandstone'); p.put('step', [-28, 8, -28], [28, 12, 28], 'sandstone');
+      p.put('shaft', [-12, 12, -12], [12, 56, 12], 'sandstone', { rotation: [0, 12, 0], origin: [0, 12, 0] });
+      p.put('shaft', [-9, 56, -9], [9, 100, 9], 'sandstone', { rotation: [0, 12, 0], origin: [0, 56, 0], decals: ['north', 'south', 'east', 'west'].map(face => ({ face, palette: { g: '#4a3a24' }, x: 3, y: 4, map: Array.from({ length: 36 }, (_, y) => '.'.repeat(12).split('').map((_, x) => (y % 5 < 3 && ((x * 7 + y * 3 + face.length) % 4 === 0 || (x + y) % 9 === 0)) ? 'g' : '.').join('')) })) });
+      p.put('broken', [-9, 100, -9], [9, 106, 3], 'sandstone', { rotation: [0, 12, 0], origin: [0, 100, 0] });
+      p.put('fallen', [-8, 0, -8], [8, 52, 8], 'sandstone', { origin: [0, 0, 0], rotation: [90, 70, 0], decals: [{ face: 'north', palette: { g: '#4a3a24' }, x: 3, y: 4, map: Array.from({ length: 40 }, (_, y) => '.'.repeat(10).split('').map((_, x) => (y % 4 < 2 && (x * 5 + y) % 3 === 0) ? 'g' : '.').join('')) }] });
+      p.put('tip', [-5, 0, -5], [5, 14, 5], 'sandstone', { origin: [0, 0, 0], rotation: [96, 70, 0] });
+      for (let k = 0; k < 9; k++) { const a = k * 40 + p.r() * 20, d = 58 + p.r() * 30; p.put('rubble', [Math.cos(a) * d - 4, -1, Math.sin(a) * d - 4], [Math.cos(a) * d + 4, 4 + p.r() * 5, Math.sin(a) * d + 4], 'sandstoneDark', { origin: [Math.cos(a) * d, 0, Math.sin(a) * d], rotation: [0, k * 33, 0] }); } }
+    // 4. Karawanenrast (Sandmark): a striped tent, crates, a fire pit, bedrolls.
+    { const p = poi('caravan_camp', 109);
+      p.footing(130, 110, 'sandstoneDark');
+      const tent = (cx, cz, len, mat) => { for (const side of [-1, 1]) for (let k = 0; k < 6; k++) p.put('canvas', [cx + side * 27 - 1, 0, cz - len / 2 + k * len / 6], [cx + side * 27 + 1, 44, cz - len / 2 + (k + 1) * len / 6], k % 2 ? 'canvasRed' : mat, { origin: [cx + side * 27, 0, cz - len / 2 + k * len / 6], rotation: [0, 0, side * 38] }); p.put('ridge', [cx - 1.5, 38, cz - len / 2], [cx + 1.5, 41, cz + len / 2], 'woodDark'); for (const e of [-1, 1]) p.put('pole', [cx - 1, 0, cz + e * len / 2 - 1], [cx + 1, 40, cz + e * len / 2 + 1], 'woodDark'); };
+      tent(-24, -8, 60, 'canvas');
+      for (let k = 0; k < 3; k++) p.put('crate', [20 + k * 9, 0, -36 + (k % 2) * 8], [29 + k * 9, 9, -27 + (k % 2) * 8], 'woodLight', { origin: [24 + k * 9, 0, -32], rotation: [0, k * 25, 0] });
+      p.put('barrel', [50, 0, -20], [60, 14, -10], 'barrelWood'); p.put('sack', [44, 0, -4], [54, 8, 6], 'sack'); p.put('sack', [54, 0, 2], [63, 7, 10], 'sackLight');
+      for (let k = 0; k < 8; k++) { const a = k * 45; p.put('ring', [Math.cos(a * .01745) * 12 - 3, 0, 24 + Math.sin(a * .01745) * 12 - 3], [Math.cos(a * .01745) * 12 + 3, 5, 24 + Math.sin(a * .01745) * 12 + 3], 'sandstoneDark', { origin: [Math.cos(a * .01745) * 12, 0, 24 + Math.sin(a * .01745) * 12], rotation: [0, a, 0] }); }
+      p.put('ash', [-8, 0, 16], [8, 1.5, 32], 'obsidian'); p.put('ember', [-3, 1.5, 21], [3, 3, 27], 'ember');
+      for (const bx of [-30, -12]) p.put('bedroll', [bx - 6, 0, 28], [bx + 6, 4, 52], 'clothGreen', { origin: [bx, 0, 40], rotation: [0, bx * 2, 0] }); }
+    // 5. Der Obsidianaltar (Aschenkrone): a black altar on three steps, glass spikes round it, a brazier burning on it.
+    { const p = poi('obsidian_altar', 113);
+      p.footing(110, 110, 'basalt');
+      p.put('step', [-52, 0, -52], [52, 4, 52], 'basalt'); p.put('step', [-42, 4, -42], [42, 8, 42], 'basalt'); p.put('step', [-32, 8, -32], [32, 12, 32], 'obsidian');
+      p.put('block', [-22, 12, -14], [22, 32, 14], 'obsidian'); p.put('top', [-25, 32, -17], [25, 36, 17], 'basalt');
+      p.put('bowl', [-8, 36, -8], [8, 44, 8], 'ironDark'); p.put('fire', [-6, 44, -6], [6, 50, 6], 'ember'); p.put('fire', [-3, 50, -3], [3, 56, 3], 'ember');
+      for (let k = 0; k < 9; k++) { const a = k * 40 + p.r() * 10, d = 48 + p.r() * 12, h = 30 + p.r() * 40, px = Math.sin(a * .01745) * d, pz = Math.cos(a * .01745) * d; p.put('spike', [px - 4, 0, pz - 4], [px + 4, h, pz + 4], 'obsidian', { origin: [px, 0, pz], rotation: [8 + p.r() * 14, a, 0] }); }
+      p.put('skull', [-5, 36, -22], [5, 43, -14], 'horn'); }
+    // 6. Der Steinkreis (Heidemoor): standing stones in a ring round a flat altar stone.
+    { const p = poi('stone_circle', 127);
+      p.footing(160, 160, 'graniteStone');
+      for (let k = 0; k < 11; k++) {
+        if (k === 4) continue;
+        const a = k / 11 * 6.283, d = 66, h = 44 + p.r() * 26, w = 12 + p.r() * 4, px = Math.cos(a) * d, pz = Math.sin(a) * d, lean = (p.r() - .5) * 8;
+        p.put('stone', [px - w / 2, -4, pz - w / 2 * .7], [px + w / 2, h * .6, pz + w / 2 * .7], 'graniteStone', { origin: [px, 0, pz], rotation: [lean, -a * 57.3 + 90, lean * .5] });
+        p.put('stone', [px - w * .38, h * .6, pz - w * .28], [px + w * .38, h, pz + w * .28], 'graniteStone', { origin: [px, 0, pz], rotation: [lean, -a * 57.3 + 90, lean * .5] });
+        p.put('moss', [px - w / 2 - .3, h * .35, pz - 3], [px + w / 2 + .3, h * .5, pz + 3], 'mossGreen', { origin: [px, 0, pz], rotation: [lean, -a * 57.3 + 90, lean * .5] });
+      }
+      p.put('altar', [-20, 0, -12], [20, 11, 12], 'graniteStone'); p.put('altartop', [-23, 11, -14], [23, 15, 14], 'graniteStone', { rotation: [0, 8, 0], origin: [0, 11, 0] });
+      p.put('fallen', [-6, 0, -6], [6, 42, 6], 'graniteStone', { origin: [0, 0, 0], rotation: [84, 20, 0] }); p.put('fallenmoss', [-6.4, 4, -3], [6.4, 20, 3], 'mossGreen', { origin: [0, 0, 0], rotation: [84, 20, 0] });
+      for (let k = 0; k < 6; k++) p.put('offering', [-14 + k * 5, 15, -4 + (k % 2) * 4], [-11 + k * 5, 17, -1 + (k % 2) * 4], k % 2 ? 'ember' : 'horn'); }
+    // 7. Torfstecherhütte (Heidemoor): a low turf hut with a thatched roof, stacks of drying peat, a rack.
+    { const p = poi('peat_hut', 131);
+      p.footing(120, 96, 'earth');
+      p.put('walls', [-30, 0, -22], [30, 22, 22], 'mossGreen'); for (let k = 0; k < 5; k++) p.put('turf', [-31 + k * 12.6, 14, -23], [-20 + k * 12.6, 18, -21], 'earth');
+      for (let k = 0; k < 7; k++) p.put('thatch', [-36, 22 + k * 3, -27 + k * 4], [36, 25 + k * 3, 27 - k * 4], 'hay');
+      p.put('ridge', [-37, 43, -3], [37, 46, 3], 'woodDark'); p.put('door', [-8, 0, -23.5], [8, 18, -21.5], 'obsidian'); p.put('doorframe', [-10, 0, -24], [-8, 20, -21], 'woodDark'); p.put('doorframe', [8, 0, -24], [10, 20, -21], 'woodDark');
+      p.put('chimney', [18, 30, -4], [26, 50, 4], 'sandstoneDark');
+      for (let row = 0; row < 3; row++) for (let k = 0; k < 6 - row; k++) p.put('peat', [-56 + k * 9, row * 5, -38], [-48 + k * 9, row * 5 + 4.5, -30], 'earth');
+      for (const x of [34, 54]) p.put('post', [x - 1.2, 0, -30], [x + 1.2, 28, -28], 'woodDark');
+      p.put('rack', [32, 22, -30.5], [56, 24, -27.5], 'woodLight'); for (let k = 0; k < 4; k++) p.put('hang', [35 + k * 5, 12, -30], [39 + k * 5, 22, -28], 'earth'); }
+    // 8. Der Jadeschrein (Jadegrat): a small shrine of green stone with two tiers of roof, lanterns, vines.
+    { const p = poi('jade_shrine', 137);
+      p.footing(116, 116, 'jadeStone');
+      p.put('step', [-56, 0, -56], [56, 5, 56], 'jadeStone'); p.put('step', [-46, 5, -46], [46, 9, 46], 'jadeStone');
+      for (const [px, pz] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) { p.put('pillar', [px - 4, 9, pz - 4], [px + 4, 52, pz + 4], 'jadeStone'); p.put('vine', [px - 4.3, 14, pz - 2], [px + 4.3, 44, pz + 2], 'leavesJade'); }
+      p.put('floor', [-34, 9, -34], [34, 10, 34], 'sandstoneDark');
+      p.put('eave', [-42, 52, -42], [42, 58, 42], 'jadeRoof'); p.put('eave', [-32, 58, -32], [32, 64, 32], 'jadeRoof'); p.put('eave', [-22, 64, -22], [22, 70, 22], 'jadeRoof'); p.put('eave', [-12, 70, -12], [12, 76, 12], 'jadeRoof'); p.put('finial', [-2, 76, -2], [2, 90, 2], 'brass');
+      p.put('upper', [-20, 76, -20], [20, 80, 20], 'jadeStone');
+      p.put('idol', [-6, 10, -6], [6, 30, 6], 'jadeStone'); p.put('idolhead', [-4, 30, -4], [4, 38, 4], 'jadeStone'); p.put('altar', [-12, 10, -12], [12, 14, 12], 'sandstoneDark');
+      for (const [px, pz] of [[-40, -40], [40, -40], [-40, 40], [40, 40]]) { p.put('cord', [px - .4, 46, pz - .4], [px + .4, 52, pz + .4], 'woodDark'); p.put('lantern', [px - 3, 38, pz - 3], [px + 3, 46, pz + 3], 'ember'); }
+      for (let k = 0; k < 6; k++) p.put('moss', [-56 + k * 20, 4, -57], [-46 + k * 20, 6, -55], 'leavesJade'); }
+    // 9. Der hohle Stamm (woods): a fallen trunk you could crawl into, moss on it, toadstools, a lantern left inside.
+    { const p = poi('hollow_log', 139);
+      p.footing(60, 130, 'earth');
+      p.put('top', [-17, 22, -62], [17, 30, 62], 'barkMoss'); p.put('left', [-24, 6, -62], [-16, 26, 62], 'barkMoss'); p.put('right', [16, 6, -62], [24, 26, 62], 'barkMoss'); p.put('floor', [-18, 0, -62], [18, 8, 62], 'bark');
+      p.put('inside', [-16, 8, -61], [16, 22, 61], 'obsidian');
+      p.put('ring', [-26, 2, -64], [26, 32, -62], 'barkMoss'); p.put('hole', [-15, 8, -64.5], [15, 22, -62], 'obsidian');
+      p.put('moss', [-9, 30, -34], [8, 31.5, -10], 'mossGreen'); p.put('moss', [-7, 30, 14], [10, 31.5, 40], 'mossGreen'); p.put('moss', [-10, 30, 44], [3, 31.5, 56], 'mossGreen');
+      for (let k = 0; k < 5; k++) p.put('shelf', [18, 10 + k * 3.4, -30 + k * 14], [30, 12.5 + k * 3.4, -20 + k * 14], 'mushRed', { rotation: [0, 14, 0], origin: [18, 10 + k * 3.4, -25 + k * 14] });
+      p.put('lantern', [-4, 8, -50], [4, 16, -42], 'ember'); p.put('root', [-30, 0, 40], [-22, 12, 52], 'barkMoss'); }
+    // 10. Die Brandhütte (Aschenkrone): a hut of charred timber, roof fallen in, ash on the floor.
+    { const p = poi('burned_hut', 149);
+      p.footing(120, 100, 'basalt');
+      for (const [px, pz, h] of [[-34, -26, 40], [34, -26, 34], [-34, 26, 22], [34, 26, 44], [0, -26, 30], [0, 26, 12], [-34, 0, 34]]) p.put('post', [px - 3, 0, pz - 3], [px + 3, h, pz + 3], 'barkCharred');
+      p.put('wall', [-36, 0, 24], [-8, 14, 28], 'barkCharred'); p.put('wall', [10, 0, -28], [36, 20, -24], 'barkCharred');
+      for (let k = 0; k < 6; k++) p.beam([-34 + k * 12, 44 - k * 4, -26], [-26 + k * 12, 6, 6 + k * 4], 4, 'barkCharred');
+      p.put('ash', [-34, .8, -24], [34, 2, 24], 'obsidian'); p.put('embers', [-8, 2, -4], [4, 3, 8], 'ember'); p.put('pot', [18, 2, 8], [28, 12, 18], 'ironDark');
+      p.put('bed', [-30, 2, -22], [-12, 6, 4], 'charcoal'); for (let k = 0; k < 5; k++) p.put('plank', [-30 + k * 14, 1, 14 + (k % 2) * 6], [-12 + k * 14, 3, 18 + (k % 2) * 6], 'barkCharred', { origin: [0, 1, 16], rotation: [0, k * 29, 0] }); }
+    return { name: 'pois', bones, cubes, materials: MATERIALS, atlasWidth: 512 };
   }
 
   // ── Horses. A heavy riding horse, bigger than life like everything in Hemland (withers about 2.6 units, a
@@ -1405,7 +1820,7 @@ function AshenModels() {
     bandit: () => humanoid({ name: 'bandit', skin: 'skinTan', hair: 'hairDark', hairColor: '#251e19', scar: true,
       top: 'clothGrey', leatherArmor: 'leatherDark', headband: 'clothCrimson', mask: 'clothGrey', bracers: 'leatherDark', tunicSkirt: 'clothGrey', scabbard: true }),
     captain: () => humanoid({ name: 'captain', build: 'strong', hair: 'hairDark', top: 'clothCrimson', plate: 'darkSteel', helmet: 'darkSteel', tabard: 'clothCrimson', cape: 'clothCrimson', noPouch: true, boots: 'boot' }),
-    wolf, weapons, deer, fox, hare, crow, props, trees, cave_props: caveProps, backpack,
+    wolf, weapons, deer, fox, hare, crow, props, trees, plants, pois, cave_props: caveProps, backpack,
     ...Object.fromEntries(Object.keys(HORSES).map(v => [`horse_${v}`, () => horse(v)])),
     ...Object.fromEntries(Object.entries(GOBLIN_MODELS).map(([name, o]) => [name, () => goblin({ name, ...o })])),
   };

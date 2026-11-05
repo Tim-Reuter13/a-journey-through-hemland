@@ -39,10 +39,12 @@ test('region weights stay in 0..1 and each region is full at its centre', () => 
   assert.ok(Math.max(...ZONE_IDS.map(id => w[id])) < .05, 'the village lies in no landform region');
 });
 
-test('the authored places keep to their own biomes', () => {
+test('the authored places keep to their own biomes, the wild points of interest stand in theirs', () => {
+  const wild = { mine: 'badlands', ribs: 'dunes', obelisk: 'dunes', caravan: 'dunes', altar: 'volcanic', burnt_hut: 'volcanic', circle: 'highland', peat_hut: 'highland', jade_shrine: 'pillars' };
   for (const [id, s] of Object.entries(SITES)) {
     const w = zoneWeights(s.x, s.z);
-    assert.ok(Math.max(...ZONE_IDS.map(z => w[z])) < .35, `${id} is inside a region (${JSON.stringify(w)})`);
+    if (wild[id]) assert.ok(w[wild[id]] > .6, `${id} should lie in ${wild[id]} (${JSON.stringify(w)})`);
+    else assert.ok(Math.max(...ZONE_IDS.map(z => w[z])) < .35, `${id} is inside a region (${JSON.stringify(w)})`);
   }
 });
 

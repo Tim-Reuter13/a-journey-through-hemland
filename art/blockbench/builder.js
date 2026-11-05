@@ -33,7 +33,17 @@ function AshenBuild(spec, options = {}) {
   const halfStep = (ramp, t) => { const k = clamp(Math.round(t * 2) / 2, 0, ramp.length - 1), lo = Math.floor(k); return k === lo ? ramp[lo] : mixc(ramp[lo], ramp[lo + 1], .5); };
 
   // ── Pixel material styles. Each returns an [r,g,b] for face pixel (x, y).
+  // Textures made as pictures (art/textures/codex/*.png, 32x32, passed in as options.images = { name: { w, h, data } }):
+  // the picture repeats over a face from an offset of its own, so neighbouring faces never line up; alpha < 128 is a hole.
+  const IMAGES = options.images || {};
   const STYLES = {
+    image: (m, f, x, y) => {
+      const img = IMAGES[m.image];
+      if (!img) return STYLES[m.fallback || 'flat'](m, f, x, y);
+      const px = (x + f.seed * 7 + f.cubeIndex * 5) % img.w, py = (y + f.seed * 3 + f.cubeIndex * 11) % img.h, i = (py * img.w + px) * 4;
+      if (img.data[i + 3] < 128) return null;
+      return [img.data[i], img.data[i + 1], img.data[i + 2]];
+    },
     flat: (m, f, x, y) => m.ramp[random() < .78 ? 1 : random() < .5 ? 0 : 2],
     skin: (m, f, x, y) => m.ramp[random() < .86 ? 1 : random() < .5 ? 0 : 2],
     cloth: (m, f, x, y) => {

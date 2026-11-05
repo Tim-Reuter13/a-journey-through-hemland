@@ -7,7 +7,15 @@ import { burnUniforms, BURN_GLSL } from './burnMap.js';
 // wind moves. Each tree also gets a cheap far version (trunk, limbs and the biggest clumps) that
 // chunks.js shows two rings out. Node tests load none; flora.js keeps its block trees then.
 export const TREES = ['oak_1', 'oak_2', 'oak_3', 'autumn_1', 'autumn_2', 'birch_1', 'birch_2', 'spruce_1', 'spruce_2',
-  'pine_1', 'pine_2', 'pine_snow_1', 'pine_snow_2', 'dead_1', 'bush_1', 'bush_2', 'maple_1', 'maple_2', 'birch_gold_1', 'birch_gold_2'];
+  'pine_1', 'pine_2', 'pine_snow_1', 'pine_snow_2', 'dead_1', 'bush_1', 'bush_2', 'maple_1', 'maple_2', 'birch_gold_1', 'birch_gold_2',
+  'dead_2', 'oak_4', 'oak_5', 'oak_6', 'autumn_3', 'maple_3', 'birch_3', 'spruce_3', 'pine_3', 'pine_snow_3',
+  'redwood_1', 'redwood_2', 'willow_1', 'willow_2', 'acacia_1', 'acacia_2', 'palm_1', 'palm_2', 'cypress_1', 'cypress_2', 'jade_1', 'jade_2',
+  'heath_1', 'heath_2', 'blossom_1', 'blossom_2', 'purple_1', 'purple_2', 'olive_1', 'olive_2', 'charred_1', 'charred_2',
+  'cactus_1', 'cactus_2', 'cactus_3', 'mangrove_1', 'mangrove_2'];
+// How much taller a placed tree stands than the model: the old species were stretched when trees were made bigger, the new ones
+// were modelled at their size (a redwood is already 15 units).
+const GROWTH = { redwood: 1, willow: 1.2, acacia: 1.2, palm: 1.15, cypress: 1.2, jade: 1.2, heath: 1.25, blossom: 1.3, purple: 1.3, olive: 1.25, charred: 1.3, cactus: 1.1, mangrove: 1.2 };
+const growthOf = name => name.startsWith('bush') ? 1 : GROWTH[name.replace(/_(snow_)?\d+$/, '')] ?? 1.38;
 export const wind = { value: 0 };
 const templates = new Map();
 const materials = {};
@@ -98,16 +106,19 @@ export async function loadTreeModels(base = `${import.meta.env.BASE_URL}models/`
       const dims = [size.x, size.y, size.z].sort((a, b) => a - b);
       geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverse, part.matrixWorld));
       geometry.computeBoundingBox();
-      return { geometry, leaf: part.name.includes('_leaf'), thin: dims[0], height: size.y, volume: size.x * size.y * size.z, box: geometry.boundingBox.clone() };
+      return { geometry, leaf: part.name.includes('_leaf'), root: part.name.includes('_root'), thin: dims[0], height: size.y, volume: size.x * size.y * size.z, box: geometry.boundingBox.clone() };
     });
+    // Roots and the collar round the trunk's foot are kept apart: each placed tree gets its own copy laid on the ground under it.
+    const rootPieces = pieces.filter(p => p.root), body = pieces.filter(p => !p.root), rigid = name.startsWith('cactus');
     const all = new THREE.Box3(), crown = new THREE.Box3();
-    pieces.forEach(p => { all.union(p.box); if (p.leaf) crown.union(p.box); });
+    body.forEach(p => { all.union(p.box); if (p.leaf) crown.union(p.box); });
     const height = all.max.y, conifer = /spruce|pine/.test(name);
     if (!crown.isEmpty()) crown.getCenter(centre);
     for (const p of pieces) {
       const pos = p.geometry.attributes.position, normal = p.geometry.attributes.normal, sway = new Float32Array(pos.count);
       for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), up = Math.max(0, y / height);
+        if (p.root || rigid) continue;
         if (!p.leaf) { sway[i] = up > .45 ? (up - .45) ** 2 * .8 : 0; continue; }
         sway[i] = Math.min(1, up ** 1.3 * 1.1);
         // Rounded crown: conifers round about the trunk, broadleaf crowns about their middle.
@@ -120,21 +131,22 @@ export async function loadTreeModels(base = `${import.meta.env.BASE_URL}models/`
       p.geometry.setAttribute('sway', new THREE.BufferAttribute(sway, 1));
       p.geometry.setAttribute('leaf', new THREE.BufferAttribute(new Float32Array(pos.count).fill(p.leaf ? 1 : 0), 1));
     }
+    if (!rootPieces.length) { /* trees without roots (bushes) place nothing extra */ }
     // The far version: trunk and limbs (no twigs), and the bigger half of the foliage, a little
     // swollen to close the gaps the small clumps leave.
-    const leaves = pieces.filter(p => p.leaf).sort((a, b) => b.volume - a.volume);
-    const keep = new Set([...pieces.filter(p => !p.leaf && p.thin >= .2), ...leaves.slice(0, Math.ceil(leaves.length * .45))]);
+    const leaves = body.filter(p => p.leaf).sort((a, b) => b.volume - a.volume);
+    const keep = new Set([...body.filter(p => !p.leaf && p.thin >= .2), ...leaves.slice(0, Math.ceil(leaves.length * .45))]);
     const far = [...keep].map(p => {
       const g = p.geometry.clone();
       if (p.leaf) { p.box.getCenter(radial); g.translate(-radial.x, -radial.y, -radial.z).scale(1.15, 1.15, 1.15).translate(radial.x, radial.y, radial.z); }
       return g;
     });
-    const hi = mergeGeometries(pieces.map(p => p.geometry), false), lo = mergeGeometries(far, false);
+    const hi = mergeGeometries(body.map(p => p.geometry), false), lo = mergeGeometries(far, false), roots = rootPieces.length ? mergeGeometries(rootPieces.map(p => p.geometry), false) : null;
     pieces.forEach(p => p.geometry.dispose()); far.forEach(g => g.dispose());
-    for (const g of [hi, lo]) { g.computeBoundingBox(); g.computeBoundingSphere(); }
+    for (const g of [hi, lo, roots]) if (g) { g.computeBoundingBox(); g.computeBoundingSphere(); }
     // Trunk width from the base segment (the tall wood piece standing on the ground).
-    const trunk = pieces.filter(p => !p.leaf && p.box.min.y < .2 && p.height > 1).reduce((w, p) => Math.max(w, Math.min(p.box.max.x - p.box.min.x, p.box.max.z - p.box.min.z)), .3);
-    templates.set(name, { hi, lo, trunk, height, crown: crown.isEmpty() ? null : crown.clone() });
+    const trunk = body.filter(p => !p.leaf && p.box.min.y < .2 && p.height > 1).reduce((w, p) => Math.max(w, Math.min(p.box.max.x - p.box.min.x, p.box.max.z - p.box.min.z)), .3);
+    templates.set(name, { hi, lo, roots, trunk, height, crown: crown.isEmpty() ? null : crown.clone() });
   }
   return templates.size;
 }
@@ -167,13 +179,38 @@ export function canopiesNear(x, z, r) {
       for (const c of canopyGrid.get(`${i},${j}`) || []) if ((c.x - x) ** 2 + (c.z - z) ** 2 < r * r) out.push(c);
   return out;
 }
+// The ground under the trees (set by the chunk scatter): roots are bent over it, vertex by vertex, so they follow a slope.
+let treeGround = null;
+export function setTreeGround(heightAt) { treeGround = heightAt; }
+/** How steep the ground is at (x, z), 0 on the level (0 without terrain): things set on it sink by it on the downhill side. */
+export function groundSlope(x, z) { return treeGround ? Math.hypot(treeGround(x + 1.2, z) - treeGround(x - 1.2, z), treeGround(x, z + 1.2) - treeGround(x, z - 1.2)) / 2.4 : 0; }
+/** The root flare of a tree standing at (x, baseY, z), laid on the terrain: every vertex keeps its height above the ground
+ *  under it, not above the trunk's foot. Uphill roots climb, downhill ones grip the drop; the collar sinks to the lowest side. */
+function groundedRoots(template, x, baseY, z, scale, yaw) {
+  const src = template.roots, pos = src.attributes.position, out = new Float32Array(pos.array.length), c = Math.cos(yaw), s = Math.sin(yaw);
+  for (let i = 0; i < pos.count; i++) {
+    const lx = pos.getX(i), ly = pos.getY(i), lz = pos.getZ(i);
+    const ground = treeGround(x + (c * lx + s * lz) * scale, z + (-s * lx + c * lz) * scale);
+    out[i * 3] = lx; out[i * 3 + 1] = ly + (ground - baseY) / scale; out[i * 3 + 2] = lz;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(out, 3));
+  for (const name of ['normal', 'uv', 'sway', 'leaf']) if (src.attributes[name]) g.setAttribute(name, src.attributes[name]);
+  g.boundingBox = src.boundingBox.clone(); g.boundingBox.min.y -= 6; g.boundingBox.max.y += 6; g.computeBoundingSphere(); g.boundingSphere.radius += 6;
+  return g;
+}
 export function placeTree(parent, name, x, y, z, scale, random, { solid = true } = {}) {
   const template = templates.get(name);
   if (!template) return null;
-  if (!name.startsWith('bush')) scale *= 1.18; // a little taller than the block trees they replaced
+  scale *= growthOf(name);
+  const yaw = random() * Math.PI * 2;
   const root = new THREE.Group(); root.name = name;
   const hi = new THREE.Mesh(template.hi, materials.hi);
   hi.name = 'tree:hi'; hi.castShadow = hi.receiveShadow = true; root.add(hi);
+  if (template.roots) {
+    const roots = new THREE.Mesh(treeGround ? groundedRoots(template, x, y - .12 * scale, z, scale, yaw) : template.roots, materials.hi);
+    roots.name = 'tree:roots'; roots.castShadow = false; roots.receiveShadow = true; root.add(roots);
+  }
   if (farTrees) { const lo = new THREE.Mesh(template.lo, materials.lo); lo.name = 'tree:lo'; lo.castShadow = lo.receiveShadow = true; root.add(lo); }
   if (solid) {
     const footprint = new THREE.Object3D(), w = template.trunk * scale * .9;
@@ -181,7 +218,7 @@ export function placeTree(parent, name, x, y, z, scale, random, { solid = true }
     footprint.userData.surface = 'wood';
     root.add(footprint);
   }
-  root.position.set(x, y - .12 * scale, z); root.scale.setScalar(scale); root.rotation.y = random() * Math.PI * 2;
+  root.position.set(x, y - .12 * scale, z); root.scale.setScalar(scale); root.rotation.y = yaw;
   registerCanopy(name, template.crown, x, y - .12 * scale, z, scale);
   parent.add(root);
   return root;

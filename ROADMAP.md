@@ -373,3 +373,24 @@ jade cliffs, highland, moor, muskeg, bog pools). Everything is terrain mesh: no 
   walkable, tints).
 - [ ] Not done: smoke over the crater, ash and dust particles, cacti/palms/redwoods (needs Blockbench tree models), biome-specific
   animals, snow-capped regions that depend on temperature rather than height, a second river, fire fuel per new biome.
+
+## Phase 8 — Flora rework (2026-11-05)
+Trees, plants and places of every region, modelled in Blockbench (art/blockbench/models.js › trees / plants / pois, exported to public/models/);
+the pictures on them are 47 textures made by Codex's image tool (art/textures/codex/, 32x32, cutouts transparent).
+- [x] Trees: 57 models (was 20): bigger (x1.38 on the old species), roots that fork and a sunk collar round the foot; forking limbs (`ramify`) so the
+  crown hangs on real wood; more variants of oak, autumn, maple, birch, spruce, pine; new species redwood (giant), willow, acacia, palm, cypress, jade
+  tree, wind-bent moor pine, cherry blossom, jacaranda, olive, charred trunks, three cacti, mangrove with stilt roots.
+- [x] Dynamic: every placed tree's roots are bent over the terrain under it vertex by vertex (uphill roots climb, downhill ones grip the drop; the collar
+  sinks to the lowest side); plants lean with the ground and sink on slopes; ground tufts lean with the slope too; plants sway in the wind.
+- [x] Biome tables: Rotfelsen (cactus, cypress, acacia on canyon floors, agave, dry shrubs), Sandmark (cactus, acacia, palms in oases, dry shrub, agave, pampas),
+  Aschenkrone (burnt trunks, glowing mushrooms), Heidemoor (wind-bent pines, birches, heather everywhere), Jadegrat (jade trees, blossom, rare redwoods, ferns,
+  toadstools), marsh (mangroves, willows, mushrooms), taiga (rare redwood giants, ferns), autumn woods (ferns, toadstools), shores (willows), dry south (olive, cypress, pampas, poppy).
+- [x] 19 new plant models: heather x2, lavender, poppy, bluebell, thistle, pampas x2, dry shrub x2, agave x2 (one in flower), big fern x2, red / brown / glowing mushrooms.
+- [x] Terrain grounds as pictures (src/world/groundLayers.js: one texture array, 16 layers, one extra sampler): red sand / clay / rock, dune sand, dry grass, ash, basalt,
+  obsidian crust, heather, peat, moss rock, granite, jade grass, pine needles, cracked mud, clover; each region's `surface()` weights them; they are read on the wall's
+  projection (not smeared down a cliff).
+- [x] 10 points of interest (Blockbench models, sites/wilds.js, ground flattened for each, discoverable with lore): Verlassene Grube, Rippenfeld, Sonnenobelisk,
+  Karawanenrast, Obsidianaltar, Brandhütte, Steinkreis, Torfstecherhütte, Jadeschrein, Hohler Stamm (with a ring of toadstools).
+- [x] Tests: tests/flora.test.js (specs build, pictures exist, regions get their grounds, places are flat and named).
+- [ ] Open: far terrain (32-unit grid) turns the sheer pillars into cones; the models of the new plants are placed by region, not yet by season; birds / insects per region;
+  ground textures for river banks (gravel, limestone are made but unused); trees do not yet burn differently by species; chunk scatter takes ~23 ms (was ~12).

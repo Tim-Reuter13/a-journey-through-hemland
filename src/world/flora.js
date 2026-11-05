@@ -3,7 +3,8 @@ import { block, blockOn, beam, crossGeometry } from '../art/blocks.js';
 import { registerPixelTexture, pixelCanvas, pixelMaterial } from '../art/pixelTextures.js';
 import { landscapeChunk } from './rocks.js';
 import { TREELINE, SNOWLINE } from './hemland.js';
-import { wind, treesLoaded, placeTree, setFarTrees } from './trees.js';
+import { placePlant, plantsLoaded } from './props.js';
+import { wind, treesLoaded, placeTree, setFarTrees, setTreeGround, groundSlope } from './trees.js';
 import { burnUniforms, BURN_GLSL } from './burnMap.js';
 export { wind };
 
@@ -14,7 +15,7 @@ const PI = Math.PI;
 const pick = (random, names) => names[Math.floor(random() * names.length) % names.length];
 
 export function spruce(parent, x, y, z, scale, random) {
-  if (treesLoaded()) return placeTree(parent, pick(random, ['spruce_1', 'spruce_2']), x, y, z, scale, random);
+  if (treesLoaded()) return placeTree(parent, pick(random, ['spruce_1', 'spruce_2', 'spruce_3']), x, y, z, scale, random);
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(scale); g.rotation.y = random() * PI; parent.add(g);
   blockOn(g, .5, 6.6, .5, 'bark', 0, -.4, 0, 0, { solid: true });
   const leaves = random() < .12 ? pixelMaterial('spruceLeaves', { tint: 0xc9d8c4 }) : 'spruceLeaves';
@@ -28,7 +29,7 @@ export function spruce(parent, x, y, z, scale, random) {
 }
 
 export function broadleaf(parent, x, y, z, scale, random, kind = 'oak') {
-  const names = { birch: ['birch_1', 'birch_2'], autumn: ['autumn_1', 'autumn_2'], maple: ['maple_1', 'maple_2'], birchGold: ['birch_gold_1', 'birch_gold_2'] }[kind] || ['oak_1', 'oak_2', 'oak_3'];
+  const names = { birch: ['birch_1', 'birch_2', 'birch_3'], autumn: ['autumn_1', 'autumn_2', 'autumn_3'], maple: ['maple_1', 'maple_2', 'maple_3'], birchGold: ['birch_gold_1', 'birch_gold_2'] }[kind] || ['oak_1', 'oak_2', 'oak_3', 'oak_4', 'oak_5', 'oak_6'];
   if (treesLoaded()) return placeTree(parent, pick(random, names), x, y, z, scale, random);
   if (kind === 'maple') kind = 'autumn'; else if (kind === 'birchGold') kind = 'birch';
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(scale); g.rotation.y = random() * PI * 2; parent.add(g);
@@ -47,7 +48,7 @@ export function broadleaf(parent, x, y, z, scale, random, kind = 'oak') {
 }
 
 export function deadTree(parent, x, y, z, scale, random) {
-  if (treesLoaded()) return placeTree(parent, 'dead_1', x, y, z, scale, random);
+  if (treesLoaded()) return placeTree(parent, random() < .5 ? 'dead_1' : 'dead_2', x, y, z, scale, random);
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(scale); g.rotation.y = random() * PI * 2; parent.add(g);
   blockOn(g, .55, 4.8, .55, 'bark', 0, -.3, 0, 0, { solid: true });
   beam(g, [0, 2.6, 0], [1.3, 4.0, .2], .28, 'bark');
@@ -57,8 +58,21 @@ export function deadTree(parent, x, y, z, scale, random) {
   return g;
 }
 
+// The new species of the landform regions (Blockbench models, art/blockbench/models.js › trees). Without the models (node tests)
+// they fall back to the block trees.
+const SPECIES = {
+  redwood: ['redwood_1', 'redwood_2'], willow: ['willow_1', 'willow_2'], acacia: ['acacia_1', 'acacia_2'], palm: ['palm_1', 'palm_2'], cypress: ['cypress_1', 'cypress_2'],
+  jade: ['jade_1', 'jade_2'], heath: ['heath_1', 'heath_2'], blossom: ['blossom_1', 'blossom_2'], purple: ['purple_1', 'purple_2'], olive: ['olive_1', 'olive_2'],
+  charred: ['charred_1', 'charred_2'], cactus: ['cactus_1', 'cactus_2', 'cactus_3'], mangrove: ['mangrove_1', 'mangrove_2'],
+};
+export function species(parent, kind, x, y, z, scale, random) {
+  if (treesLoaded()) return placeTree(parent, pick(random, SPECIES[kind]), x, y, z, scale, random);
+  return kind === 'cactus' || kind === 'charred' ? deadTree(parent, x, y, z, scale, random) : kind === 'redwood' || kind === 'cypress' ? spruce(parent, x, y, z, scale, random) : broadleaf(parent, x, y, z, scale, random, 'oak');
+}
+
 export function boulder(parent, x, y, z, size, random, mossy = false) {
-  const g = new THREE.Group(); g.position.set(x, y - size * .25, z); g.rotation.y = random() * PI * 2; parent.add(g);
+  // A boulder on a slope sinks into the uphill side: the downhill one would hang in the air.
+  const g = new THREE.Group(); g.position.set(x, y - size * .25 - Math.min(.9, groundSlope(x, z) * .45) * size, z); g.rotation.y = random() * PI * 2; parent.add(g);
   const pieces = size > 1.1 ? 3 : 2;
   for (let i = 0; i < pieces; i++) {
     const w = size * (1.1 - i * .25) * (.85 + random() * .3), h = size * (.7 - i * .12) * (.8 + random() * .4), d = size * (.9 - i * .2) * (.85 + random() * .3);
@@ -79,7 +93,7 @@ export function bush(parent, x, y, z, size, random) {
 
 /** Tall, narrow taiga conifer; above the snow line its boughs carry snow. */
 export function pine(parent, x, y, z, scale, random, snowy = false) {
-  if (treesLoaded()) return placeTree(parent, pick(random, snowy ? ['pine_snow_1', 'pine_snow_2'] : ['pine_1', 'pine_2']), x, y, z, scale, random);
+  if (treesLoaded()) return placeTree(parent, pick(random, snowy ? ['pine_snow_1', 'pine_snow_2', 'pine_snow_3'] : ['pine_1', 'pine_2', 'pine_3']), x, y, z, scale, random);
   const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(scale); g.rotation.y = random() * PI; parent.add(g);
   blockOn(g, .55, 9.5, .55, 'bark', 0, -.4, 0, 0, { solid: true });
   const leaves = snowy ? 'snowyPine' : 'pineLeaves';
@@ -260,7 +274,8 @@ export function groundCoverChunk(field, biomeWeights, waterLevel, x0, z0, size, 
     if (dry > .3 && random() < dry * .8) continue;
     // The waterline and the shallows are planted by water.js (reed beds, rushes, iris); here only the land.
     if (h < waterLevel + .6) continue;
-    if (Math.abs(field.heightAt(x + 1, z) - h) + Math.abs(field.heightAt(x, z + 1) - h) > 1.2) continue;
+    const dxs = field.heightAt(x + 1, z) - h, dzs = field.heightAt(x, z + 1) - h;
+    if (Math.abs(dxs) + Math.abs(dzs) > 1.2) continue;
     let sprite;
     if (dry > .35) sprite = roll < .6 ? SPRITE.deadGrass : roll < .8 ? SPRITE.grassShort : SPRITE.tallGrass;
     else if (w.highland > .4 && roll < .78) sprite = roll < .22 ? SPRITE.flowerPurple : roll < .4 ? SPRITE.fern : roll < .58 ? SPRITE.deadGrass : SPRITE.tallGrass;
@@ -275,14 +290,17 @@ export function groundCoverChunk(field, biomeWeights, waterLevel, x0, z0, size, 
       sprite = SPRITE[random() < .7 ? lead : FLOWERS[Math.floor(random() * FLOWERS.length)]];
     } else sprite = random() < .45 ? SPRITE.grassShort : SPRITE.tallGrass;
     if (sprite === SPRITE.tallGrass && random() > .55 + w.plains * .3 - w.taiga * .2) continue;
-    items.push([x, h, z, sprite, w]);
+    items.push([x, h, z, sprite, w, dxs, dzs]);
   }
   if (!items.length) return null;
   const mesh = new THREE.InstancedMesh(spriteGeometry.clone(), material, items.length);
   const sprites = new Float32Array(items.length), dummy = new THREE.Object3D(), tint = new THREE.Color();
-  items.forEach(([x, y, z, sprite, w], i) => {
+  const UP = new THREE.Vector3(0, 1, 0), lean = new THREE.Vector3(), spin = new THREE.Quaternion();
+  items.forEach(([x, y, z, sprite, w, dxs, dzs], i) => {
     const flower = FLOWERS.includes(SPRITES[sprite]);
-    dummy.position.set(x, y - .04, z); dummy.rotation.set(0, random() * PI, 0);
+    // Tufts and flowers lean with the ground and sink a little on a slope: no tuft hangs in the air on the downhill side.
+    lean.set(-dxs * .6, 1, -dzs * .6).normalize(); dummy.quaternion.setFromUnitVectors(UP, lean).multiply(spin.setFromAxisAngle(UP, random() * PI));
+    dummy.position.set(x, y - .04 - Math.hypot(dxs, dzs) * .15, z);
     const s = flower ? .7 + random() * .25 : sprite === SPRITE.reeds ? 1.2 + random() * .5 : sprite === SPRITE.fern ? 1 + random() * .3 : sprite === SPRITE.grassShort ? .6 + random() * .3 : .75 + random() * .45;
     dummy.scale.set(s, s * (flower ? 1 : .85 + random() * .3), s); dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
@@ -404,7 +422,7 @@ function details(parent, field, biomeWeights, waterLevel, x0, z0, size, random, 
 }
 
 export function scatterChunk(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
-  setFarTrees(true);
+  setFarTrees(true); setTreeGround(field.heightAt);
   try { scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid); } finally { setFarTrees(false); }
 }
 function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
@@ -423,21 +441,64 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
       else if (h < TREELINE + 34 && slope < 2.2 && roll < .55 && Math.max(w.badlands, w.dunes, w.volcanic) < .3) pine(parent, x, h, z, .8 + random() * .4, random, h > SNOWLINE - 16);
       continue;
     }
-    // Regions of their own: bare ground with a few dead trees, dry shrubs and rocks; moor with heather and the odd pine; green lowland between stone towers.
-    const dry = Math.max(w.badlands, w.dunes, w.volcanic);
+    const dry = Math.max(w.badlands, w.dunes, w.volcanic), s0 = .85 + random() * .5;
+    // Water's edge: willows lean over the shore (not in the deserts).
+    if (h < waterLevel + 4.2 && dry < .3 && roll < .22) { species(parent, 'willow', x, h, z, s0, random); continue; }
+    // Regions of their own. Rotfelsen: cactus and cypress on the mesas, acacia on the canyon floors, dead wood. Sandmark: cactus and
+    // dead trees, palms gathered where a hollow could hold an oasis. Aschenkrone: burnt trunks and loose stone.
     if (dry > .4) {
-      if (roll < (w.volcanic > .4 ? .03 : .045)) deadTree(parent, x, h, z, .7 + random() * .6, random);
-      else if (roll < .11 && w.volcanic < .4) bush(parent, x, h, z, .5 + random() * .5, random);
-      else if (roll < .17) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
+      if (w.badlands > .4) {
+        if (roll < .06) species(parent, 'cactus', x, h, z, s0, random);
+        else if (roll < .09 && h < 16) species(parent, 'acacia', x, h, z, s0, random);
+        else if (roll < .11) species(parent, 'cypress', x, h, z, s0, random);
+        else if (roll < .15) deadTree(parent, x, h, z, s0, random);
+        else if (roll < .21) bush(parent, x, h, z, .5 + random() * .5, random);
+        else if (roll < .26) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
+      } else if (w.dunes > .4) {
+        const oasis = Math.sin(x * .021 + 1) * Math.cos(z * .018 + .4) > .72;
+        if (oasis && roll < .3) species(parent, 'palm', x, h, z, s0, random);
+        else if (oasis && roll < .42) bush(parent, x, h, z, .6 + random() * .5, random);
+        else if (roll < .045) species(parent, 'cactus', x, h, z, s0, random);
+        else if (roll < .06) species(parent, 'acacia', x, h, z, s0, random);
+        else if (roll < .09) deadTree(parent, x, h, z, s0, random);
+        else if (roll < .13) bush(parent, x, h, z, .5 + random() * .5, random);
+      } else {
+        if (roll < .06) species(parent, 'charred', x, h, z, s0, random);
+        else if (roll < .17) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
+      }
       continue;
     }
-    if (w.highland > .5 && roll > .13) { if (random() < .24) boulder(parent, x, h, z, .6 + random() * 1.4, random, random() < .4); else if (random() < .26) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
+    // Heidemoor: open, windswept; a bent pine here and there, a birch, heather bushes, boulders.
+    if (w.highland > .5) {
+      if (roll < .09) species(parent, 'heath', x, h, z, s0, random);
+      else if (roll < .125) broadleaf(parent, x, h, z, s0 * .8, random, 'birch');
+      else if (roll < .14) pine(parent, x, h, z, s0 * .9, random);
+      else if (roll < .26) bush(parent, x, h, z, .6 + random() * .6, random);
+      else if (roll < .33) boulder(parent, x, h, z, .6 + random() * 1.4, random, random() < .4);
+      continue;
+    }
+    // Jadegrat: a green wood between the towers, jade trees, a few blossoms, and now and then a giant.
     if (w.pillars > .5) {
-      if (roll > .55) { if (random() < .12) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
-      random() < .72 ? broadleaf(parent, x, h, z, .85 + random() * .6, random, random() < .5 ? 'oak' : 'birch') : spruce(parent, x, h, z, .9 + random() * .5, random);
+      if (roll > .6) { if (random() < .12) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
+      const k = random();
+      k < .3 ? species(parent, 'jade', x, h, z, s0, random) : k < .5 ? broadleaf(parent, x, h, z, s0, random, 'oak') : k < .62 ? broadleaf(parent, x, h, z, s0, random, 'birch')
+        : k < .7 ? species(parent, 'blossom', x, h, z, s0, random) : k < .73 ? species(parent, 'redwood', x, h, z, .8 + random() * .3, random) : spruce(parent, x, h, z, s0, random);
       continue;
     }
-    if (w.marsh > .5) { if (roll < .1) deadTree(parent, x, h, z, .8 + random() * .5, random); else if (roll < .22) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
+    // The marsh: stilt-rooted mangroves, willows, dead snags and shrubs.
+    if (w.marsh > .5) {
+      if (roll < .06) species(parent, 'mangrove', x, h, z, s0, random);
+      else if (roll < .1) species(parent, 'willow', x, h, z, s0, random);
+      else if (roll < .17) deadTree(parent, x, h, z, .8 + random() * .5, random);
+      else if (roll < .3) bush(parent, x, h, z, .6 + random() * .6, random);
+      continue;
+    }
+    // The dry south of the meadows (between the marsh and the dunes): olives, cypress, acacia, a few cactus.
+    if (z > 380 && w.marsh < .3 && w.dunes < .4 && w.badlands < .4 && roll < .22 + w.dunes * .4) {
+      const k = random();
+      k < .5 ? species(parent, 'olive', x, h, z, s0, random) : k < .75 ? species(parent, 'cypress', x, h, z, s0, random) : k < .92 ? species(parent, 'acacia', x, h, z, s0, random) : species(parent, 'cactus', x, h, z, s0, random);
+      continue;
+    }
     const wooded = Math.min(1, w.taiga + w.autumn + w.forest);
     const density = w.taiga + w.autumn * .85 + w.forest * .85 + (1 - wooded) * (.18 - w.plains * .14);
     if (roll > density) {
@@ -446,12 +507,41 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
       continue;
     }
     const s = .75 + random() * .6;
-    if (w.taiga > .5) random() < .85 ? pine(parent, x, h, z, s, random) : spruce(parent, x, h, z, s, random);
+    if (w.taiga > .5) { const k = random(); k < .025 ? species(parent, 'redwood', x, h, z, .8 + random() * .3, random) : k < .86 ? pine(parent, x, h, z, s, random) : spruce(parent, x, h, z, s, random); }
     // Autumn woods: orange oaks, red maples, golden birches, a few dark spruces and dead trees.
     else if (w.autumn > .5) { const k = random(); k < .9 ? broadleaf(parent, x, h, z, s, random, k < .34 ? 'autumn' : k < .56 ? 'maple' : k < .76 ? 'birchGold' : k < .82 ? 'oak' : 'autumn') : k < .96 ? spruce(parent, x, h, z, s, random) : deadTree(parent, x, h, z, s, random); }
     else if (w.forest > .5) random() < .75 ? spruce(parent, x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : 'oak');
     else if (random() < .04) deadTree(parent, x, h, z, s, random);
-    else broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn');
+    else { const k = random(); k < .045 ? species(parent, 'blossom', x, h, z, s, random) : k < .075 ? species(parent, 'purple', x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn'); }
   }
+  plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
   details(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
+}
+
+/** Which plant grows at a spot (Blockbench models, placed slope-aligned): heather over the moor, agave and dry shrubs in the dry
+ *  regions, ferns and toadstools in the woods, drifts of poppy, bluebell and lavender in the meadows. null = none. */
+function plantFor(w, x, z, h, roll, k, drift) {
+  const v = (base, n = 2) => `${base}_${1 + Math.floor(k * n)}`;
+  if (w.badlands > .4) return roll < .06 ? v('agave') : roll < .16 ? v('dry_shrub') : roll < .18 ? v('pampas') : null;
+  if (w.dunes > .4) return roll < .09 ? v('dry_shrub') : roll < .12 ? v('agave') : roll < .15 && h < 36 ? v('pampas') : null;
+  if (w.volcanic > .4) return roll < .012 ? 'mushroom_glow_1' : null;
+  if (w.highland > .4) return roll < .27 ? v('heather') : roll < .3 ? 'thistle_1' : roll < .32 ? v('mushroom_brown') : roll < .335 ? 'bluebell_1' : null;
+  if (w.pillars > .4) return roll < .16 ? v('fern_big') : roll < .22 ? 'bluebell_1' : roll < .26 ? v('mushroom_red') : roll < .3 ? 'mushroom_glow_1' : null;
+  if (w.marsh > .4) return roll < .05 ? v('fern_big') : roll < .08 ? v('mushroom_brown') : roll < .095 ? 'mushroom_glow_1' : null;
+  if (w.taiga > .4) return roll < .08 ? v('fern_big') : roll < .12 ? v('mushroom_brown') : roll < .14 ? v('mushroom_red') : null;
+  if (w.autumn > .4) return roll < .1 ? v('fern_big') : roll < .15 ? v('mushroom_red') : roll < .2 ? v('mushroom_brown') : null;
+  if (z > 380) return roll < .09 ? v('pampas') : roll < .14 ? v('dry_shrub') : roll < .16 ? 'agave_1' : roll < .2 ? 'poppy_1' : null;
+  if (drift > .62) return roll < .5 ? 'poppy_1' : roll < .75 ? 'bluebell_1' : 'lavender_1';
+  return roll < .012 ? 'thistle_1' : roll < .02 ? v('fern_big') : null;
+}
+function plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
+  if (!plantsLoaded()) return;
+  const drifts = (x, z) => .5 + .5 * Math.sin(x * .031) * Math.cos(z * .037 - 1.3);
+  for (let i = 0; i < 150; i++) {
+    const x = x0 + random() * size, z = z0 + random() * size, h = field.heightAt(x, z);
+    if (h < waterLevel + .9 || h > TREELINE - 4 || field.roadClearance(x, z) < 2.5 || avoid(x, z)) continue;
+    if (Math.abs(field.heightAt(x + 1.5, z) - h) + Math.abs(field.heightAt(x, z + 1.5) - h) > 2.6) continue;
+    const name = plantFor(biomeWeights(x, z), x, z, h, random(), random(), drifts(x, z));
+    if (name) placePlant(parent, name, x, h, z, .9 + random() * .5, random, field.heightAt);
+  }
 }

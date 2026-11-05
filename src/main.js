@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createWorld } from './world/world.js';
 import { loadPropModels } from './world/props.js';
 import { loadTreeModels } from './world/trees.js';
+import { loadGroundLayers } from './world/groundLayers.js';
 import { loadCharacterModels, createCharacter, equipItem, WEAPON_MODELS, heldItem } from './characters/models.js';
 import { createAnimator, solveArm } from './characters/animator.js';
 import { createHeldBow, aimObject } from './characters/bow.js';
@@ -78,7 +79,8 @@ renderer.domElement.tabIndex = 0;
 $('game').append(renderer.domElement);
 // The towns place Blockbench props while they are generated, so those load before the world.
 await Promise.all([loadPropModels().catch(error => console.warn('Props not loaded, towns use block clutter', error)),
-  loadTreeModels().catch(error => console.warn('Trees not loaded, the land uses block trees', error))]);
+  loadTreeModels().catch(error => console.warn('Trees not loaded, the land uses block trees', error)),
+  loadGroundLayers().catch(error => console.warn('Ground pictures not loaded, the regions keep plain colours', error))]);
 const world = createWorld(scene);
 const graphics = createGraphics(renderer, world);
 const rpg = createRPGSystems();

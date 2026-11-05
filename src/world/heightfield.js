@@ -1,4 +1,5 @@
 import { BOUNDS, CHUNK, WATER_LEVEL, SITES, ROADS, RIVERS, LAKES, TREELINE, SNOWLINE, biomeWeights, kronwachtLevel, kronwachtPaving, castleWardPaving } from './hemland.js';
+import { GROUND, GROUND_INDEX } from './groundNames.js';
 import { pn, relief, ravines, crags, alpine, mountains, edgeWall, badlands, dunes, volcano, highland, pillars, groundLook } from './landforms.js';
 
 // The Aschmark heightfield: noise hills shaped by authored features (mountains,
@@ -295,32 +296,48 @@ export function createHeightfield() {
     let mud = w.marsh * .95 * ss(WATER_LEVEL + 3, WATER_LEVEL + .5, h) + shore * .25 + wet * .85 + damp * .75 + under * (1 - bank) * .95;
     let sandW = sand;
     const { grass: tint, stone } = groundLook(w);
+    // Grounds of the regions' own: pictures (groundLayers.js), by weight. Where one lies the plain layers give way, and the tint stays for
+    // what the pictures do not cover.
+    const c = new Array(GROUND.length).fill(0), give = (name, v) => { const i = GROUND_INDEX[name]; c[i] = Math.max(c[i], Math.min(1.4, v)); };
+    const retreat = k => { dirt *= 1 - k; sandW *= 1 - k; litter *= 1 - k; rock *= 1 - k * .6; };
     if (w.badlands > 0) {
-      // Strata: bands of red earth, dark red rock and orange sand follow the height, so every mesa wall is layered.
+      // Strata: bands of red clay, dark red rock and orange sand follow the height, so every mesa wall is layered; cracked mud on the canyon floors.
       const band = h * .16 + fbm(x * .02, z * .02, 2, 5) * 1.4, bf = band - Math.floor(band);
       const earth = ss(.04, .1, bf) * ss(.38, .32, bf), ledge = ss(.38, .44, bf) * ss(.7, .64, bf), dust = ss(.7, .76, bf) * ss(1, .94, bf);
-      dirt = Math.max(dirt, w.badlands * Math.max(earth * .95, (1 - ss(.74, .9, patches)) * .85)); rock = Math.max(rock, w.badlands * (ledge * .95 + ss(.9, 1.8, slope) * .95));
-      sandW = Math.max(sandW, w.badlands * dust * .92 * (1 - rock)); litter *= 1 - w.badlands;
+      give('red_clay', w.badlands * Math.max(earth * .95, (1 - ss(.74, .9, patches)) * .8)); give('red_rock', w.badlands * (ledge * 1.1 + ss(.5, 1.3, slope) * 1.3));
+      give('red_sand', w.badlands * (dust * .95 + ss(.76, .94, patches) * .5)); give('cracked_mud', w.badlands * ss(11, 5, h) * .9);
+      retreat(w.badlands);
     }
     if (w.dunes > 0) {
-      sandW = Math.max(sandW, w.dunes * (.8 + patches * .2)); dirt = Math.max(dirt, w.dunes * ss(.78, .95, patches) * .5); litter *= 1 - w.dunes;
+      give('dune_sand', w.dunes * 1.2); give('dry_grass', w.dunes * ss(.7, .9, patches) * .85); give('red_sand', w.dunes * ss(.8, 1.2, slope) * .6);
+      retreat(w.dunes);
     }
     if (w.volcanic > 0) {
-      // Ash: dark earth everywhere, bare black rock on the steeper flanks, rust-coloured crumbs between; no meadow.
-      rock = Math.max(rock, w.volcanic * (.35 + ss(.3, .9, slope) * .6)); dirt = Math.max(dirt, w.volcanic * (.8 + patches * .15));
-      litter = Math.max(litter, w.volcanic * .3 * patches); sandW = Math.max(sandW, w.volcanic * .5 * ss(14, 4, h));
+      // Ash: black earth everywhere, bare basalt on the steeper flanks, a glassy crust high up round the crater; no meadow.
+      give('ash_ground', w.volcanic * 1.25); give('basalt', w.volcanic * (ss(.3, .9, slope) * 1.3)); give('obsidian_crust', w.volcanic * ss(70, 104, h) * .95);
+      retreat(w.volcanic);
     }
     if (w.highland > 0) {
-      // Peat and heather: patches of bare brown earth, dry litter, mud round the bog pools, stone on the crests.
-      dirt = Math.max(dirt, w.highland * ss(.55, .88, patches) * .6); litter = Math.max(litter, w.highland * .55 * (.4 + patches * .6));
-      mud = Math.max(mud, w.highland * ss(WATER_LEVEL + 4.5, WATER_LEVEL + .5, h) * .9); rock = Math.max(rock, w.highland * ss(.35, .8, slope) * .8);
+      // Peat and heather: heather over the hills, peat in the hollows and round the pools, granite on the knobs, moss where it is damp.
+      give('heather', w.highland * (1 - ss(.8, .95, patches) * .5) * 1.1); give('peat', w.highland * (ss(WATER_LEVEL + 6, WATER_LEVEL + .5, h) * 1.2 + ss(.86, .96, patches) * .35));
+      give('granite', w.highland * ss(.45, 1.1, slope) * 1.3); give('moss_rock', w.highland * ss(.7, .92, patches) * ss(.2, .6, slope) * .9);
+      retreat(w.highland * .9);
     }
     if (w.pillars > 0) {
-      rock = Math.max(rock, w.pillars * ss(1.1, 2.4, slope));
+      // A tower is stone wherever it rises out of the lowland: found from the landform itself, not only from the slope, so the coarse
+      // far meshes (whose few vertices sit on top and at the foot) still show a stone tower and not a grassy cone.
+      const tower = ss(2, 9, pillars(x, z) - 9);
+      give('jade_grass', w.pillars * 1.2 * (1 - ss(.6, 1.1, slope)) * (1 - tower * .75)); give('moss_rock', w.pillars * Math.max(ss(.5, 1.2, slope) * 1.3, tower * (.7 + ss(.3, 1, slope) * .5)));
+      retreat(w.pillars * .8);
     }
+    // Woods and meadows: needles under the taiga, clover and flowers in patches over the open meadows.
+    if (w.taiga > 0) give('pine_needles', w.taiga * .8 * (.55 + patches * .45) * (1 - under));
+    const wild = Math.max(w.badlands, w.dunes, w.volcanic, w.highland, w.pillars);
+    give('clover_meadow', (1 - wild) * (1 - w.taiga) * (1 - w.autumn * .6) * (1 - w.marsh) * ss(.55, .82, patches) * .7 * (1 - under) * (1 - shore));
     return {
       a: [roadW * (1 - paved) * (1 - streets), dirt, rock, snow],
       b: [litter, mud, sandW, Math.max(roadW * paved, streets)],
+      c: c.slice(0, 4), d: c.slice(4, 8), e: c.slice(8, 12), f: c.slice(12, 16),
       tint, rock: stone,
     };
   }
