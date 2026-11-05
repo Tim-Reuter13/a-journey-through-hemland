@@ -70,7 +70,7 @@ export function createCombatEffects(scene,world) {
   // Blood is its own system (blood.js): pixel fluid on the ground, wounds painted into the characters' textures.
   const blood=createBlood(scene,world,{spark:(point,normal,count)=>spray(point,normal,'ember',count),sound:kind=>sound(kind)});
   // The blade (and the hand that holds it) takes the blood of every cut that goes into flesh; main.js keeps the slabs on whatever is held.
-  const blade=createBladeBlood({drip:point=>blood.spurt(point,new THREE.Vector3(0,-1,0),1,{speed:.2,spread:.1})});
+  const blade=createBladeBlood({drop:(point,velocity,vol)=>blood.drop(point,velocity,vol)});
   function spray(position,direction,color='blood',count=18){
     if(color==='blood'){blood.spurt(position,direction,count);return;}
     const k=KINDS[color]||KINDS.ember;

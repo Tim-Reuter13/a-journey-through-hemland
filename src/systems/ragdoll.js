@@ -7,6 +7,7 @@ import { GROUP, groups } from './physics.js';
 // the body keeps muscle tone, the knees buckle and the arms reach out to break the fall in the
 // direction it tips; then the tone fades and the corpse goes limp. Bones read the bodies back.
 // Segment centre offset and half extents in rig units (16 px = 1), before scaling.
+const MASS_SCALE = .5;   // a person's body is half as heavy to the physics as the table below: corpses can be dragged
 const SEGMENTS = {
   hips: { c: [0, .0625, 0], h: [.25, .125, .156], mass: 10 },
   torso: { c: [0, .125, 0], h: [.25, .125, .156], mass: 8, parent: 'hips', hinge: [-.9, .5] },
@@ -53,7 +54,7 @@ export function createRagdoll(physics, character, { impulse = null, point = null
     const centre = new THREE.Vector3(...seg.c).multiplyScalar(scale).applyQuaternion(q).add(v);
     const body = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(centre.x, centre.y, centre.z).setRotation(q)
       .setLinearDamping(.25).setAngularDamping(1.4).setCanSleep(true));
-    const collider = world.createCollider(RAPIER.ColliderDesc.cuboid(...seg.h.map(x => x * scale)).setMass(seg.mass).setFriction(.95)
+    const collider = world.createCollider(RAPIER.ColliderDesc.cuboid(...seg.h.map(x => x * scale)).setMass(seg.mass * MASS_SCALE).setFriction(.6)
       .setCollisionGroups(groups(GROUP.ragdoll, GROUP.world | GROUP.prop)), body);
     const part = { name, bone, body, collider, offset: new THREE.Vector3(...seg.c).multiplyScalar(scale) };
     parts.push(part); byName[name] = part;
@@ -83,7 +84,7 @@ export function createRagdoll(physics, character, { impulse = null, point = null
   }
   if (impulse) {
     const target = point ? parts.reduce((best, p) => { const t = p.body.translation(); const d = Math.hypot(t.x - point.x, t.y - point.y, t.z - point.z); return d < best.d ? { p, d } : best; }, { p: byName.chest, d: Infinity }).p : byName.chest;
-    target.body.applyImpulse({ x: impulse.x, y: impulse.y, z: impulse.z }, true);
+    target.body.applyImpulse({ x: impulse.x * MASS_SCALE, y: impulse.y * MASS_SCALE, z: impulse.z * MASS_SCALE }, true);   // the same throw for a lighter body
   }
   const mass = parts.reduce((sum, p) => sum + SEGMENTS[p.name].mass, 0);
   let age = 0, limp = false;
@@ -97,7 +98,8 @@ export function createRagdoll(physics, character, { impulse = null, point = null
       const tone = muscleTone(age, j.hold);
       if (tone > .01) alive = true;
       const target = j.start + (j.target - j.start) * smooth(age / j.at);
-      const stiffness = (30 + 420 * tone) * j.strength, damping = (4 + 30 * tone) * j.strength;
+      // Joint strength scales with the (lighter) bodies, so the fall looks as before, only the corpse is easier to move.
+      const stiffness = (30 + 420 * tone) * j.strength * MASS_SCALE, damping = (4 + 30 * tone) * j.strength * MASS_SCALE;
       if (j.hinge) {
         if (tone > .01) j.joint.configureMotorPosition(target, stiffness * tone, damping);
         else j.joint.configureMotorVelocity(0, 1.2);

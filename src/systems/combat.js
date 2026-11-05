@@ -95,6 +95,8 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   function setGuard(value){if(value&&!guard)guardStart=time;guard=!!value&&!action&&player.tool===0&&player.stamina>2;}
   function hit(enemy,amount,magic,from=eye()){
     if(enemy.dead)return;
+    const riposte=!magic&&enemy.riposteUntil>time;
+    if(riposte){enemy.riposteUntil=0;amount*=2.2;hitPause=.14;toast('KONTER',700);effects.sound('impact');}
     // Where the blow lands decides everything: the shield, the armour, the wound, the pain.
     const suited=isSuited(enemy);if(suited)enemy.suited=true;
     const probe=magic?null:effects.probe(enemy,from,{kind:strikeKind||'sword',combo,point:aimPoint,armored:suited});
@@ -102,14 +104,14 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // A raised shield turns blows from the front (the shield bearer's stamina pays for it).
     // A raised shield turns blows from the front (about ±70°), paid in stamina. The heavy third blow, or a
     // blow on an exhausted arm, breaks the guard: the shield is flung aside and the body is open.
-    if(!magic&&!lowShot&&enemy.ai?.personality.shield&&!enemy.shieldGone&&enemy.shieldUp&&(enemy.shieldRaise??1)>.6&&!(enemy.guardBroken>0)&&!enemy.ai.disarmed&&inAttackArc(player.position.x-enemy.model.position.x,player.position.z-enemy.model.position.z,enemy.model.rotation.y,9,.35)){
+    if(!magic&&!riposte&&!lowShot&&enemy.ai?.personality.shield&&!enemy.shieldGone&&enemy.shieldUp&&(enemy.shieldRaise??1)>.6&&!(enemy.guardBroken>0)&&!enemy.ai.disarmed&&inAttackArc(player.position.x-enemy.model.position.x,player.position.z-enemy.model.position.z,enemy.model.rotation.y,9,.35)){
       const heavy=strikeKind!=='arrow'&&combo===2;
       if(heavy||enemy.ai.stamina<10){enemy.guardBroken=1.3;enemy.shieldUp=false;enemy.stagger=.55;enemy.ai.stamina=Math.max(0,enemy.ai.stamina-10);effects.sound('parry');
         effects.spray(enemy.model.position.clone().add(vector(0,1.4,0)),vector(0,1,0),'splinter',5);hitPause=.06;toast('DECKUNG DURCHBROCHEN',1100);
         motion?.impact(enemy,{shield:true,force:2.4,from});motion?.impact(enemy,{kind:'sword',from,combo:1,amount:0});ai?.noise('fight',enemy.model.position);return;}
       enemy.ai.stamina-=strikeKind==='arrow'?2:9;effects.sound('arrowWood');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'splinter',3);hitPause=.03;ai?.noise('fight',enemy.model.position);
       motion?.impact(enemy,{shield:true,force:strikeKind==='arrow'?.35:combo===2?1.4:.8,from});return;}
-    if(!magic&&enemy.blocking>0){enemy.blocking=0;enemy.stagger=.25;effects.sound('parry');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'ember',4);amount*=.2;hitPause=.03;
+    if(!magic&&!riposte&&enemy.blocking>0){enemy.blocking=0;enemy.stagger=.25;effects.sound('parry');effects.spray(enemy.model.position.clone().add(vector(0,1.5,0)),vector(0,1,0),'ember',4);amount*=.2;hitPause=.03;
       if(amount<4){onHit(enemy,amount,magic);return;}}
     const regionScale={head:1.45,neck:1.6,leg:.85,foot:.7,arm:.75,hand:.6}[region]??1;
     amount=Math.round(amount*armorScale(enemy,probe,magic)*regionScale);
@@ -132,48 +134,66 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   }
   function resolveSword(){
     effects.slash(player.position,player.yaw,combo);
-    // The cut has a shape. A slash sweeps wide, an overhead blow is narrow; where the blade crosses a body depends on
-    // where you look (pitch), on how far off the middle it stands and on its height: look down and you cut legs, look
-    // up and a small foe is missed, stand sideways to him and the blow glances. Whoever is nearest the middle of the swing is hit.
     const E=eye(),fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw);
-    const maxOff=combo===2?.55:1.1,pitch=THREE.MathUtils.clamp(player.pitch,-1.2,1.2);
+    const maxOff=combo===2?.55:1.1,pitch=THREE.MathUtils.clamp(player.pitch,-1.3,1.3);
+    // The blade goes where you aim. The crosshair is a ray through the world: whatever body it meets within reach
+    // (alive or lying on the ground) is struck exactly there — a leg, a head, a corpse on the ground when you look down.
+    // Only when the crosshair is off every body does the swing's own shape (pitch, distance, arc) pick someone.
+    let cross=null;
+    {
+      const from=camera.position,dir=camera.getWorldDirection(vector(0,0,0)),seen=new Set();
+      for(const e of [...targets(),...enemies]){
+        if(seen.has(e)||!e.model?.visible)continue;seen.add(e);
+        const hit=effects.blood.pick(e,from,dir,18);if(!hit)continue;
+        const q=hit.point,dx=q.x-player.position.x,dz=q.z-player.position.z,d=Math.hypot(dx,dz),dot=fx*dx+fz*dz;
+        if(d>3.4||(d>.01&&dot<=0))continue;
+        const off=d<.01?0:Math.atan2(fx*dz-fz*dx,dot);
+        if(Math.abs(off)>maxOff*1.3||world.segmentBlocked(E,q))continue;
+        if(!cross||hit.distance<cross.hit.distance)cross={e,hit,off};
+      }
+    }
     const swing=(p,height)=>{
       const dx=p.x-player.position.x,dz=p.z-player.position.z,d=Math.hypot(dx,dz),dot=fx*dx+fz*dz;
       if(d>3.2||(d>.01&&dot<=0))return null;
       const off=d<.01?0:Math.atan2(fx*dz-fz*dx,dot);
       if(Math.abs(off)>maxOff)return null;
-      // Height of the blade over the target at this distance, from the way the wanderer looks; an overhead blow comes down on the upper body.
-      let rel=player.position.y+1.4+Math.tan(pitch)*Math.max(.8,d)*.8-p.y;   // the blade starts at chest height, not at the eye
+      let rel=player.position.y+1.4+Math.tan(pitch)*Math.max(.8,d)*.8-p.y;
       if(combo===2)rel=Math.max(rel,height*.62);
-      if(rel>height*1.1||rel<-height*.1)return null;   // over the head or under the feet
+      if(rel>height*1.1||rel<-height*.1)return null;
       const y=THREE.MathUtils.clamp(rel,height*.08,height*.98),lateral=-Math.sin(off)*.22;
       return {off,d,y,lateral,rel,score:d+Math.abs(off)*1.4+Math.abs(y-height*.6)/height*.5};
     };
-    let target=null,best=null;
-    for(const e of targets()){
-      if(e.dead)continue;const p=e.model.position;
-      if(Math.abs(p.y-player.position.y)>2.4)continue;
-      const height=aimY(e)*1.45,s=swing(p,height);
-      if(!s||(best&&s.score>=best.score))continue;
-      if(world.segmentBlocked(E,p.clone().add(vector(0,s.y,0))))continue;
-      target=e;best=s;
+    let target=null,best=null,corpse=null,where=null;
+    if(cross){
+      if(cross.e.dead){corpse=cross.e;where=cross.hit.point;}
+      else{target=cross.e;best={off:cross.off};aimPoint=cross.hit.point.clone();}
+    }else{
+      for(const e of targets()){
+        if(e.dead)continue;const p=e.model.position;
+        if(Math.abs(p.y-player.position.y)>2.4)continue;
+        const height=aimY(e)*1.45,s=swing(p,height);
+        if(!s||(best&&s.score>=best.score))continue;
+        if(world.segmentBlocked(E,p.clone().add(vector(0,s.y,0))))continue;
+        target=e;best=s;
+      }
+      if(target){const p=target.model.position;aimPoint=vector(p.x+rx*best.lateral,p.y+best.y,p.z+rz*best.lateral);}
     }
     if(target){
-      const p=target.model.position;
-      aimPoint=vector(p.x+rx*best.lateral,p.y+best.y,p.z+rz*best.lateral);
       const glance=1-.4*(Math.abs(best.off)/maxOff)**2;
       strike(target,weaponDamage()*(combo===2?1.18:1)*glance,false,E);
       aimPoint=null;
     }else{
-      // No one alive in reach: a corpse (a ragdoll lies where its hips are, not where it fell from) can still be cut, shoved and bled.
-      let corpse=null,where=null,bestScore=Infinity;
-      for(const e of enemies){
-        if(!e.dead||!e.model.visible)continue;
-        const p=e.ragdoll?.position?e.ragdoll.position():e.model.position,s=swing(p,.9);
-        if(s&&s.d<2.7&&s.score<bestScore){corpse=e;where=p;bestScore=s.score;}
+      if(!corpse){
+        // No one alive in reach and the crosshair is off every body: a corpse in the swing's path.
+        let bestScore=Infinity;
+        for(const e of enemies){
+          if(!e.dead||!e.model.visible)continue;
+          const p=e.ragdoll?.position?e.ragdoll.position():e.model.position,s=swing(p,.9);
+          if(s&&s.d<2.7&&s.score<bestScore){corpse=e;where=vector(p.x,p.y+.1,p.z);bestScore=s.score;}
+        }
       }
       if(corpse){
-        effects.corpseHit(corpse,E,combo,vector(where.x,where.y+.1,where.z));effects.sound('impact');hitPause=.04;
+        effects.corpseHit(corpse,E,combo,where);effects.sound('impact');hitPause=.04;
         for(const part of corpse.ragdoll?.parts||[])part.body?.applyImpulse?.({x:fx*.9,y:.3,z:fz*.9},true);
       }
     }
@@ -329,13 +349,20 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   // guard; here that becomes movement round obstacles, turning at a human rate, reflexes with a
   // reaction time, blocks and dodges that cost stamina, and blows that only land in reach and in sight.
   const turnToward=(e,x,z,dt,rate=5)=>{if(Math.abs(x)+Math.abs(z)<1e-4)return;const turn=THREE.MathUtils.euclideanModulo(Math.atan2(-x,-z)-e.model.rotation.y+Math.PI,Math.PI*2)-Math.PI,k=dt*rate;e.model.rotation.y+=THREE.MathUtils.clamp(turn,-k,k);};
+  // A parry: the blow is turned aside at the last moment. The attacker reels and is open for a counter (riposte: double damage,
+  // no shield or block can stop it), you get your breath back and the clash hangs in the air for a moment.
+  function parry(e,dx,dz){
+    e.stagger=1.2;e.windup=0;e.combo=false;e.riposteUntil=time+1.9;player.stamina=Math.min(player.maxStamina,player.stamina+14);hitPause=.13;
+    toast('PARIERT · KONTER!',1100);effects.sound('parry');effects.spray(eye().add(vector(0,-.3,0)).addScaledVector(vector(dx,0,dz).normalize(),.9),vector(0,1,0),'ember',6);
+    motion?.impact(e,{kind:'parried',from:player.position.clone(),combo:2,amount:0});
+  }
   function strikeLands(e,distance,dx,dz){
     const b=e.ai,prof=b.personality,p=e.model.position;e.strikeT=e.kind==='wolf'?.3:.4;
     const visible=!world.segmentBlocked(p.clone().add(vector(0,1.5,0)),eye());
     if(distance<prof.reach&&visible){
       const facing=inAttackArc(p.x-player.position.x,p.z-player.position.z,player.yaw,4,.25);
       if(guard&&facing&&player.stamina>=12){player.stamina-=12;onEvent(b,'blocked',{},time);
-        if(time-guardStart<.24){e.stagger=1;toast('PARIERT',1000);effects.sound('parry');motion?.impact(e,{kind:'parried',from:player.position.clone(),combo:2,amount:0});}
+        if(time-guardStart<.32)parry(e,dx,dz);
         else {onHurt(3);effects.sound('parry');}
         effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',13);
         motion?.playerHit?.(e,{blocked:true});
@@ -469,7 +496,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
           if(distance<t.reach&&visible){
             const facing=inAttackArc(p.x-player.position.x,p.z-player.position.z,player.yaw,4,.25);
             if(guard&&facing&&player.stamina>=12){player.stamina-=12;
-              if(time-guardStart<.24){e.stagger=1;toast('PARIERT',1000);effects.sound('parry');}
+              if(time-guardStart<.32)parry(e,dx,dz);
               else {onHurt(3);effects.sound('parry');}
               effects.spray(eye().add(vector(0,-.3,0)),vector(0,1,0),'ember',13);
             }else{onHurt(t.damage*(e.storyId?1.3:1));effects.sound('impact');if(!effects.hurtPlayer(e.model.position.clone().add(vector(0,1.5,0)),{amount:t.damage}))effects.spray(player.position.clone().add(vector(0,1.5,0)),vector(dx,0,dz).normalize().negate(),'blood',16);}}

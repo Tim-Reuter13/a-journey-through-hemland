@@ -344,3 +344,12 @@ a backpack animation for the inventory in first and third person, made in Blockb
 - Feedback 2026-11-03 (fixed): fire spread far too fast and wide; trees burned out too fast and always bottom-up; blood sprays too
   long, too thick; Rauk took belly damage through visible armour; arrows did not always leave blood; shield particles overdone;
   first-person sword hand came in from the left; third-person backpack view was terrible.
+
+- [x] Round 4 (2026-11-05): the blade strikes where the crosshair points (a ray through the world, bodies alive or lying down, so
+  looking down hits legs and corpses); parry with a riposte (timed block turns the blow, the attacker reels and takes double damage,
+  nothing blocks the counter); blood on the blade is a fluid (runs along the blade with gravity and swing, beads at the tip and
+  drips, is flung off in a swing as real drops); bodies bleed for 10–45 s so dragged corpses leave trails; ragdolls weigh half
+  (same fall, easier to drag: lower friction while held, the whole body follows the hand); the HUD, compass, menus and the
+  inventory have a modern glass skin (ui/hudModern.css).
+- [ ] Still open: ragdoll get-up is not cleaned up (the captured pose is applied to an upright root for 0.4 s), the third-person
+  sword hold was only nudged (wrist bend), muscle-driven reactions beyond HUMANITY MOTION's zones.

@@ -79,15 +79,18 @@ export async function createPhysics({ heightAt = null, water = null, bounds = { 
   function updateGrab() {
     if (!grabbed) return;
     const body = grabbed.body, p = body.translation(), target = grabbed.target.clone();
-    const heavy = grabbed.mass > 40;
+    const heavy = grabbed.mass > 40 || grabbed.handle.kind === 'ragdoll';
     // Heavy bodies (corpses) slide along the ground instead of floating up.
     if (heavy) target.y = Math.min(target.y, p.y + .3);
     const delta = target.sub(tmpV.set(p.x, p.y, p.z)), distance = delta.length();
     if (distance > (heavy ? 6.5 : 4.5)) { release(); return; }
-    const speed = Math.min(heavy ? 4.4 : 9, distance * (heavy ? 7 : 14));
+    const speed = Math.min(heavy ? 5.4 : 9, distance * (heavy ? 8 : 14));
     const desired = delta.normalize().multiplyScalar(speed), v = body.linvel();
-    const k = heavy ? .6 : 1;
+    const k = heavy ? .9 : 1;
     body.setLinvel({ x: v.x + (desired.x - v.x) * k, y: heavy ? v.y + Math.max(0, desired.y - v.y) * .4 : desired.y, z: v.z + (desired.z - v.z) * k }, true);
+    // The whole body follows the hand that drags it: every limb takes on the pull, so it trails instead of staying put.
+    const parts = grabbed.handle.ragdoll?.parts;
+    if (parts) { const vv = body.linvel(); for (const part of parts) { if (part.body === body) continue; const pv = part.body.linvel(); part.body.setLinvel({ x: pv.x + (vv.x - pv.x) * .4, y: pv.y, z: pv.z + (vv.z - pv.z) * .4 }, true); } }
     if (!heavy) { const w = body.angvel(); body.setAngvel({ x: w.x * .8, y: w.y * .8, z: w.z * .8 }, true); }
   }
 
@@ -136,12 +139,15 @@ export async function createPhysics({ heightAt = null, water = null, bounds = { 
     if (!hit) return false;
     hit.handle.body.wakeUp();
     grabbed = { handle: hit.handle, body: hit.handle.body, mass: hit.handle.mass, target: holdPoint.clone() };
+    // A body dragged over the ground slides: less friction while it is held.
+    for (const part of hit.handle.ragdoll?.parts || []) part.collider.setFriction?.(.25);
     return true;
   }
   function moveGrab(holdPoint) { if (grabbed) grabbed.target.copy(holdPoint); }
   function release(velocity = null) {
     if (!grabbed) return;
-    if (velocity && grabbed.mass <= 40) grabbed.body.setLinvel({ x: velocity.x, y: velocity.y, z: velocity.z }, true);
+    for (const part of grabbed.handle.ragdoll?.parts || []) part.collider.setFriction?.(.6);
+    if (velocity && grabbed.mass <= 40 && grabbed.handle.kind !== 'ragdoll') grabbed.body.setLinvel({ x: velocity.x, y: velocity.y, z: velocity.z }, true);
     grabbed = null;
   }
   /** The player kicks props it walks into. */

@@ -57,6 +57,7 @@ import { AI } from './systems/ai/config.js';
 import { createBarks } from './ui/barks.js';
 import './ui/characterCreator.css';
 import './ui/style.css';
+import './ui/hudModern.css';
 import './ui/touch.css';
 
 // ASHEN REALMS — Die letzte Glut. Playable standalone fantasy RPG vertical slice.
@@ -2053,7 +2054,7 @@ function animate(now) {
   updateParticles(visualDt);
   combat.effects.update(game.paused?0:dt,camera);
   combat.effects.blade.sync(playerModel.userData.weapon);
-  if (player.mode === 'first') { combat.effects.blade.sync(firstPerson.swordItem()); firstPerson.setBlood(combat.effects.blade.amount); }
+  if (player.mode === 'first') { combat.effects.blade.sync(firstPerson.swordItem(), { emit: false }); firstPerson.setBlood(combat.effects.blade.amount); }
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
   renderer.info.autoReset=false;renderer.info.reset();
   const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first'&&(!horses.riding||horses.mounted);

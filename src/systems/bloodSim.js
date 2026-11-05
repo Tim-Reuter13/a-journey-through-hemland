@@ -142,15 +142,15 @@ export function linePixels(x0, y0, x1, y1) {
 
 /** Where a hit lands on the body: bleeding behaviour per region (bone name). */
 export const REGIONS = {
-  head: { name: 'head', severity: 1.5, bleed: 'heavy', after: 6 },
-  neck: { name: 'neck', severity: 2.2, bleed: 'artery', after: 10 },
-  chest: { name: 'chest', severity: 1.15, bleed: 'heavy', after: 7 },
-  torso: { name: 'torso', severity: 1, bleed: 'heavy', after: 6 },
-  hips: { name: 'hips', severity: .9, bleed: 'heavy', after: 5 },
-  arm: { name: 'arm', severity: .6, bleed: 'light', after: 3.5 },
-  hand: { name: 'hand', severity: .4, bleed: 'light', after: 2.5 },
-  leg: { name: 'leg', severity: .8, bleed: 'light', after: 4.5 },
-  foot: { name: 'foot', severity: .4, bleed: 'light', after: 2.5 },
+  head: { name: 'head', severity: 1.5, bleed: 'heavy', after: 28 },
+  neck: { name: 'neck', severity: 2.2, bleed: 'artery', after: 45 },
+  chest: { name: 'chest', severity: 1.15, bleed: 'heavy', after: 36 },
+  torso: { name: 'torso', severity: 1, bleed: 'heavy', after: 32 },
+  hips: { name: 'hips', severity: .9, bleed: 'heavy', after: 28 },
+  arm: { name: 'arm', severity: .6, bleed: 'light', after: 14 },
+  hand: { name: 'hand', severity: .4, bleed: 'light', after: 10 },
+  leg: { name: 'leg', severity: .8, bleed: 'light', after: 20 },
+  foot: { name: 'foot', severity: .4, bleed: 'light', after: 10 },
 };
 export function regionOf(boneName) {
   const b = boneName.replace(':mesh', '');

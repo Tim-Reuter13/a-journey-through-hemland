@@ -1,0 +1,105 @@
+/* A modern skin over the pixel HUD and menus (loaded after style.css): frosted glass, thin vitals, soft light, quick eases.
+   Pixel art stays in the world and on the logo; the interface itself is clean. Everything here only restyles, nothing moves. */
+:root {
+  --ui-glass: rgba(13, 18, 24, .58); --ui-glass-strong: rgba(11, 15, 20, .8); --ui-line: rgba(255, 255, 255, .12); --ui-line-strong: rgba(255, 255, 255, .22);
+  --ui-text: #eef0f1; --ui-dim: rgba(238, 240, 241, .62); --ui-accent: #e8b44c; --ui-accent-soft: rgba(232, 180, 76, .22);
+  --ui-red: #e0554a; --ui-green: #4fb27a; --ui-blue: #5b95e0; --ui-radius: 12px; --ui-font: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+  --ui-ease: cubic-bezier(.2, .8, .2, 1);
+}
+#hud { text-shadow: 0 1px 3px rgba(0, 0, 0, .65); font-family: var(--ui-font); }
+
+/* Top left: a quiet title, place and time. */
+.top-left { top: 20px; left: 26px; }
+.hud-logo { font-size: 30px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .55)); }
+.hud-logo small { font: 600 10px/1.5 var(--ui-font); letter-spacing: .24em; text-transform: uppercase; color: var(--ui-accent); }
+.region { font: 600 11px/1.4 var(--ui-font); letter-spacing: .14em; text-transform: uppercase; color: var(--ui-text); opacity: .86; margin-top: 10px; }
+#world-time { font: 500 12px/1.4 var(--ui-font); color: var(--ui-dim); }
+#level { font: 600 10px/1.4 var(--ui-font); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-accent); }
+
+/* Objective: a glass card with an accent edge. */
+.top-right { top: 22px; right: 26px; }
+#objective { font: 500 13px/1.45 var(--ui-font); padding: 10px 14px; border: 1px solid var(--ui-line); border-right: 3px solid var(--ui-accent); border-radius: var(--ui-radius); background: var(--ui-glass); backdrop-filter: blur(10px) saturate(1.2); max-width: 24vw; text-shadow: none; }
+
+/* Vitals: three slim bars, glass track, soft gradient fill, a glow when low. They fade in only when something is not full. */
+.resource-bars { bottom: 112px; width: min(560px, 70vw); gap: 18px; grid-template-columns: 1fr 1.25fr 1fr; }
+.resource { gap: 4px 6px; font: 600 10px/1.2 var(--ui-font); letter-spacing: .12em; text-transform: uppercase; color: var(--ui-dim); transition: opacity .45s var(--ui-ease); }
+.resource.bar-visible { transition-duration: .18s; }
+.resource>span { font-weight: 600; color: var(--ui-text); letter-spacing: .04em; }
+.resource .track { height: 8px; border: 1px solid var(--ui-line); border-radius: 99px; background: rgba(8, 11, 15, .62); box-shadow: 0 2px 8px rgba(0, 0, 0, .35), inset 0 1px 2px rgba(0, 0, 0, .5); padding: 0; overflow: hidden; backdrop-filter: blur(6px); }
+.resource .track div { border-radius: 99px; box-shadow: inset 0 1px rgba(255, 255, 255, .35); transition: width .28s var(--ui-ease); }
+.hp .track div { background: linear-gradient(90deg, #a8302a, var(--ui-red)); }
+.stamina .track div { background: linear-gradient(90deg, #2f8a58, var(--ui-green)); }
+.magicka .track div { background: linear-gradient(90deg, #3a6fb0, var(--ui-blue)); }
+.hp .track { box-shadow: 0 2px 8px rgba(0, 0, 0, .35), 0 0 12px rgba(224, 85, 74, .22); }
+
+/* Quickbar: frosted tiles, the chosen one lifted and lit. */
+.bottom-center { bottom: 16px; }
+.quickbar { gap: 10px; }
+.slot { width: 76px; height: 64px; border: 1px solid var(--ui-line); border-radius: 14px; background: var(--ui-glass); backdrop-filter: blur(12px) saturate(1.15); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); transition: transform .2s var(--ui-ease), border-color .2s, box-shadow .2s, background .2s; }
+.slot.selected { transform: translateY(-6px); border-color: var(--ui-accent); background: linear-gradient(180deg, rgba(232, 180, 76, .2), var(--ui-glass)); box-shadow: 0 10px 24px rgba(0, 0, 0, .45), 0 0 18px var(--ui-accent-soft); }
+.slot strong { top: 4px; left: 8px; font: 700 10px/1 var(--ui-font); color: var(--ui-accent); opacity: .9; }
+.slot>span { margin: 5px 0 0; font-size: 24px; line-height: 28px; color: var(--ui-text); }
+.slot small { font: 500 10px/1.3 var(--ui-font); color: var(--ui-dim); padding: 0 6px; }
+.slot.selected small { color: var(--ui-text); }
+#hints { font: 500 10px/1.4 var(--ui-font); color: var(--ui-dim); letter-spacing: .03em; margin-top: 12px; opacity: .72; }
+
+/* Interaction prompt: a key cap and a line, on glass. */
+#interact { gap: 10px; padding: 8px 16px 8px 8px; font: 600 15px/1 var(--ui-font); border: 1px solid var(--ui-line); border-radius: 99px; background: var(--ui-glass); backdrop-filter: blur(10px); text-shadow: none; animation: ui-pop .18s var(--ui-ease); }
+#interact b, kbd { font: 700 12px/1 var(--ui-font); min-width: 26px; height: 26px; border: 1px solid var(--ui-line-strong); border-radius: 8px; background: rgba(255, 255, 255, .1); box-shadow: 0 2px rgba(0, 0, 0, .45); color: var(--ui-accent); }
+@keyframes ui-pop { from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(.97); } to { opacity: 1; transform: translateX(-50%); } }
+
+/* Enemy bar: slim and calm. */
+#enemy-hud { top: 96px; width: 280px; }
+#enemy-name { font: 400 22px/1.2 'Jacquarda Bastarda 9', serif; letter-spacing: .02em; }
+.enemy-track { height: 6px; margin-top: 8px; padding: 0; border: 1px solid var(--ui-line); border-radius: 99px; background: rgba(8, 11, 15, .62); box-shadow: 0 2px 8px rgba(0, 0, 0, .35); overflow: hidden; }
+#enemy-fill { border-radius: 99px; background: linear-gradient(90deg, #a8302a, var(--ui-red)); box-shadow: none; transition: width .25s var(--ui-ease); }
+#enemy-intent { font: 600 10px/1.3 var(--ui-font); letter-spacing: .16em; text-transform: uppercase; color: var(--ui-accent); }
+#enemy-hud.threat #enemy-intent { color: #ff8e72; }
+
+/* Toasts: glass cards sliding in from the right. */
+#toast-container { right: 24px; bottom: 150px; gap: 8px; }
+.toast { padding: 10px 16px; font: 600 13px/1.35 var(--ui-font); letter-spacing: .02em; border: 1px solid var(--ui-line); border-left: 3px solid var(--ui-accent); border-radius: 10px; background: var(--ui-glass-strong); backdrop-filter: blur(10px); box-shadow: 0 8px 22px rgba(0, 0, 0, .4); animation: toast .28s var(--ui-ease); text-shadow: none; }
+.toast.lore { font-style: normal; font-weight: 500; border-left-color: #8fb4d6; }
+
+/* Panels, menus, dialogue: the same glass. */
+.modal { background: radial-gradient(ellipse at center, rgba(8, 12, 16, .55), rgba(5, 8, 11, .82)); backdrop-filter: blur(6px); }
+.panel { border: 1px solid var(--ui-line); border-radius: 18px; background: linear-gradient(180deg, rgba(24, 30, 38, .94), rgba(14, 19, 25, .96)); box-shadow: 0 24px 60px rgba(0, 0, 0, .55), inset 0 1px rgba(255, 255, 255, .06); image-rendering: auto; }
+.panel-header { font: 700 11px/1.4 var(--ui-font); letter-spacing: .18em; text-transform: uppercase; color: var(--ui-accent); }
+button { border: 1px solid var(--ui-line); border-radius: 10px; background: rgba(255, 255, 255, .06); box-shadow: none; font-family: var(--ui-font); font-weight: 600; letter-spacing: .02em; transition: background .16s, border-color .16s, transform .16s var(--ui-ease), color .16s; }
+button:hover:not(:disabled) { color: var(--ui-text); border-color: var(--ui-accent); background: var(--ui-accent-soft); transform: translateY(-1px); }
+button:active:not(:disabled) { transform: translateY(0); }
+button.primary { background: linear-gradient(180deg, #f1c765, #d9a441); color: #1a1408; border-color: transparent; }
+button.primary:hover:not(:disabled) { color: #1a1408; filter: brightness(1.08); }
+#dialog-line { font-family: var(--ui-font); font-weight: 500; line-height: 1.55; }
+#dialog-options button { text-align: left; }
+
+/* Start menu: the buttons become quiet lines with an accent on hover. */
+.start-menu button { border: 0; border-radius: 0; background: transparent; padding: 10px 0; font: 600 18px/1.2 var(--ui-font); letter-spacing: .06em; text-align: left; color: var(--ui-dim); transition: color .18s, padding-left .22s var(--ui-ease); }
+.start-menu button:hover:not(:disabled), .start-menu button:focus-visible { color: var(--ui-text); padding-left: 14px; background: linear-gradient(90deg, var(--ui-accent-soft), transparent); border: 0; transform: none; }
+
+/* Inventory: rounded glass, soft rows, clearer selection. */
+#inventory { background: radial-gradient(ellipse at center, rgba(8, 12, 16, .5), rgba(5, 8, 11, .84)); backdrop-filter: blur(5px); }
+#inventory .inventory-shell { border: 1px solid var(--ui-line); border-radius: 20px; overflow: hidden; background: linear-gradient(180deg, rgba(22, 29, 36, .96), rgba(12, 17, 22, .97)); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), inset 0 1px rgba(255, 255, 255, .06); font-family: var(--ui-font); }
+#inventory .inventory-heading { border-bottom: 1px solid var(--ui-line); box-shadow: none; background: transparent; }
+#inventory .inventory-heading h2 { font-size: 34px; }
+#inventory .inv-eyebrow, #inventory .inv-section-label, #inventory .inv-equipment-label { font: 700 10px/1.4 var(--ui-font); letter-spacing: .2em; text-transform: uppercase; color: var(--ui-accent); }
+#inventory .inventory-sidebar { border-right: 1px solid var(--ui-line); box-shadow: none; background: rgba(255, 255, 255, .02); }
+#inventory .inventory-list-panel { background: transparent; }
+#inventory button { border: 1px solid transparent; border-radius: 10px; background: rgba(255, 255, 255, .05); box-shadow: none; padding: 7px 10px; }
+#inventory button:hover:not(:disabled), #inventory button[aria-pressed='true'] { background: var(--ui-accent-soft); color: var(--ui-text); border-color: rgba(232, 180, 76, .5); }
+#inventory-categories button, #inventory-equipment button { border-radius: 10px; background: transparent; }
+#inventory-categories button[aria-pressed='true'] { border-left-color: transparent; background: var(--ui-accent-soft); }
+#inventory .inventory-search, #inventory #inventory-filter { border: 1px solid var(--ui-line); border-radius: 10px; background: rgba(0, 0, 0, .25); }
+#inventory .inventory-table th { background: rgba(28, 36, 44, .96); border-block: 1px solid var(--ui-line); font: 700 10px/1.4 var(--ui-font); letter-spacing: .14em; text-transform: uppercase; color: var(--ui-dim); }
+#inventory .inventory-table tbody tr { transition: background .12s; }
+#inventory .inventory-table tbody tr:hover { background: rgba(255, 255, 255, .06); }
+
+/* Compass: a frosted strip with a fine pointer and a soft fade at both ends. */
+.ar-compass-mount { top: 18px; }
+.ar-compass { height: 56px; border: 1px solid var(--ui-line); border-radius: 14px; background: var(--ui-glass); backdrop-filter: blur(10px) saturate(1.15); box-shadow: 0 8px 22px rgba(0, 0, 0, .35); font-family: var(--ui-font); text-shadow: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent); }
+.ar-compass::before { top: 0; width: 2px; height: 10px; margin-left: -1px; background: var(--ui-accent); box-shadow: 0 0 8px var(--ui-accent); border-radius: 2px; }
+.ar-compass__tick { font: 500 11px/20px var(--ui-font); color: var(--ui-dim); }
+.ar-compass__tick::after { width: 1px; background: rgba(255, 255, 255, .3); }
+.ar-compass__tick--cardinal { font: 700 15px/20px var(--ui-font); color: var(--ui-text); }
+.ar-compass__distance { font: 600 10px/12px var(--ui-font); color: var(--ui-accent); }
+.ar-compass__icon { image-rendering: auto; shape-rendering: geometricPrecision; }

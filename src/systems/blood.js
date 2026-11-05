@@ -418,7 +418,7 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
       w.loss = dead ? 0 : ({ light: .45, heavy: 1.2, artery: 2.4 }[w.bleed] || .5) * w.severity * Math.max(0, 1 - w.t / w.clot);
       if (dead) {
         const k = 1 - w.deadT / w.region.after;
-        rate = (w.bleed === 'artery' ? 46 : w.bleed === 'heavy' ? 32 : 13) * w.severity * k * k;
+        rate = (w.bleed === 'artery' ? 24 : w.bleed === 'heavy' ? 16 : 7) * w.severity * k;   // a body bleeds for half a minute, slowing, so a dragged corpse leaves a trail
       } else if (w.bleed === 'artery') {
         // A pulse every ~0.8 s: a hard jet, fading as the pressure drops.
         w.pulse += dt * (1.2 + (1 - hpFrac) * .6);
@@ -578,6 +578,14 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
     return result;
   }
 
+  /** Where a ray (the crosshair) meets an actor's body, or null: { point, distance }. Dead and alive alike. */
+  function pick(actor, origin, direction, far = 12) {
+    const model = actor.model; if (!model) return null;
+    model.updateWorldMatrix(true, true);
+    ray.set(origin, direction); ray.far = far;
+    const h = ray.intersectObjects(skinOf(model).meshes, false)[0];
+    return h ? { point: h.point.clone(), distance: h.distance, object: h.object } : null;
+  }
   /** The actor has fallen: a pool grows under the body, wounds go on bleeding by their region. */
   function killed(actor, quiet = false) {
     const model = actor.model; if (!model) return;
@@ -625,7 +633,9 @@ export function createBlood(scene, world, { spark = () => {}, sound = () => {} }
   /** Shows the pooled meshes for one shader-compile pass, then hides them again. */
   function warm(on) { for (const t of spare) t.mesh.visible = on; for (const m of splats) m.visible = on; cloudMesh.visible = true; }
   return {
-    strike, killed, spurt, pool, update, reset, warm, wetAt: volumeAt, addWound,
+    strike, killed, spurt, pool, update, reset, warm, wetAt: volumeAt, addWound, pick,
+    /** One physical drop (from a blade, a fist): position and velocity in the world. */
+    drop: (p, v, vol = .3) => emitDrop(p, v, 1, vol, 1.4, .2),
     /** Hit points an actor is losing to its open wounds, per second. */
     bleeding: actor => wounds.reduce((sum, w) => sum + (w.actor === actor ? w.loss || 0 : 0), 0),
     state: () => ({ drops: dropsLive, tiles: tiles.size, wounds: wounds.length, runs: runs.length, skins: allEntries.size,
