@@ -404,3 +404,8 @@ the pictures on them are 47 textures made by Codex's image tool (art/textures/co
   lavender / poppy / bluebell / thistle cards (the old sprites are those flowers), cards inside the toadstools, sprite ferns where the 3D ferns grow.
 - [x] More rock: limestone, granite and dark slate in broad areas, gravel where a slope crumbles (red sand and obsidian crust left the ground array to make room).
 - [x] Colour presets (Einstellungen > Farbstil): Natürlich (new default, 'standard'), Lebendig (the old rich look), Dunkle Fantasy, Nordisch, Goldener Herbst, Filmisch.
+- [x] Round 2 of the feedback (QC pass, same day): cherry blossom and jade tree removed (the Jadegrat wood is oak, birch, spruce and the odd redwood); limestone gone (the pale stone did not
+  fit): bare rock outside the regions is the old grey stone, mossy rock where it is damp, dark rock in broad areas, gravel on crumbling slopes; hills no longer turn into bare stone caps
+  (height-driven rock starts at the treeline); strata on canyon walls stay level (the turned reading of a picture made them vertical stripes); broad wall ribs only (the fine rib aliased
+  on the 2-unit grid); footings sunk deeper (the far terrain lies 1.5 units lower than the near one); peat hut walls turf, hollow log round.
+  QC walked: ten places, trees by species, plants, grounds of all regions, the six colour presets. Not checked: night; a full playthrough.

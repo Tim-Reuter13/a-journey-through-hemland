@@ -99,7 +99,7 @@ export function ravines(x, z) {
 export function crags(x, z, h, slope) {
   const s = ss(.55, 1.5, slope);
   if (s <= 0) return 0;
-  const rib = pn(x * .085, z * .085, 201) * 1.6 + pn(x * .19, z * .19 + 7, 202) * .75;
+  const rib = pn(x * .07, z * .07, 201) * 1.5;   // broad ribs only: anything finer than six vertices turns into stripes
   const ledge = (terrace(h, 8, .35) - h) * .35 * ss(2.4, 1.3, slope);
   return (rib + ledge) * s;
 }

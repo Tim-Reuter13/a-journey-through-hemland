@@ -290,7 +290,7 @@ export function createHeightfield() {
     const hot = Math.max(w.badlands, w.dunes, w.volcanic), noise = fbm(x * .03, z * .03, 2, 8) * 5;
     let dirt = Math.max(ss(.72, .95, patches) * .7 + w.plains * ss(.5, .7, patches) * .5, nearCity < 1 ? .35 + patches * .3 : 0) * (1 - streets);
     // Walls are bare stone all the way (weight above 1, so no grass or flower texel shows through).
-    let rock = Math.max(Math.min(1, ss(TREELINE - 34, TREELINE, h) * .7 + ss(.55, 1.05, slope) * (1 - grassy * .75)), ss(1.1, 1.7, slope) * 1.4);
+    let rock = Math.max(Math.min(1, ss(TREELINE - 6, TREELINE + 44, h) * .7 + ss(.55, 1.05, slope) * (1 - grassy * .75)), ss(1.1, 1.7, slope) * 1.4);
     const snow = ss(SNOWLINE - 12 + hot * 90, SNOWLINE + hot * 90, h + noise);
     let litter = (w.autumn * .8 * (.72 + patches * .38) + w.taiga * .3 * (.55 + patches * .6)) * (1 - streets) * (1 - under) * (1 - damp * .7);
     let mud = w.marsh * .95 * ss(WATER_LEVEL + 3, WATER_LEVEL + .5, h) + shore * .25 + wet * .85 + damp * .75 + under * (1 - bank) * .95;
@@ -298,7 +298,7 @@ export function createHeightfield() {
     const { grass: tint, stone } = groundLook(w);
     // Grounds of the regions' own: pictures (groundLayers.js), by weight. Where one lies the plain layers give way, and the tint stays for
     // what the pictures do not cover.
-    const c = new Array(GROUND.length).fill(0), give = (name, v) => { const i = GROUND_INDEX[name]; c[i] = Math.max(c[i], Math.min(1.4, v)); };
+    const c = new Array(16).fill(0), give = (name, v) => { const i = GROUND_INDEX[name]; c[i] = Math.max(c[i], Math.min(1.4, v)); };
     const retreat = k => { dirt *= 1 - k; sandW *= 1 - k; litter *= 1 - k; rock *= 1 - k * .6; };
     if (w.badlands > 0) {
       // Weathered sandstone country: red clay over the flat tops with patches of dry grass, layered rock on the walls (bands by height, only where the
@@ -334,11 +334,11 @@ export function createHeightfield() {
     // Woods and meadows: needles under the taiga, clover and flowers in patches over the open meadows.
     if (w.taiga > 0) give('pine_needles', w.taiga * .8 * (.55 + patches * .45) * (1 - under));
     const wild = Math.max(w.badlands, w.dunes, w.volcanic, w.highland, w.pillars);
-    // Rock of more than one kind: where the land is bare stone outside the regions, broad areas (a few hundred units across) are pale limestone, grey granite or
-    // dark slate (the old stone picture), with gravel where it crumbles under the slope; each area keeps its own kind over the hills.
-    const kind = fbm(x * .0036 + 17, z * .0036 - 9, 2, 91), limeW = ss(-.02, .3, kind), graniteW = ss(-.02, -.3, kind), scree = ss(.9, 1.6, slope) * ss(.3, .7, fbm(x * .02, z * .02, 2, 92) * .5 + .5);
-    const bare = rock * (1 - wild) * (1 - Math.min(1, w.marsh + w.taiga * .2));
-    if (bare > .02) { give('limestone', bare * limeW * 1.2); give('granite', bare * graniteW * 1.2); give('gravel', bare * scree * .8); rock *= 1 - Math.min(.97, (limeW + graniteW) * (1 - wild)); }
+    // Rock of more than one kind: where the land is bare stone outside the regions it is the old grey picture, mossy rock where the ground is damp (woods, the low
+    // ground of the marsh and the lake), dark rock in broad areas, gravel where a slope crumbles. Nothing pale: it never looked like this country.
+    const dark = ss(.12, .42, fbm(x * .0036 + 17, z * .0036 - 9, 2, 91)), wetRock = ss(48, 14, h) * Math.max(w.autumn, w.taiga, w.forest * .7, w.marsh), scree = ss(.9, 1.6, slope) * ss(.3, .7, fbm(x * .02, z * .02, 2, 92) * .5 + .5);
+    const bare = rock * (1 - wild), mossy = wetRock * .9, darkW = dark * (1 - mossy);
+    if (bare > .02) { give('moss_rock', bare * mossy * 1.2); give('basalt', bare * darkW * 1.1); give('gravel', bare * scree * .8); rock *= 1 - Math.min(.97, (mossy + darkW) * (1 - wild)); }
     give('clover_meadow', (1 - wild) * (1 - w.taiga) * (1 - w.autumn * .6) * (1 - w.marsh) * ss(.55, .82, patches) * .7 * (1 - under) * (1 - shore));
     return {
       a: [roadW * (1 - paved) * (1 - streets), dirt, rock, snow],

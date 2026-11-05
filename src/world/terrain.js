@@ -90,7 +90,7 @@ export function terrainMaterial() {
         for (int k = 0; k < 16; k++) {
           float gk = gw[k];
           if (gk < .01) continue;
-          vec3 gc = groundLayer(k, cliffUV, otherRock);
+          vec3 gc = groundLayer(k, cliffUV, axis.y > .72 ? other : 0.);   // strata stay level on a wall: the turned reading is for flat ground only
           if (gk + RELIEF(gc, .4) - grassRelief > pick) { ground = gc; living = 0.; stoneTint = vec3(1.); }
         }
         if (vSplatA.x + RELIEF(trail, .42) * .5 > pick * .8 + .1) { ground = trail; living = 0.; }

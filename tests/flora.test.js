@@ -58,7 +58,7 @@ test('the terrain gives each region its own grounds', () => {
   assert.ok(has(at('highland', 30), 'heather'));
   assert.ok(has(at('pillars', 6, .1), 'jade_grass') && has(at('pillars', 40, 1.5), 'moss_rock'));
   const open = field.surface(0, 0, 3, .1);
-  assert.equal(open.c.length + open.d.length + open.e.length + open.f.length, 16);
+  assert.equal(open.c.length + open.d.length + open.e.length + open.f.length, 16);   // four vec4: fifteen pictures and an empty slot
   for (const w of [...open.c, ...open.d, ...open.e, ...open.f]) assert.ok(w >= 0 && w <= 1.41);
   assert.ok(open.c.every(w => w === 0) && open.d.every(w => w === 0) && open.e.every(w => w === 0), 'the village keeps its plain grass');
 });

@@ -9,12 +9,12 @@ import { burnUniforms, BURN_GLSL } from './burnMap.js';
 export const TREES = ['oak_1', 'oak_2', 'oak_3', 'autumn_1', 'autumn_2', 'birch_1', 'birch_2', 'spruce_1', 'spruce_2',
   'pine_1', 'pine_2', 'pine_snow_1', 'pine_snow_2', 'dead_1', 'bush_1', 'bush_2', 'maple_1', 'maple_2', 'birch_gold_1', 'birch_gold_2',
   'dead_2', 'oak_4', 'oak_5', 'oak_6', 'autumn_3', 'maple_3', 'birch_3', 'spruce_3', 'pine_3', 'pine_snow_3',
-  'redwood_1', 'redwood_2', 'willow_1', 'willow_2', 'acacia_1', 'acacia_2', 'palm_1', 'palm_2', 'cypress_1', 'cypress_2', 'jade_1', 'jade_2',
-  'heath_1', 'heath_2', 'blossom_1', 'blossom_2', 'olive_1', 'olive_2', 'charred_1', 'charred_2',
+  'redwood_1', 'redwood_2', 'willow_1', 'willow_2', 'acacia_1', 'acacia_2', 'palm_1', 'palm_2', 'cypress_1', 'cypress_2',
+  'heath_1', 'heath_2', 'olive_1', 'olive_2', 'charred_1', 'charred_2',
   'cactus_1', 'cactus_2', 'cactus_3', 'mangrove_1', 'mangrove_2'];
 // How much taller a placed tree stands than the model: the old species were stretched when trees were made bigger, the new ones
 // were modelled at their size (a redwood is already 15 units).
-const GROWTH = { redwood: 1, willow: 1.2, acacia: 1.2, palm: 1.15, cypress: 1.2, jade: 1.2, heath: 1.25, blossom: 1.3, olive: 1.25, charred: 1.3, cactus: 1.1, mangrove: 1.2 };
+const GROWTH = { redwood: 1, willow: 1.2, acacia: 1.2, palm: 1.15, cypress: 1.2, heath: 1.25, olive: 1.25, charred: 1.3, cactus: 1.1, mangrove: 1.2 };
 const growthOf = name => name.startsWith('bush') ? 1 : GROWTH[name.replace(/_(snow_)?\d+$/, '')] ?? 1.38;
 export const wind = { value: 0 };
 const templates = new Map();

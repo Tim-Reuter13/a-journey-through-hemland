@@ -97,7 +97,6 @@ function AshenModels() {
     barkWillow: { style: 'image', sat: .85, gain: .9, image: 'bark_willow', fallback: 'bark', ramp: ['#2e2a24', '#443d34', '#58504a', '#6c645a', '#80786c'] },
     barkAcacia: { style: 'image', sat: .85, gain: .9, image: 'bark_acacia', fallback: 'bark', ramp: ['#1e1814', '#2c231c', '#3a2e24', '#493a2d', '#5a4838'] },
     barkCharred: { style: 'image', sat: .8, gain: .95, image: 'bark_charred', fallback: 'bark', ramp: ['#0e0c0b', '#171412', '#221d1a', '#2e2823', '#3d352e'] },
-    barkJade: { style: 'image', sat: .6, gain: .85, image: 'bark_jade', fallback: 'bark', ramp: ['#4a5446', '#5e6a58', '#738068', '#8a9880', '#a0ae98'], moss: .3, mossColor: '#4e7a3a' },
     barkPalm: { style: 'image', sat: .7, gain: .85, image: 'bark_palm', fallback: 'bark', ramp: ['#5c4a30', '#74603e', '#8c7650', '#a08a60', '#b49c70'] },
     cactusSkin: { style: 'image', sat: .62, gain: .78, image: 'cactus_skin', fallback: 'bark', ramp: ['#2c4a2a', '#385c34', '#446e3e', '#528048', '#629256'] },
     barkCypress: { style: 'image', sat: .8, gain: .9, image: 'bark_cypress', fallback: 'bark', ramp: ['#3e342c', '#52463a', '#665848', '#7a6a58', '#8e7e68'] },
@@ -107,11 +106,7 @@ function AshenModels() {
     leavesAcacia: { style: 'image', sat: .7, gain: .82, image: 'leaves_acacia', fallback: 'leaves', clump: 1, holes: .25, ramp: ['#3a4620', '#4c5a28', '#5e6e30', '#738338', '#8a9944', '#a0ae52'] },
     leavesPalm: { style: 'image', sat: .68, gain: .82, image: 'leaves_palm', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#24401e', '#2e5224', '#3a652c', '#487836', '#588c42', '#6aa050'] },
     leavesCypress: { style: 'image', sat: .8, gain: .85, image: 'leaves_cypress', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#14281c', '#1c3624', '#25442c', '#305236', '#3c6040', '#486e4a'] },
-    leavesJade: { style: 'leaves', ramp: ['#1c4a4a', '#245c58', '#2e6e66', '#3c8076', '#4e9488', '#62a89a'] },
-    leavesBlossom: { style: 'image', sat: .5, gain: .8, image: 'leaves_blossom', fallback: 'leaves', ramp: ['#8a4458', '#a05468', '#b8667a', '#cc7c8e', '#dc94a2', '#eaacb6'] },
     leavesOlive: { style: 'image', sat: .75, gain: .85, image: 'leaves_olive', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#3e4a30', '#4e5c3c', '#606e4a', '#748258', '#8a966a', '#a0aa7c'] },
-    leavesBlossomHeart: { style: 'leaves', ramp: ['#3a2630', '#4a303c', '#5a3a48', '#6a4454'], holes: .03 },
-    leavesJadeHeart: { style: 'leaves', ramp: ['#102c2c', '#163838', '#1e4444', '#265050'], holes: .03 },
     leavesOliveHeart: { style: 'leaves', ramp: ['#2a3224', '#343e2c', '#3e4a34', '#48563c'], holes: .03 },
     // Plants, mushrooms and the stone and wood of the wild points of interest.
     plantHeather: { style: 'image', fit: true, sat: .5, gain: .78, image: 'plant_heather_bloom', fallback: 'leaves', ramp: ['#3a2a52', '#563a74', '#72508e', '#8c68a6', '#a684be', '#bea0d2'] },
@@ -131,6 +126,7 @@ function AshenModels() {
     graniteStone: { style: 'fur', ramp: ['#5a5a58', '#6c6c68', '#7e7e7a', '#90908a'] }, mossGreen: { style: 'fur', ramp: ['#2e4a22', '#3a5c2a', '#486e32', '#58823c'] },
     canvas: { style: 'cloth', ramp: ['#8a7e66', '#a09478', '#b4a88a', '#c6bc9e'] }, canvasRed: { style: 'cloth', ramp: ['#6a2a22', '#823428', '#9a4030', '#b05038'] },
     jadeStone: { style: 'fur', ramp: ['#3a5a4a', '#4a7060', '#5c8672', '#70a088'] }, jadeRoof: { style: 'fur', ramp: ['#1c3c3c', '#264c4a', '#325c58', '#406e68'] },
+    turf: { style: 'fur', ramp: ['#4c4a2c', '#5a5832', '#6a673a', '#7c7842'] },
     charcoal: { style: 'fur', ramp: ['#0c0a09', '#161311', '#201c19', '#2c2723'] },
     leavesBerry: { style: 'leaves', ramp: ['#1e3018', '#283e20', '#324c26', '#3e5c2e', '#4a6a36', '#56763e'], berries: .05, berry: '#8e1c2a' },
     // Hunting bow and arrows (weapons()).
@@ -821,19 +817,6 @@ function AshenModels() {
       }
       t.leaf([0, o.height - 4, 0], 6, 14, 'leavesCypress', { yaw: 0 });
     };
-    // Jade tree: a trunk twisting in an S and a few broad, round layers of blue-green leaf stacked like a pagoda, with a fringe hanging.
-    const jade = (t, o) => {
-      const { r } = t, trunk = [[0, 0, 0]];
-      buttress(t, 6, 12, 'barkJade'); t.foot(18, 'barkJade');
-      [[26, 8], [26, -1], [24, 10], [22, 2]].forEach(([len, tilt], k) => trunk.push(t.limb(trunk[k], len, 12 - k * 2, Math.abs(tilt), (k % 2 ? 200 : 20) + r() * 40, 'barkJade')));
-      for (let k = 0; k < o.layers; k++) {
-        const c = along(trunk, .5 + k * (.5 / o.layers)), R = o.R * (1 - k * .2), y = c[1] + 6;
-        t.limb(c, 12, 4, 55 + r() * 15, r() * 360, 'barkJade');
-        t.leaf([c[0], y, c[2]], R * 2, 10, 'leavesJade', { tilt: 6 });
-        t.leaf([c[0], y + 8, c[2]], R * 1.4, 8, 'leavesJade', { tilt: 6 });
-        for (let j = 0; j < 7; j++) { const a = j * .9 + k, d = R * .85; t.leaf([c[0] + Math.cos(a) * d, y - 8, c[2] + Math.sin(a) * d], 10, 14, 'leavesJade', { tilt: 8 }); }
-      }
-    };
     // Scrub pine of the moor: bent by the wind, a leaning twisted trunk and a flat, one-sided crown.
     const heath = (t, o) => {
       const { r } = t, lean = r() * 360, pts = [[0, 0, 0]], tips = [];
@@ -918,12 +901,8 @@ function AshenModels() {
     tree('palm_2', 229, t => palm(t, { segments: 6, bend: 3 }));
     tree('cypress_1', 233, t => cypress(t, { height: 150, R: 16 }));
     tree('cypress_2', 239, t => cypress(t, { height: 180, R: 14 }));
-    tree('jade_1', 241, t => jade(t, { layers: 3, R: 30 }));
-    tree('jade_2', 251, t => jade(t, { layers: 4, R: 26 }));
     tree('heath_1', 257, t => heath(t, { reach: 24, R: 28 }));
     tree('heath_2', 263, t => heath(t, { reach: 28, R: 24 }));
-    tree('blossom_1', 269, t => grand(t, { leaves: ['leavesBlossom'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 12, segments: [[26, 4], [22, 6], [12, 8]], limbs: 5, reach: 36, R: 46, Ry: 36, leaf: 24, bark: 'bark' }));
-    tree('blossom_2', 271, t => grand(t, { leaves: ['leavesBlossom'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 13, segments: [[22, 5], [20, 7], [12, 9]], limbs: 6, reach: 38, R: 50, Ry: 34, leaf: 24, bark: 'bark' }));
     tree('olive_1', 283, t => grand(t, { leaves: ['leavesOlive'], heart: 'leavesOliveHeart', ...GRAND, trunk: 16, segments: [[14, 8], [14, 10], [10, 12]], limbs: 7, reach: 34, R: 40, Ry: 26, leaf: 20, bark: 'barkGrey', wood: 'barkGrey', roots: 5 }));
     tree('olive_2', 293, t => grand(t, { leaves: ['leavesOlive'], heart: 'leavesOliveHeart', ...GRAND, trunk: 18, segments: [[12, 10], [12, 12], [10, 14]], limbs: 8, reach: 30, R: 36, Ry: 24, leaf: 20, bark: 'barkGrey', wood: 'barkGrey', roots: 5 }));
     tree('charred_1', 307, t => dead(t, 'barkCharred'));
@@ -1006,7 +985,7 @@ function AshenModels() {
         put('beam', [a[0] - t / 2, a[1], a[2] - t / 2], [a[0] + t / 2, a[1] + len, a[2] + t / 2], mat, { origin: a, rotation: [tilt, yaw, 0] });
       };
       // A flat slab of ground under a place, sunk deep: the footing.
-      const footing = (w, d, mat, depth = 12, up = -3) => put('footing', [-w / 2, -depth, -d / 2], [w / 2, up, d / 2], mat);
+      const footing = (w, d, mat, depth = 20, up = -9) => put('footing', [-w / 2, -depth, -d / 2], [w / 2, up, d / 2], mat);
       return { put, beam, footing, r };
     }
     // 1. Verlassene Grube (Rotfelsen): a timber headframe over a shaft, a winch hut, an ore cart on rails.
@@ -1082,7 +1061,7 @@ function AshenModels() {
     // 7. Torfstecherhütte (Heidemoor): a low turf hut with a thatched roof, stacks of drying peat, a rack.
     { const p = poi('peat_hut', 131);
       p.footing(120, 96, 'earth');
-      p.put('walls', [-30, 0, -22], [30, 22, 22], 'mossGreen'); for (let k = 0; k < 5; k++) p.put('turf', [-31 + k * 12.6, 14, -23], [-20 + k * 12.6, 18, -21], 'earth');
+      p.put('walls', [-30, 0, -22], [30, 22, 22], 'turf'); for (let k = 0; k < 5; k++) p.put('turf', [-31 + k * 12.6, 15, -23], [-20 + k * 12.6, 21, -21], 'mossGreen');
       for (let k = 0; k < 7; k++) p.put('thatch', [-36, 22 + k * 3, -27 + k * 4], [36, 25 + k * 3, 27 - k * 4], 'hay');
       p.put('ridge', [-37, 43, -3], [37, 46, 3], 'woodDark'); p.put('door', [-8, 0, -23.5], [8, 18, -21.5], 'obsidian'); p.put('doorframe', [-10, 0, -24], [-8, 20, -21], 'woodDark'); p.put('doorframe', [8, 0, -24], [10, 20, -21], 'woodDark');
       p.put('chimney', [18, 30, -4], [26, 50, 4], 'sandstoneDark');
@@ -1093,22 +1072,23 @@ function AshenModels() {
     { const p = poi('jade_shrine', 137);
       p.footing(116, 116, 'jadeStone');
       p.put('step', [-56, 0, -56], [56, 5, 56], 'jadeStone'); p.put('step', [-46, 5, -46], [46, 9, 46], 'jadeStone');
-      for (const [px, pz] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) { p.put('pillar', [px - 4, 9, pz - 4], [px + 4, 52, pz + 4], 'jadeStone'); p.put('vine', [px - 4.3, 14, pz - 2], [px + 4.3, 44, pz + 2], 'leavesJade'); }
+      for (const [px, pz] of [[-30, -30], [30, -30], [-30, 30], [30, 30]]) { p.put('pillar', [px - 4, 9, pz - 4], [px + 4, 52, pz + 4], 'jadeStone'); p.put('vine', [px - 4.3, 14, pz - 2], [px + 4.3, 44, pz + 2], 'leavesBush'); }
       p.put('floor', [-34, 9, -34], [34, 10, 34], 'sandstoneDark');
       p.put('eave', [-42, 52, -42], [42, 58, 42], 'jadeRoof'); p.put('eave', [-32, 58, -32], [32, 64, 32], 'jadeRoof'); p.put('eave', [-22, 64, -22], [22, 70, 22], 'jadeRoof'); p.put('eave', [-12, 70, -12], [12, 76, 12], 'jadeRoof'); p.put('finial', [-2, 76, -2], [2, 90, 2], 'brass');
       p.put('upper', [-20, 76, -20], [20, 80, 20], 'jadeStone');
       p.put('idol', [-6, 10, -6], [6, 30, 6], 'jadeStone'); p.put('idolhead', [-4, 30, -4], [4, 38, 4], 'jadeStone'); p.put('altar', [-12, 10, -12], [12, 14, 12], 'sandstoneDark');
       for (const [px, pz] of [[-40, -40], [40, -40], [-40, 40], [40, 40]]) { p.put('cord', [px - .4, 46, pz - .4], [px + .4, 52, pz + .4], 'woodDark'); p.put('lantern', [px - 3, 38, pz - 3], [px + 3, 46, pz + 3], 'ember'); }
-      for (let k = 0; k < 6; k++) p.put('moss', [-56 + k * 20, 4, -57], [-46 + k * 20, 6, -55], 'leavesJade'); }
-    // 9. Der hohle Stamm (woods): a fallen trunk you could crawl into, moss on it, toadstools, a lantern left inside.
+      for (let k = 0; k < 6; k++) p.put('moss', [-56 + k * 20, 4, -57], [-46 + k * 20, 6, -55], 'leavesBush'); }
+    // 9. Der hohle Stamm (woods): a fallen trunk you could crawl into: round (an octagon of two turned boxes), moss on it, a dark mouth, toadstools, a lantern left inside.
     { const p = poi('hollow_log', 139);
       p.footing(60, 130, 'earth');
-      p.put('top', [-17, 22, -62], [17, 30, 62], 'barkMoss'); p.put('left', [-24, 6, -62], [-16, 26, 62], 'barkMoss'); p.put('right', [16, 6, -62], [24, 26, 62], 'barkMoss'); p.put('floor', [-18, 0, -62], [18, 8, 62], 'bark');
-      p.put('inside', [-16, 8, -61], [16, 22, 61], 'obsidian');
-      p.put('ring', [-26, 2, -64], [26, 32, -62], 'barkMoss'); p.put('hole', [-15, 8, -64.5], [15, 22, -62], 'obsidian');
-      p.put('moss', [-9, 30, -34], [8, 31.5, -10], 'mossGreen'); p.put('moss', [-7, 30, 14], [10, 31.5, 40], 'mossGreen'); p.put('moss', [-10, 30, 44], [3, 31.5, 56], 'mossGreen');
-      for (let k = 0; k < 5; k++) p.put('shelf', [18, 10 + k * 3.4, -30 + k * 14], [30, 12.5 + k * 3.4, -20 + k * 14], 'mushRed', { rotation: [0, 14, 0], origin: [18, 10 + k * 3.4, -25 + k * 14] });
-      p.put('lantern', [-4, 8, -50], [4, 16, -42], 'ember'); p.put('root', [-30, 0, 40], [-22, 12, 52], 'barkMoss'); }
+      for (const rot of [0, 45]) p.put('trunk', [-14, 2, -62], [14, 30, 62], 'bark', { origin: [0, 16, 0], rotation: [0, 0, rot] });
+      p.put('mouth', [-9, 9, -64.5], [9, 23, -61], 'obsidian'); p.put('lip', [-12, 4, -63], [12, 8, -61.5], 'bark'); p.put('lip', [-12, 24, -63], [12, 28, -61.5], 'bark');
+      p.put('end', [-13, 3, 61.5], [13, 29, 62.5], 'logEnd', { origin: [0, 16, 0] }); p.put('endring', [-8, 8, 62.4], [8, 24, 63], 'bark');
+      p.put('moss', [-9, 29, -34], [8, 30.6, -10], 'mossGreen'); p.put('moss', [-7, 29, 14], [10, 30.6, 40], 'mossGreen'); p.put('moss', [-10, 28.4, 44], [3, 30, 56], 'mossGreen');
+      for (let k = 0; k < 5; k++) p.put('shelf', [15, 12 + k * 3.4, -30 + k * 14], [26, 14.5 + k * 3.4, -20 + k * 14], 'mushRed', { rotation: [0, 14, 0], origin: [15, 12 + k * 3.4, -25 + k * 14] });
+      for (const [rx, rz, rr] of [[-22, 40, 20], [20, -50, -30], [-20, -30, 10]]) p.put('root', [rx - 3, 0, rz - 3], [rx + 3, 10, rz + 9], 'bark', { origin: [rx, 0, rz], rotation: [0, rr, 0] });
+      p.put('lantern', [-3, 10, -52], [3, 18, -46], 'ember'); }
     // 10. Die Brandhütte (Aschenkrone): a hut of charred timber, roof fallen in, ash on the floor.
     { const p = poi('burned_hut', 149);
       p.footing(120, 100, 'basalt');

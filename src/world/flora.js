@@ -62,7 +62,7 @@ export function deadTree(parent, x, y, z, scale, random) {
 // they fall back to the block trees.
 const SPECIES = {
   redwood: ['redwood_1', 'redwood_2'], willow: ['willow_1', 'willow_2'], acacia: ['acacia_1', 'acacia_2'], palm: ['palm_1', 'palm_2'], cypress: ['cypress_1', 'cypress_2'],
-  jade: ['jade_1', 'jade_2'], heath: ['heath_1', 'heath_2'], blossom: ['blossom_1', 'blossom_2'], olive: ['olive_1', 'olive_2'],
+  heath: ['heath_1', 'heath_2'], olive: ['olive_1', 'olive_2'],
   charred: ['charred_1', 'charred_2'], cactus: ['cactus_1', 'cactus_2', 'cactus_3'], mangrove: ['mangrove_1', 'mangrove_2'],
 };
 export function species(parent, kind, x, y, z, scale, random) {
@@ -477,12 +477,11 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
       else if (roll < .33) boulder(parent, x, h, z, .6 + random() * 1.4, random, random() < .4);
       continue;
     }
-    // Jadegrat: a green wood between the towers, jade trees, a few blossoms, and now and then a giant.
+    // Jadegrat: a green wood between the towers (oak, birch, spruce, here and there a giant redwood).
     if (w.pillars > .5) {
       if (roll > .6) { if (random() < .12) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
       const k = random();
-      k < .3 ? species(parent, 'jade', x, h, z, s0, random) : k < .5 ? broadleaf(parent, x, h, z, s0, random, 'oak') : k < .62 ? broadleaf(parent, x, h, z, s0, random, 'birch')
-        : k < .7 ? species(parent, 'blossom', x, h, z, s0, random) : k < .73 ? species(parent, 'redwood', x, h, z, .8 + random() * .3, random) : spruce(parent, x, h, z, s0, random);
+      k < .4 ? broadleaf(parent, x, h, z, s0, random, 'oak') : k < .68 ? broadleaf(parent, x, h, z, s0, random, 'birch') : k < .72 ? species(parent, 'redwood', x, h, z, .8 + random() * .3, random) : spruce(parent, x, h, z, s0, random);
       continue;
     }
     // The marsh: stilt-rooted mangroves, willows, dead snags and shrubs.
@@ -512,7 +511,7 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
     else if (w.autumn > .5) { const k = random(); k < .9 ? broadleaf(parent, x, h, z, s, random, k < .34 ? 'autumn' : k < .56 ? 'maple' : k < .76 ? 'birchGold' : k < .82 ? 'oak' : 'autumn') : k < .96 ? spruce(parent, x, h, z, s, random) : deadTree(parent, x, h, z, s, random); }
     else if (w.forest > .5) random() < .75 ? spruce(parent, x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : 'oak');
     else if (random() < .04) deadTree(parent, x, h, z, s, random);
-    else { const k = random(); k < .045 ? species(parent, 'blossom', x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn'); }
+    else broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn');
   }
   plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
   details(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
