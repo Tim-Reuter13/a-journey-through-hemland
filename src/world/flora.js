@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { block, blockOn, beam, crossGeometry } from '../art/blocks.js';
 import { registerPixelTexture, pixelCanvas, pixelMaterial } from '../art/pixelTextures.js';
 import { landscapeChunk } from './rocks.js';
+import { TREELINE, SNOWLINE } from './hemland.js';
 import { wind, treesLoaded, placeTree, setFarTrees } from './trees.js';
 import { burnUniforms, BURN_GLSL } from './burnMap.js';
 export { wind };
@@ -253,13 +254,18 @@ export function groundCoverChunk(field, biomeWeights, waterLevel, x0, z0, size, 
   const patch = (x, z, k) => .5 + .25 * Math.sin(x * .043 + k) * Math.cos(z * .051 - k * 1.7) + .25 * Math.sin((x + z) * .11 + k * 3.1);
   for (let i = 0; i < target; i++) {
     const x = x0 + random() * size, z = z0 + random() * size, h = field.heightAt(x, z);
-    if (h > 44 || field.roadClearance(x, z) < 1 || avoid(x, z)) continue;
-    const w = biomeWeights(x, z), roll = random();
+    if (h > TREELINE - 6 || field.roadClearance(x, z) < 1 || avoid(x, z)) continue;
+    const w = biomeWeights(x, z), roll = random(), dry = Math.max(w.badlands, w.dunes, w.volcanic);
+    // Deserts and ash fields keep only a thin scatter of dry tufts.
+    if (dry > .3 && random() < dry * .8) continue;
     // The waterline and the shallows are planted by water.js (reed beds, rushes, iris); here only the land.
     if (h < waterLevel + .6) continue;
     if (Math.abs(field.heightAt(x + 1, z) - h) + Math.abs(field.heightAt(x, z + 1) - h) > 1.2) continue;
     let sprite;
-    if (w.marsh > .5 && roll < .5) sprite = roll < .12 ? SPRITE.cattail : roll < .3 ? SPRITE.rush : SPRITE.sedge;
+    if (dry > .35) sprite = roll < .6 ? SPRITE.deadGrass : roll < .8 ? SPRITE.grassShort : SPRITE.tallGrass;
+    else if (w.highland > .4 && roll < .78) sprite = roll < .22 ? SPRITE.flowerPurple : roll < .4 ? SPRITE.fern : roll < .58 ? SPRITE.deadGrass : SPRITE.tallGrass;
+    else if (w.pillars > .4 && roll < .6) sprite = roll < .3 ? SPRITE.fern : roll < .38 ? SPRITE.flowerYellow : SPRITE.tallGrass;
+    else if (w.marsh > .5 && roll < .5) sprite = roll < .12 ? SPRITE.cattail : roll < .3 ? SPRITE.rush : SPRITE.sedge;
     else if (h < waterLevel + 1.6 && roll < .35) sprite = roll < .12 ? SPRITE.rush : SPRITE.sedge;
     else if (w.taiga > .5) sprite = roll < .35 ? SPRITE.fern : roll < .6 ? SPRITE.deadGrass : SPRITE.tallGrass;
     else if (w.autumn > .5) sprite = roll < .4 ? SPRITE.deadGrass : roll < .55 ? SPRITE.fern : roll < .6 ? SPRITE.flowerYellow : SPRITE.tallGrass;
@@ -284,7 +290,7 @@ export function groundCoverChunk(field, biomeWeights, waterLevel, x0, z0, size, 
     if (flower) tint.setScalar(1);
     // Autumn ferns turn rust-brown.
     else if (sprite === SPRITE.fern && w.autumn > .5) tint.setRGB(v * 1.3, v * .72, v * .38);
-    else tint.setRGB(v * (1 + w.autumn * .08), v * (1 - w.autumn * .1), v * (1 - w.autumn * .3 - w.plains * .1));
+    else { const dryk = Math.max(w.badlands, w.dunes, w.volcanic); tint.setRGB(v * (1 + w.autumn * .08 + dryk * .3 + w.highland * .08), v * (1 - w.autumn * .1 - dryk * .12 - w.highland * .16), v * (1 - w.autumn * .3 - w.plains * .1 - dryk * .45 + w.highland * .05)); }
     mesh.setColorAt(i, tint); sprites[i] = sprite;
   });
   mesh.geometry.setAttribute('aSprite', new THREE.InstancedBufferAttribute(sprites, 1));
@@ -378,7 +384,7 @@ function details(parent, field, biomeWeights, waterLevel, x0, z0, size, random, 
   let standPlaced = false;
   for (let i = 0; i < 26; i++) {
     const x = x0 + random() * size, z = z0 + random() * size, h = field.heightAt(x, z);
-    if (h < waterLevel + .6 || h > 60 || avoid(x, z)) continue;
+    if (h < waterLevel + .6 || h > TREELINE + 12 || avoid(x, z)) continue;
     const road = field.roadClearance(x, z);
     if (road < 1.5) continue;
     const slope = Math.abs(field.heightAt(x + 1.5, z) - h) + Math.abs(field.heightAt(x, z + 1.5) - h), w = biomeWeights(x, z), roll = random();
@@ -411,10 +417,24 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
     if (h < waterLevel + .8 || field.roadClearance(x, z) < 4 || avoid(x, z)) continue;
     const slope = Math.abs(field.heightAt(x + 1.5, z) - h) + Math.abs(field.heightAt(x, z + 1.5) - h);
     const w = biomeWeights(x, z), roll = random();
-    if (h > 40 || slope > 2.2) {
+    if (h > TREELINE || slope > 2.2) {
       // High ground and steep slopes: a few half-sunk boulders, not a field of loose slabs.
       if (roll < .06) { const size = 1 + random() * 1.6; boulder(parent, x, h - .3 * size, z, size, random, random() < .3); }
-      else if (h < 70 && slope < 2.2 && roll < .55) pine(parent, x, h, z, .8 + random() * .4, random, h > 46);
+      else if (h < TREELINE + 34 && slope < 2.2 && roll < .55 && Math.max(w.badlands, w.dunes, w.volcanic) < .3) pine(parent, x, h, z, .8 + random() * .4, random, h > SNOWLINE - 16);
+      continue;
+    }
+    // Regions of their own: bare ground with a few dead trees, dry shrubs and rocks; moor with heather and the odd pine; green lowland between stone towers.
+    const dry = Math.max(w.badlands, w.dunes, w.volcanic);
+    if (dry > .4) {
+      if (roll < (w.volcanic > .4 ? .03 : .045)) deadTree(parent, x, h, z, .7 + random() * .6, random);
+      else if (roll < .11 && w.volcanic < .4) bush(parent, x, h, z, .5 + random() * .5, random);
+      else if (roll < .17) boulder(parent, x, h - .2, z, .5 + random() * 1.2, random, false);
+      continue;
+    }
+    if (w.highland > .5 && roll > .13) { if (random() < .24) boulder(parent, x, h, z, .6 + random() * 1.4, random, random() < .4); else if (random() < .26) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
+    if (w.pillars > .5) {
+      if (roll > .55) { if (random() < .12) bush(parent, x, h, z, .6 + random() * .6, random); continue; }
+      random() < .72 ? broadleaf(parent, x, h, z, .85 + random() * .6, random, random() < .5 ? 'oak' : 'birch') : spruce(parent, x, h, z, .9 + random() * .5, random);
       continue;
     }
     if (w.marsh > .5) { if (roll < .1) deadTree(parent, x, h, z, .8 + random() * .5, random); else if (roll < .22) bush(parent, x, h, z, .6 + random() * .6, random); continue; }

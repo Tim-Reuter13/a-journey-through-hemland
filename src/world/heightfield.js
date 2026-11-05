@@ -1,4 +1,5 @@
-import { BOUNDS, CHUNK, WATER_LEVEL, SITES, ROADS, RIVERS, LAKES, biomeWeights, kronwachtLevel, kronwachtPaving, castleWardPaving } from './hemland.js';
+import { BOUNDS, CHUNK, WATER_LEVEL, SITES, ROADS, RIVERS, LAKES, TREELINE, SNOWLINE, biomeWeights, kronwachtLevel, kronwachtPaving, castleWardPaving } from './hemland.js';
+import { pn, relief, ravines, crags, alpine, mountains, edgeWall, badlands, dunes, volcano, highland, pillars, groundLook } from './landforms.js';
 
 // The Aschmark heightfield: noise hills shaped by authored features (mountains,
 // lake, marsh, river bed, flattened sites, roads). Heights are evaluated once per
@@ -7,6 +8,7 @@ import { BOUNDS, CHUNK, WATER_LEVEL, SITES, ROADS, RIVERS, LAKES, biomeWeights, 
 export const STEP = 2, CELLS = CHUNK / STEP; // 64 cells, 65 vertices per side
 const ss = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
+const smax = (a, b, k) => { const t = Math.min(1, Math.max(0, .5 + .5 * (a - b) / k)); return lerp(b, a, t) + k * t * (1 - t); };
 
 function hash(ix, iz, seed) {
   let h = (Math.imul(ix, 374761393) + Math.imul(iz, 668265263) + Math.imul(seed, 1442695041)) | 0;
@@ -69,29 +71,59 @@ export function createHeightfield() {
   const roadBuckets = bucketize(roadSegments, 9), riverBuckets = bucketize(riverSegments, 22);
   const siteList = Object.entries(SITES).map(([id, s]) => ({ id, ...s }));
 
-  // Natural terrain before any authored feature.
+  const siteDistance = (s, x, z) => s.halfX ? Math.hypot(Math.max(0, Math.abs(x - s.x) - s.halfX), Math.max(0, Math.abs(z - s.z) - s.halfZ)) : Math.max(0, Math.hypot(x - s.x, z - s.z) - s.radius);
+  // How much of the land's relief a place may have: round sites and along roads the ground stays gentle, so a village
+  // lies in a valley and a road has a grade you can walk, while far from them the hills rise (0.12 .. 1).
+  const calmBuckets = bucketize(roadSegments, 120);
+  const siteReach = siteList.map(s => s.blend + Math.min(110, 40 + (s.halfX ? Math.max(s.halfX, s.halfZ) : s.radius) * .9));
+  function allow(x, z) {
+    let k = 1;
+    for (let i = 0; i < siteList.length; i++) {
+      const s = siteList[i], d = siteDistance(s, x, z);
+      if (d < siteReach[i]) k = Math.min(k, .12 + .88 * ss(s.blend * .5, siteReach[i], d));
+    }
+    const road = nearest(calmBuckets, x, z);
+    if (road) k = Math.min(k, .42 + .58 * ss(6, 70, road.distance - road.line.width / 2));
+    return k;
+  }
+
+  // Natural terrain before any authored feature. The lay of the land comes from landforms.js: broad swells and belts of
+  // hills, regions with a landform of their own, mountains round the edge and in the north.
   function natural(x, z) {
-    let h = fbm(x * .0045, z * .0045, 4) * 22 + fbm(x * .018, z * .018, 3, 9) * 5 + 4;
-    const peaks = (1 - Math.abs(fbm(x * .006 + 11, z * .006, 4, 31))) ** 2;
-    h += ss(-1030, -1360, z) * (46 + peaks * 58);                       // Nordkamm
-    const edge = Math.min(x - BOUNDS.minX, BOUNDS.maxX - x, z - BOUNDS.minZ, BOUNDS.maxZ - z);
-    h += ss(300, 40, edge) * (38 + peaks * 44);                         // ring of mountains around the region
-    h += ss(120, 70, edge) * (48 + peaks * 20);                         // and a cliff wall you cannot climb
     const w = biomeWeights(x, z);
+    const edge = Math.min(x - BOUNDS.minX, BOUNDS.maxX - x, z - BOUNDS.minZ, BOUNDS.maxZ - z), k = allow(x, z);
+    const regional = Math.max(w.badlands, w.dunes, w.volcanic, w.highland, w.pillars);
+    // The old gentle noise now only supplies texture; hills and valleys sit on top (less in the marsh, none where a region takes over).
+    let h = fbm(x * .0045, z * .0045, 4) * 9 + fbm(x * .018, z * .018, 3, 9) * 4 + 4;
+    const rel = relief(x, z);
+    h += (rel > 0 ? rel : rel * .34) * k * (1 + w.taiga * .3 + w.autumn * .2) * (1 - w.marsh * .92);
+    // Valleys never sink under the water by accident: lowland keeps just above it. Water is placed on purpose (ponds, bogs, lakes, rivers).
+    h -= ravines(x, z) * 15 * k * (1 - w.plains * .85) * (1 - w.marsh) * (1 - regional);
+    h = smax(h, 1.4, 6);
     // Ledges: in some hills the ground breaks into steps a few units high, with rocky faces.
-    const ledges = ss(.12, .42, fbm(x * .0035 + 40, z * .0035 - 13, 2, 61)) * (1 - w.plains) * (1 - w.marsh);
+    const ledges = ss(.12, .42, fbm(x * .0035 + 40, z * .0035 - 13, 2, 61)) * (1 - w.plains) * (1 - w.marsh) * (1 - regional);
     if (ledges > 0) {
       const v = (fbm(x * .013, z * .013, 2, 23) + 1) * 8, t = v / 4, f = t - Math.floor(t);
       h += (Math.floor(t) + ss(.9, .985, f)) * 4 * ledges * .85;
     }
     h = lerp(h, 3 + fbm(x * .01, z * .01, 3, 5) * 4, w.plains * .72);  // Königsfeld lies open and gentle
+    // Ponds in the hollows of rolling country: a few, small, round, never near a site or road.
+    const pond = ss(-.56, -.76, pn(x * .0052 + 70, z * .0052, 16)) * ss(.55, .9, k) * (1 - w.plains) * (1 - regional);
+    if (pond > 0) h = lerp(h, WATER_LEVEL - 2.6 + pn(x * .05, z * .05, 17) * .6, pond);
+    // Regions with a landform of their own.
+    if (w.badlands > 0) h = lerp(h, badlands(x, z), w.badlands);
+    if (w.dunes > 0) h = lerp(h, dunes(x, z), w.dunes);
+    if (w.volcanic > 0) h = lerp(h, volcano(x, z), w.volcanic);
+    if (w.highland > 0) h = lerp(h, highland(x, z, WATER_LEVEL), w.highland);
+    if (w.pillars > 0) h = lerp(h, pillars(x, z), w.pillars);
+    // Mountains: the ring (thick here, thin there), the Nordkamm, and the wall at the very edge that closes the map.
+    h += mountains(x, z, alpine(x, z, edge, w)) * (.3 + .7 * k) + edgeWall(x, z, edge);
     const marshD = Math.hypot(x - 300, z - 430);
     h = lerp(h, WATER_LEVEL + .5 + fbm(x * .04, z * .04, 3, 77) * 1.6, ss(250, 110, marshD) * .9);
     for (const lake of LAKES) h = lerp(h, WATER_LEVEL - 7, ss(lake.radius + 45, lake.radius - 25, Math.hypot(x - lake.x, z - lake.z) + fbm(x * .02, z * .02, 2, 3) * 20));
     return h;
   }
   const siteCentres = new Map();
-  const siteDistance = (s, x, z) => s.halfX ? Math.hypot(Math.max(0, Math.abs(x - s.x) - s.halfX), Math.max(0, Math.abs(z - s.z) - s.halfZ)) : Math.max(0, Math.hypot(x - s.x, z - s.z) - s.radius);
   // Terrain with sites and the river bed, but without roads.
   function shaped(x, z) {
     let h = natural(x, z);
@@ -184,8 +216,9 @@ export function createHeightfield() {
     }
     const s = hit.segment, dx = (s.bx - s.ax) / (s.length || 1), dz = (s.bz - s.az) / (s.length || 1);
     let sum = 0;
-    for (const o of [-6, 0, 6]) sum += shaped(hit.x + dx * o, hit.z + dz * o);
-    return sum / 3;
+    // A road follows the land as a long average, so it climbs a hill at a grade you can walk instead of every lump of it.
+    for (const o of [-24, -12, -6, 0, 6, 12, 24]) sum += shaped(hit.x + dx * o, hit.z + dz * o);
+    return sum / 7;
   }
   function computeHeight(x, z) {
     let h = shaped(x, z);
@@ -206,8 +239,13 @@ export function createHeightfield() {
     const k = key(cx, cz);
     let g = grids.get(k);
     if (g) return g;
-    const heights = new Float32Array((CELLS + 1) ** 2), x0 = cx * CHUNK, z0 = cz * CHUNK;
-    for (let j = 0; j <= CELLS; j++) for (let i = 0; i <= CELLS; i++) heights[j * (CELLS + 1) + i] = computeHeight(x0 + i * STEP, z0 + j * STEP);
+    const N = CELLS + 1, M = N + 2, heights = new Float32Array(N * N), base = new Float32Array(M * M), x0 = cx * CHUNK, z0 = cz * CHUNK;
+    // One vertex of margin all round, so the slope at a border vertex is the same from both chunks and the detail meets without a crack.
+    for (let j = -1; j <= CELLS + 1; j++) for (let i = -1; i <= CELLS + 1; i++) base[(j + 1) * M + i + 1] = computeHeight(x0 + i * STEP, z0 + j * STEP);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const c = base[(j + 1) * M + i + 1], gx = (base[(j + 1) * M + i + 2] - base[(j + 1) * M + i]) / (2 * STEP), gz = (base[(j + 2) * M + i + 1] - base[j * M + i + 1]) / (2 * STEP);
+      heights[j * N + i] = c + crags(x0 + i * STEP, z0 + j * STEP, c, Math.hypot(gx, gz));
+    }
     g = { cx, cz, x0, z0, heights };
     grids.set(k, g);
     return g;
@@ -247,10 +285,43 @@ export function createHeightfield() {
     const bank = Math.max(riverBank, lakeBank), wet = ss(WATER_LEVEL + .75, WATER_LEVEL + .1, h) * bank;
     const under = ss(WATER_LEVEL + .05, WATER_LEVEL - .35, h), damp = ss(WATER_LEVEL + .55, WATER_LEVEL + .02, h) * (1 - bank);
     const sand = Math.max(ss(WATER_LEVEL + 1.7, WATER_LEVEL + .25, h) * bank * (.5 + patches * .7) * (1 - wet), under * bank * (.55 + patches * .5));
+    // Regions with a landform of their own colour the ground: red banded rock, black ash, gold sand, heather, mossy stone.
+    const hot = Math.max(w.badlands, w.dunes, w.volcanic), noise = fbm(x * .03, z * .03, 2, 8) * 5;
+    let dirt = Math.max(ss(.72, .95, patches) * .7 + w.plains * ss(.5, .7, patches) * .5, nearCity < 1 ? .35 + patches * .3 : 0) * (1 - streets);
+    // Walls are bare stone all the way (weight above 1, so no grass or flower texel shows through).
+    let rock = Math.max(Math.min(1, ss(TREELINE - 34, TREELINE, h) * .7 + ss(.55, 1.05, slope) * (1 - grassy * .75)), ss(1.1, 1.7, slope) * 1.4);
+    const snow = ss(SNOWLINE - 12 + hot * 90, SNOWLINE + hot * 90, h + noise);
+    let litter = (w.autumn * .8 * (.72 + patches * .38) + w.taiga * .3 * (.55 + patches * .6)) * (1 - streets) * (1 - under) * (1 - damp * .7);
+    let mud = w.marsh * .95 * ss(WATER_LEVEL + 3, WATER_LEVEL + .5, h) + shore * .25 + wet * .85 + damp * .75 + under * (1 - bank) * .95;
+    let sandW = sand;
+    const { grass: tint, stone } = groundLook(w);
+    if (w.badlands > 0) {
+      // Strata: bands of red earth, dark red rock and orange sand follow the height, so every mesa wall is layered.
+      const band = h * .16 + fbm(x * .02, z * .02, 2, 5) * 1.4, bf = band - Math.floor(band);
+      const earth = ss(.04, .1, bf) * ss(.38, .32, bf), ledge = ss(.38, .44, bf) * ss(.7, .64, bf), dust = ss(.7, .76, bf) * ss(1, .94, bf);
+      dirt = Math.max(dirt, w.badlands * Math.max(earth * .95, (1 - ss(.74, .9, patches)) * .85)); rock = Math.max(rock, w.badlands * (ledge * .95 + ss(.9, 1.8, slope) * .95));
+      sandW = Math.max(sandW, w.badlands * dust * .92 * (1 - rock)); litter *= 1 - w.badlands;
+    }
+    if (w.dunes > 0) {
+      sandW = Math.max(sandW, w.dunes * (.8 + patches * .2)); dirt = Math.max(dirt, w.dunes * ss(.78, .95, patches) * .5); litter *= 1 - w.dunes;
+    }
+    if (w.volcanic > 0) {
+      // Ash: dark earth everywhere, bare black rock on the steeper flanks, rust-coloured crumbs between; no meadow.
+      rock = Math.max(rock, w.volcanic * (.35 + ss(.3, .9, slope) * .6)); dirt = Math.max(dirt, w.volcanic * (.8 + patches * .15));
+      litter = Math.max(litter, w.volcanic * .3 * patches); sandW = Math.max(sandW, w.volcanic * .5 * ss(14, 4, h));
+    }
+    if (w.highland > 0) {
+      // Peat and heather: patches of bare brown earth, dry litter, mud round the bog pools, stone on the crests.
+      dirt = Math.max(dirt, w.highland * ss(.55, .88, patches) * .6); litter = Math.max(litter, w.highland * .55 * (.4 + patches * .6));
+      mud = Math.max(mud, w.highland * ss(WATER_LEVEL + 4.5, WATER_LEVEL + .5, h) * .9); rock = Math.max(rock, w.highland * ss(.35, .8, slope) * .8);
+    }
+    if (w.pillars > 0) {
+      rock = Math.max(rock, w.pillars * ss(1.1, 2.4, slope));
+    }
     return {
-      a: [roadW * (1 - paved) * (1 - streets), Math.max(ss(.72, .95, patches) * .7 + w.plains * ss(.5, .7, patches) * .5, nearCity < 1 ? .35 + patches * .3 : 0) * (1 - streets), Math.min(1, ss(18, 34, h) * .7 + ss(.55, 1.05, slope) * (1 - grassy * .75)), ss(46, 58, h + fbm(x * .03, z * .03, 2, 8) * 5)],
-      b: [(w.autumn * .8 * (.72 + patches * .38) + w.taiga * .3 * (.55 + patches * .6)) * (1 - streets) * (1 - under) * (1 - damp * .7), w.marsh * .95 * ss(WATER_LEVEL + 3, WATER_LEVEL + .5, h) + shore * .25 + wet * .85 + damp * .75 + under * (1 - bank) * .95, sand, Math.max(roadW * paved, streets)],
-      tint: [1 - w.taiga * .1 + w.autumn * .05 + w.plains * .03, 1 - w.autumn * .12 - w.marsh * .08, 1 - w.autumn * .35 - w.plains * .12 + w.taiga * .02],
+      a: [roadW * (1 - paved) * (1 - streets), dirt, rock, snow],
+      b: [litter, mud, sandW, Math.max(roadW * paved, streets)],
+      tint, rock: stone,
     };
   }
   const roadAt = (x, z) => nearest(roadBuckets, x, z);

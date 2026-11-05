@@ -18,13 +18,13 @@ export function terrainMaterial() {
   material = new THREE.MeshLambertMaterial({ vertexColors: true });
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
-    shader.vertexShader = 'attribute vec4 splatA;\nattribute vec4 splatB;\nattribute float shade;\nvarying vec4 vSplatA;\nvarying vec4 vSplatB;\nvarying float vShade;\nvarying vec3 vTerrainPos;\nvarying vec3 vTerrainNormal;\n' +
+    shader.vertexShader = 'attribute vec4 splatA;\nattribute vec4 splatB;\nattribute float shade;\nattribute vec3 rockTint;\nvarying vec4 vSplatA;\nvarying vec4 vSplatB;\nvarying float vShade;\nvarying vec3 vRockTint;\nvarying vec3 vTerrainPos;\nvarying vec3 vTerrainNormal;\n' +
       shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-        vSplatA = splatA; vSplatB = splatB; vShade = shade; vTerrainPos = (modelMatrix * vec4(position, 1.)).xyz; vTerrainNormal = normal;`);
+        vSplatA = splatA; vSplatB = splatB; vShade = shade; vRockTint = rockTint; vTerrainPos = (modelMatrix * vec4(position, 1.)).xyz; vTerrainNormal = normal;`);
     Object.assign(shader.uniforms, burnUniforms);
     shader.fragmentShader = `${BURN_GLSL}
       uniform sampler2D ${Object.keys(uniforms).filter(n => n !== 'cityBounds').join(', ')}; uniform vec4 cityBounds;
-      varying vec4 vSplatA; varying vec4 vSplatB; varying float vShade; varying vec3 vTerrainPos; varying vec3 vTerrainNormal;
+      varying vec4 vSplatA; varying vec4 vSplatB; varying float vShade; varying vec3 vRockTint; varying vec3 vTerrainPos; varying vec3 vTerrainNormal;
       float terrainHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float terrainNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
         return mix(mix(terrainHash(i), terrainHash(i + vec2(1., 0.)), f.x), mix(terrainHash(i + vec2(0., 1.)), terrainHash(i + vec2(1., 1.)), f.x), f.y); }
@@ -69,7 +69,7 @@ export function terrainMaterial() {
         float pick = clamp(terrainNoise(groundUV * .9 + 13.) * .72 + terrainHash(texel) * .28, 0., 1.);
         // Broad, seamless light and colour variation over the living ground.
         float macro = terrainNoise(groundUV * .06) * .6 + terrainNoise(groundUV * .21 + 7.) * .4;
-        vec3 ground = grass; float living = 1.;
+        vec3 ground = grass; float living = 1.; vec3 stoneTint = vRockTint;
         // Height blending: each layer's own relief (how far a texel is lighter than its layer's
         // average) moves the edge, so stones, clods and leaf heaps poke through first.
         #define RELIEF(c, mean) ((dot(c, vec3(.333)) - mean) * .9)
@@ -79,11 +79,15 @@ export function terrainMaterial() {
         if (vSplatA.y + RELIEF(dirt, .27) - grassRelief > pick) { ground = dirt; living = .25; }
         if (vSplatB.z + RELIEF(sand, .42) - grassRelief > pick) { ground = sand; living = 0.; }
         if (vSplatA.x + RELIEF(trail, .42) * .5 > pick * .8 + .1) { ground = trail; living = 0.; }
-        if (vSplatB.w + RELIEF(paving, .4) * .5 > pick * .8 + .1) { ground = paving * (.9 + macro * .2); living = 0.; }
-        if (vSplatA.z + RELIEF(rock, .43) > pick) { ground = rock; living = 0.; }
-        if (vSplatA.w + RELIEF(snow, .8) > pick) { ground = snow; living = 0.; }
+        if (vSplatB.w + RELIEF(paving, .4) * .5 > pick * .8 + .1) { ground = paving * (.9 + macro * .2); living = 0.; stoneTint = vec3(1.); }
+        if (vSplatA.z + RELIEF(rock, .43) > pick) {
+          // Strata: bands of lighter and darker stone down a face, and long weathering streaks running with the fall line.
+          float strata = terrainHash(vec2(floor(vTerrainPos.y * 1.25), 3.)), streak = terrainNoise(vec2(cliffUV.x * .55, cliffUV.y * .09 + 11.));
+          ground = rock * (.78 + strata * .36) * (.8 + streak * .38); living = 0.;
+        }
+        if (vSplatA.w + RELIEF(snow, .8) > pick) { ground = snow; living = 0.; stoneTint = vec3(1.); }
         vec3 tone = mix(vec3(1.), vec3(.86 + macro * .26, .9 + macro * .2, .84 + macro * .2), living);
-        diffuseColor.rgb *= ground * tone * mix(vec3(1.), vColor, living) * (1. - vShade);
+        diffuseColor.rgb *= ground * tone * mix(stoneTint, vColor, living) * (1. - vShade);
         // Fire (world/burnMap.js): melted snow shows bare wet earth; scorched ground chars, with a ragged
         // pixel edge, ash flecks and glowing embers while it is still hot.
         vec4 bg = burnGround(vTerrainPos);
@@ -102,7 +106,7 @@ export function terrainMaterial() {
 }
 
 function attributes(heightfield, sample, xs, zs, heights, slopeStep) {
-  const n = heights.length, splatA = new Float32Array(n * 4), splatB = new Float32Array(n * 4), colors = new Float32Array(n * 3), normals = new Float32Array(n * 3);
+  const n = heights.length, splatA = new Float32Array(n * 4), splatB = new Float32Array(n * 4), colors = new Float32Array(n * 3), rock = new Float32Array(n * 3), normals = new Float32Array(n * 3);
   for (let k = 0; k < n; k++) {
     const x = xs[k], z = zs[k], h = heights[k];
     const dx = sample(x + slopeStep, z) - sample(x - slopeStep, z);
@@ -110,9 +114,9 @@ function attributes(heightfield, sample, xs, zs, heights, slopeStep) {
     const nx = -dx, ny = 2 * slopeStep, nz = -dz, len = Math.hypot(nx, ny, nz);
     normals.set([nx / len, ny / len, nz / len], k * 3);
     const s = heightfield.surface(x, z, h, Math.hypot(dx, dz) / (2 * slopeStep));
-    splatA.set(s.a, k * 4); splatB.set(s.b, k * 4); colors.set(s.tint, k * 3);
+    splatA.set(s.a, k * 4); splatB.set(s.b, k * 4); colors.set(s.tint, k * 3); rock.set(s.rock, k * 3);
   }
-  return { splatA, splatB, colors, normals };
+  return { splatA, splatB, colors, rock, normals };
 }
 
 // Goblin holes (heightfield.js burrows) are far narrower than the 2-unit grid. At full detail the cells round each
@@ -127,12 +131,12 @@ function pitCells(heightfield, g) {
 }
 function pitPatch(heightfield, g, cells) {
   const C = heightfield.CELLS, full = C + 1, A = g.attr, e = .25;
-  const out = { pos: [], normals: [], colors: [], splatA: [], splatB: [], shade: [], index: [] };
+  const out = { pos: [], normals: [], colors: [], rock: [], splatA: [], splatB: [], shade: [], index: [] };
   const ss = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   const dh = (x, z) => heightfield.pit(x, z)?.dh || 0;
   const copy = (k, drop) => {
     out.pos.push(out.pos[k * 3], out.pos[k * 3 + 1] - drop, out.pos[k * 3 + 2]);
-    for (const [name, size] of [['normals', 3], ['colors', 3], ['splatA', 4], ['splatB', 4], ['shade', 1]]) for (let c = 0; c < size; c++) out[name].push(out[name][k * size + c]);
+    for (const [name, size] of [['normals', 3], ['colors', 3], ['rock', 3], ['splatA', 4], ['splatB', 4], ['shade', 1]]) for (let c = 0; c < size; c++) out[name].push(out[name][k * size + c]);
     return out.shade.length - 1;
   };
   for (const cell of cells) {
@@ -150,7 +154,7 @@ function pitPatch(heightfield, g, cells) {
       const len = Math.hypot(gx, 1, gz), a = mix(A.splatA, 4), b = mix(A.splatB, 4), p = heightfield.pit(x, z);
       if (p) { a[1] = Math.max(a[1], ss(1.5, 1.05, p.r) * .85); a[2] = Math.max(a[2], p.rock); b[0] *= ss(1.1, 1.5, p.r); b[1] = Math.max(b[1], ss(1.05, .7, p.r) * .5); }
       out.pos.push(x, heightfield.heightAt(x, z), z); out.normals.push(-gx / len, 1 / len, -gz / len);
-      out.colors.push(...mix(A.colors, 3)); out.splatA.push(...a); out.splatB.push(...b); out.shade.push(p ? p.shade : 0);
+      out.colors.push(...mix(A.colors, 3)); out.rock.push(...mix(A.rock, 3)); out.splatA.push(...a); out.splatB.push(...b); out.shade.push(p ? p.shade : 0);
     }
     for (let v = 0; v < SUB; v++) for (let u = 0; u < SUB; u++) {
       const a = base + v * (SUB + 1) + u, b = a + 1, c = a + SUB + 1, d = c + 1;
@@ -204,23 +208,24 @@ export function buildChunkMesh(heightfield, cx, cz, lod) {
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) source[j * side + i] = (j * stride) * full + i * stride;
   let s = side * side;
   for (const edge of edges) for (const v of edge) source[s++] = source[v];
-  const attr = { normals: new Float32Array(count * 3), colors: new Float32Array(count * 3), splatA: new Float32Array(count * 4), splatB: new Float32Array(count * 4) };
+  const attr = { normals: new Float32Array(count * 3), colors: new Float32Array(count * 3), rock: new Float32Array(count * 3), splatA: new Float32Array(count * 4), splatB: new Float32Array(count * 4) };
   for (let v = 0; v < count; v++) {
     const o = source[v];
-    attr.normals.set(g.attr.normals.subarray(o * 3, o * 3 + 3), v * 3); attr.colors.set(g.attr.colors.subarray(o * 3, o * 3 + 3), v * 3);
+    attr.normals.set(g.attr.normals.subarray(o * 3, o * 3 + 3), v * 3); attr.colors.set(g.attr.colors.subarray(o * 3, o * 3 + 3), v * 3); attr.rock.set(g.attr.rock.subarray(o * 3, o * 3 + 3), v * 3);
     attr.splatA.set(g.attr.splatA.subarray(o * 4, o * 4 + 4), v * 4); attr.splatB.set(g.attr.splatB.subarray(o * 4, o * 4 + 4), v * 4);
   }
   let position = pos, shade = new Float32Array(count);
   if (fine) {
     const patch = pitPatch(heightfield, g, fine), grow = (a, extra) => { const r = new Float32Array(a.length + extra.length); r.set(a); r.set(extra, a.length); return r; };
     position = grow(pos, patch.pos); shade = grow(shade, patch.shade);
-    for (const name of ['normals', 'colors', 'splatA', 'splatB']) attr[name] = grow(attr[name], patch[name]);
+    for (const name of ['normals', 'colors', 'rock', 'splatA', 'splatB']) attr[name] = grow(attr[name], patch[name]);
     for (const k of patch.index) index.push(k + count);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(attr.normals, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(attr.colors, 3));
+  geometry.setAttribute('rockTint', new THREE.BufferAttribute(attr.rock, 3));
   geometry.setAttribute('splatA', new THREE.BufferAttribute(attr.splatA, 4));
   geometry.setAttribute('splatB', new THREE.BufferAttribute(attr.splatB, 4));
   geometry.setAttribute('shade', new THREE.BufferAttribute(shade, 1));
@@ -273,6 +278,7 @@ export function buildFarTerrain(heightfield, step = 32, margin = 640) {
   geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(attr.normals, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(attr.colors, 3));
+  geometry.setAttribute('rockTint', new THREE.BufferAttribute(attr.rock, 3));
   geometry.setAttribute('splatA', new THREE.BufferAttribute(attr.splatA, 4));
   geometry.setAttribute('splatB', new THREE.BufferAttribute(attr.splatB, 4));
   geometry.setAttribute('shade', new THREE.BufferAttribute(new Float32Array(count), 1));

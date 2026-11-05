@@ -353,3 +353,23 @@ a backpack animation for the inventory in first and third person, made in Blockb
   inventory have a modern glass skin (ui/hudModern.css).
 - [ ] Still open: ragdoll get-up is not cleaned up (the captured pose is applied to an upright root for 0.4 s), the third-person
   sword hold was only nudged (wrist bend), muscle-driven reactions beyond HUMANITY MOTION's zones.
+
+## Phase 7 — World shape (2026-11-05): the land is no longer a plane
+Inspired by Tectonic (warped ridges, plateau tiers, badlands ridges, dunes, pillars, rolling hills) and Biomes O' Plenty (volcano, crag,
+jade cliffs, highland, moor, muskeg, bog pools). Everything is terrain mesh: no stacked rock modules (they read as props; see the
+2026-11-01 and 2026-11-05 feedback). `world/landforms.js` holds the pure shapes, `heightfield.js` composes them.
+- [x] Open country: broad swells, belts of hills with long valleys (rounded crests), cuestas (hillsides that break into cliff bands),
+  narrow ravines, knolls, a few ponds; calm only close to sites and roads (the village lies in a valley, roads keep a walkable grade).
+- [x] Mountains: a ring of varying depth plus the Nordkamm, ridges bent by a second noise (passes and massifs), a sheer wall at the edge.
+- [x] Five landform regions, each with its own height model, ground colours and plants: Rotfelsen (south-west: mesas whose sides step
+  down in ledges, flat-floored canyons, red banded strata), Sandmark (south: dunes with slip faces and mega-dunes, gold sand, dead
+  trees), Aschenkrone (south-east: volcano with crater bowl and lava gullies, black ash and rock), Heidemoor (north-west: rolling moor,
+  granite tors, shallow bog dishes with pools, heather), Jadegrat (east: ribbed stone towers over green lowland).
+- [x] Steep ground gets rock detail in the grid itself (ribs and gullies, seamless across chunk borders), full-weight bare stone on
+  walls, strata bands and weathering streaks in the terrain shader; a per-vertex stone tint (`rockTint`) carries red, black and
+  gold rock; the rocks that remain (boulders, stone rings) take the tint of the place they stand on.
+- [x] Removed: cliff walls, rock noses, ridges, tors, hoodoos and landmark towers/arches built from rock modules in the chunk scatter.
+- [x] Tests: tests/landforms.test.js (determinism, regions differ from open country, no cracks between chunks, sites level, roads
+  walkable, tints).
+- [ ] Not done: smoke over the crater, ash and dust particles, cacti/palms/redwoods (needs Blockbench tree models), biome-specific
+  animals, snow-capped regions that depend on temperature rather than height, a second river, fire fuel per new biome.

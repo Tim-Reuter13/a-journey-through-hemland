@@ -5,9 +5,13 @@
 // Travel times on the king's road from Dämmerwald to Kronwacht (~1300 units):
 // jogging (5.1 u/s) ≈ 4.3 min, sprinting (9.2 u/s) ≈ 2.4 min.
 
+import { zoneWeights } from './landforms.js';
+
 export const BOUNDS = { minX: -1024, maxX: 1536, minZ: -1536, maxZ: 1024 };
 export const CHUNK = 128;
 export const WATER_LEVEL = -6;
+/** Where trees and grass give out on high ground, and where snow lies for good (hot regions lift both). */
+export const TREELINE = 74, SNOWLINE = 92;
 
 /** Flattened or shaped areas. mode: 'soften' (gentle natural terrain), 'flatten' (to the natural height at the centre
  *  plus `offset`), 'level' (to an absolute `height`). Rectangles use halfX/halfZ, circles radius; blend is the falloff. */
@@ -160,14 +164,19 @@ export const LAKES = [{ id: 'grausee', name: 'Grausee', x: 575, z: 450, radius: 
 /** A road crossing water: the deck is a walkable floor and a bridge model is built there. */
 export const BRIDGES = [{ id: 'grauwasser', road: 'king', x: 392, z: -330, length: 30, width: 6.5, height: WATER_LEVEL + 4.2 }];
 
-/** Biome weights at a point (0..1 each, not normalised). Height-based snow and rock live in the terrain shader. */
+/** Biome weights at a point (0..1 each, not normalised). Height-based snow and rock live in the terrain shader.
+ *  autumn, taiga, marsh, plains, forest are the old regions of the Aschmark; badlands, dunes, volcanic, highland and
+ *  pillars are the landform regions (landforms.js), which push the old ones aside where they lie. */
 export function biomeWeights(x, z) {
   const ss = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   const wobble = Math.sin(x * .011 + z * .007) * 40 + Math.sin(z * .019 - x * .005) * 25;
-  const autumn = ss(-110, -260, x + wobble) * ss(-520, -380, z) * ss(620, 480, z);
-  const taiga = ss(-330, -560, z + wobble) * ss(820, 640, x);
-  const marsh = ss(260, 120, Math.hypot(x - 300, z - 430) + wobble * .5);
-  const plains = ss(470, 300, Math.hypot((x - 720) * .8, z + 600) + wobble) * (1 - taiga);
-  const forest = Math.max(0, (Math.sin(x * .021) * Math.cos(z * .017) + .25)) * (1 - plains) * (1 - marsh);
-  return { autumn, taiga, marsh, plains, forest };
+  const zw = zoneWeights(x, z);
+  const dry = Math.max(zw.badlands, zw.dunes, zw.volcanic), taken = Math.max(dry, zw.pillars, zw.highland * .8);
+  const free = 1 - taken;
+  const autumn = ss(-110, -260, x + wobble) * ss(-520, -380, z) * ss(620, 480, z) * free;
+  const taiga = ss(-330, -560, z + wobble) * ss(820, 640, x) * (1 - Math.max(dry, zw.pillars) * .95) * (1 - zw.highland * .45);
+  const marsh = ss(260, 120, Math.hypot(x - 300, z - 430) + wobble * .5) * (1 - dry);
+  const plains = ss(470, 300, Math.hypot((x - 720) * .8, z + 600) + wobble) * (1 - taiga) * free;
+  const forest = Math.max(0, (Math.sin(x * .021) * Math.cos(z * .017) + .25)) * (1 - plains) * (1 - marsh) * free;
+  return { autumn, taiga, marsh, plains, forest, badlands: zw.badlands, dunes: zw.dunes, volcanic: zw.volcanic, highland: zw.highland, pillars: zw.pillars };
 }

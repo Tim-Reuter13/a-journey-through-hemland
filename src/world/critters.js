@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { biomeWeights } from './hemland.js';
+import { biomeWeights, TREELINE } from './hemland.js';
 
 // Small life that is only ever near the wanderer: flocks of birds wheeling high overhead by day, and
 // butterflies tumbling over the meadows. Both are a fixed handful of blocky meshes that follow the
@@ -49,7 +49,7 @@ export function createCritters(scene, heightAt, random = Math.random) {
     // A spot in the open somewhere round the wanderer, low over the grass.
     for (let tries = 0; tries < 6; tries++) {
       const a = random() * TAU, r = 4 + random() * 16, x = focus.x + Math.cos(a) * r, z = focus.z + Math.sin(a) * r, w = biomeWeights(x, z);
-      if (w.taiga > .5 || heightAt(x, z) > 44) continue;
+      if (w.taiga > .5 || heightAt(x, z) > TREELINE - 6 || Math.max(w.badlands, w.dunes, w.volcanic) > .5) continue;
       b.target.set(x, heightAt(x, z) + .5 + random() * 1.1, z); return true;
     }
     return false;

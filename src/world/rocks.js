@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { pixelTexture, textureSize } from '../art/pixelTextures.js';
 import { broadleaf, pine, spruce, stump, fallenLog, mushrooms, bush, deadTree } from './flora.js';
+import { TREELINE, biomeWeights as regionWeights } from './hemland.js';
+import { groundLook } from './landforms.js';
 
 // Landscape kit: faceted low-poly rocks — cliff walls, spires, outcrops, boulders, slabs, scree —
 // shaped from noise-displaced solids with layered strata, flat-shaded like PS1 geometry. One master
@@ -72,12 +74,13 @@ function shape(kind, variant) {
 // ── Master material: world-space stone with ground cover on sky-facing facets.
 const materialCache = new Map();
 const CAPS = { grass: ['grass', [.84, .9, .74]], litter: ['litter', [.95, .9, .82]], snow: ['snow', [1, 1, 1]], none: ['grass', [.84, .9, .74]] };
-function rockMaterial(tone, cap, tint = [1, 1, 1]) {
-  const key = `${tone}:${cap}:${tint.join(',')}`;
+function rockMaterial(tone, cap, tint = [1, 1, 1], stain = null) {
+  const key = `${tone}:${cap}:${tint.join(',')}:${stain ? stain.join(',') : ''}`;
   if (materialCache.has(key)) return materialCache.get(key);
   const [capTexture, capTint] = CAPS[cap], scale = name => (16 / textureSize(name)).toFixed(5);
   const uniforms = { t_stone: { value: pixelTexture('stone') }, t_cap: { value: pixelTexture(capTexture) } };
   const material = new THREE.MeshLambertMaterial({ color: tone });
+  if (stain) material.color.multiply(new THREE.Color(stain[0], stain[1], stain[2]));
   material.name = `rock:${key}`;
   material.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, uniforms);
@@ -116,9 +119,11 @@ function rockMaterial(tone, cap, tint = [1, 1, 1]) {
   return material;
 }
 const TONES = [0xffffff, 0xf2e8da, 0xe2e8ee, 0xece4d4, 0xd8d8d2];
-const capFor = (w, high) => high ? 'snow' : w && w.autumn > .5 ? 'litter' : 'grass';
+const capFor = (w, high) => high ? 'snow' : w && Math.max(w.badlands, w.dunes, w.volcanic) > .45 ? 'none' : w && w.autumn > .5 ? 'litter' : 'grass';
+/** The tint of the stone itself in a region (red mesas, black basalt, green-grey towers); null where it is plain. */
+const stainFor = w => { if (!w) return null; const s = groundLook(w).stone.map(v => Math.round(v * 25) / 25); return s.every(v => v === 1) ? null : s; };
 /** The terrain's biome tint (heightfield.js surface) at these weights, in steps of 0.04. */
-const tintFor = w => !w ? [1, 1, 1] : [1 - w.taiga * .1 + w.autumn * .05 + w.plains * .03, 1 - w.autumn * .12 - w.marsh * .08, 1 - w.autumn * .35 - w.plains * .12 + w.taiga * .02].map(v => Math.round(v * 25) / 25);
+const tintFor = w => !w ? [1, 1, 1] : groundLook(w).grass.map(v => Math.round(v * 25) / 25);
 
 // ── Modules: compositions of shapes. Parts: [shape, width, height, depth, x, y (base), z, rx, ry, rz].
 // h is the height the module shows above the ground, w its width (for scree and spacing).
@@ -152,7 +157,8 @@ function rock(parent, kind, sx, sy, sz, x, y, z, rx, ry, rz, material, random, s
 }
 /** Builds one module into `parent` at (x, y, z), turned by ry, uniformly scaled; returns the group. */
 export function rockModule(parent, name, x, y, z, ry, scale, random, w = null, high = false, mirror = false, cap = null) {
-  const spec = MODULES[name], g = new THREE.Group(), material = rockMaterial(TONES[Math.floor(random() * TONES.length)], cap ?? capFor(w, high), tintFor(w)), f = mirror ? -1 : 1;
+  w ??= regionWeights(x, z);
+  const spec = MODULES[name], g = new THREE.Group(), material = rockMaterial(TONES[Math.floor(random() * TONES.length)], cap ?? capFor(w, high), tintFor(w), stainFor(w)), f = mirror ? -1 : 1;
   g.position.set(x, y, z); g.rotation.y = ry; parent.add(g);
   for (const [kind, sw, sh, sd, px, py, pz, rx = 0, rry = 0, rz = 0] of spec.parts)
     rock(g, kind, sw * scale, sh * scale, sd * scale, px * f * scale, py * scale, pz * scale, rx, rry * f + (random() - .5) * .3, rz * f, material, random);
@@ -160,61 +166,26 @@ export function rockModule(parent, name, x, y, z, ry, scale, random, w = null, h
 }
 /** Loose stones at the foot of something: scree spreading forward (+z) over a width. */
 export function scree(parent, x, y, z, ry, width, random, heightAt, w = null) {
-  const c = Math.cos(ry), s = Math.sin(ry), n = Math.round(width * 1.4), material = rockMaterial(TONES[Math.floor(random() * TONES.length)], capFor(w, false), tintFor(w));
+  const c = Math.cos(ry), s = Math.sin(ry), n = Math.round(width * 1.4), material = rockMaterial(TONES[Math.floor(random() * TONES.length)], capFor(w, false), tintFor(w), stainFor(w));
   for (let i = 0; i < n; i++) {
     const lx = (random() - .5) * width, lz = random() * 2.8, px = x + lx * c + lz * s, pz = z - lx * s + lz * c, size = .22 + random() * .6 * (1 - lz / 3.2);
     rock(parent, random() < .3 ? 'slab' : 'boulder', size * (1 + random() * .5), size * .65, size, px, heightAt(px, pz) - size * .2, pz, 0, random() * 6.3, 0, material, random, size > .55);
   }
 }
 
-// ── Cliffs: where the terrain breaks steeply, a wall sized to the drop is set into the slope.
-function cliffs(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid, placed) {
-  for (let gz = 2; gz < size; gz += 5) for (let gx = 2; gx < size; gx += 5) {
-    const x = x0 + gx + (random() - .5) * 3, z = z0 + gz + (random() - .5) * 3, h = field.heightAt(x, z);
-    if (h < waterLevel + 1.5 || field.roadClearance(x, z) < 6 || avoid(x, z)) continue;
-    const dx = (field.heightAt(x + 2, z) - field.heightAt(x - 2, z)) / 4, dz = (field.heightAt(x, z + 2) - field.heightAt(x, z - 2)) / 4, slope = Math.hypot(dx, dz);
-    // High up, the mountain is one body of rock and snow: a few broad bands of strata, sunk deep into the
-    // slope, not a field of loose walls and pillars.
-    const mountain = h > 34;
-    if (slope < .85 || placed.some(p => Math.hypot(p.x - x, p.z - z) < p.r + (mountain ? 12 : 3.5))) continue;
-    if (mountain && random() > .35) continue;
-    // Downhill unit vector; the wall's front (+z) faces it. The foot sits on the lower ground.
-    const ux = -dx / slope, uz = -dz / slope, low = field.heightAt(x + ux * 3, z + uz * 3), high = field.heightAt(x - ux * 3, z - uz * 3), drop = high - low;
-    if (drop < 2.2) continue;
-    const name = mountain ? (drop > 4 ? 'cliffWide' : 'cliffStep') : drop > 6 ? (random() < .6 ? 'cliffTall' : 'cliffCorner') : drop > 3 ? (random() < .5 ? 'cliffWide' : 'cliffOverhang') : 'cliffStep';
-    // Texturing is in world space, so a wall can grow to the drop without losing texel density.
-    const spec = MODULES[name], scale = mountain ? THREE.MathUtils.clamp(drop / spec.h * 1.3, 1.3, 2.6) : THREE.MathUtils.clamp(drop / spec.h * 1.15, .9, 1.9), ry = Math.atan2(ux, uz);
-    const fx = x + ux * 1.2, fz = z + uz * 1.2;
-    const w = biomeWeights(fx, fz);
-    rockModule(parent, name, fx, Math.min(low, field.heightAt(fx, fz)) + (mountain ? -.9 : .3) * scale, fz, ry, scale, random, w, high > 46, random() < .5);
-    if (!mountain) scree(parent, fx + ux * 1.4 * scale, 0, fz + uz * 1.4 * scale, ry, spec.w * scale * .9, random, field.heightAt, w);
-    placed.push({ x: fx, z: fz, r: spec.w * scale * .55 });
-  }
-}
-
-// ── Stamps: composed little places. Each returns the radius it claims so trees keep out of it.
+// ── Stamps: small composed places made of loose things. Each returns the radius it claims so trees keep out of it.
+// Cliffs, crags, towers and mesas are NOT built here: they are the terrain itself (landforms.js shapes them, the terrain shader
+// puts rock on every steep slope), because walls of stacked rock modules read as props set on the ground, not as the ground.
 const STAMPS = {
-  // A rock nose breaking out of the ground, a tree leaning beside it, scree and a bush.
-  rockNose(parent, field, x, z, ry, random, w) {
-    const h = field.heightAt(x, z);
-    const big = 1.3 + random() * .5;
-    rockModule(parent, random() < .5 ? 'outcropKnoll' : 'cliffCorner', x, h - .2, z, ry, big, random, w, false, random() < .5);
-    const tx = x + Math.cos(ry) * 3.6 * big, tz = z - Math.sin(ry) * 3.6 * big;
-    w.taiga > .4 ? pine(parent, tx, field.heightAt(tx, tz), tz, 1.1, random) : broadleaf(parent, tx, field.heightAt(tx, tz), tz, 1.1, random, w.autumn > .4 ? 'autumn' : 'oak');
-    scree(parent, x + Math.sin(ry) * 2.2 * big, 0, z + Math.cos(ry) * 2.2 * big, ry, 5 * big, random, field.heightAt, w);
-    const bx = x - Math.cos(ry) * 3.2 * big, bz = z + Math.sin(ry) * 3.2 * big; bush(parent, bx, field.heightAt(bx, bz), bz, 1, random);
-    return 7 * big;
-  },
-  // A clearing in the wood: stumps in a loose ring, a fallen trunk, toadstools, a dead tree, a mossy slab.
+  // A clearing in the wood: stumps in a loose ring, a fallen trunk, toadstools, a dead tree.
   clearing(parent, field, x, z, ry, random, w) {
     for (let i = 0; i < 4; i++) { const a = ry + i * 1.6 + random() * .6, r = 4 + random() * 2, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r; stump(parent, px, field.heightAt(px, pz), pz, .9 + random() * .4, random); }
     const lx = x + Math.cos(ry + .8) * 1.8, lz = z + Math.sin(ry + .8) * 1.8; fallenLog(parent, lx, field.heightAt(lx, lz), lz, 1.1, random);
     for (let i = 0; i < 3; i++) { const px = x + (random() - .5) * 5, pz = z + (random() - .5) * 5; mushrooms(parent, px, field.heightAt(px, pz), pz, random); }
     const dx = x + Math.cos(ry + 3) * 6.5, dz = z + Math.sin(ry + 3) * 6.5; deadTree(parent, dx, field.heightAt(dx, dz), dz, 1, random);
-    const sx = x + Math.cos(ry - 1.2) * 3, sz = z + Math.sin(ry - 1.2) * 3; rockModule(parent, 'outcropStrata', sx, field.heightAt(sx, sz) - .3, sz, ry, .7, random, w);
     return 8;
   },
-  // Erratic boulders left in a meadow, the biggest one half-sunk, smaller ones around it.
+  // Erratic boulders left on open ground, the biggest one half-sunk, smaller ones around it.
   boulderField(parent, field, x, z, ry, random, w) {
     for (let i = 0; i < 4 + Math.floor(random() * 4); i++) {
       const a = random() * Math.PI * 2, r = i ? 3 + random() * 7 : 0, px = x + Math.cos(a) * r, pz = z + Math.sin(a) * r;
@@ -233,70 +204,28 @@ const STAMPS = {
     rockModule(parent, 'boulderSlab', x, field.heightAt(x, z) - .1, z, ry, 1.2, random, w);
     return 8;
   },
-  // A low ridge of tilted strata with bushes in its lee and a tree at the end.
-  ridge(parent, field, x, z, ry, random, w) {
-    rockModule(parent, 'outcropRidge', x, field.heightAt(x, z) - .3, z, ry, 1.3 + random() * .4, random, w, false, random() < .5);
-    const sx = x + Math.cos(ry) * 4.2, sz = z - Math.sin(ry) * 4.2; rockModule(parent, 'outcropStrata', sx, field.heightAt(sx, sz) - .3, sz, ry + .3, .8, random, w);
-    for (let i = 0; i < 3; i++) { const px = x - Math.sin(ry) * 1.8 + (random() - .5) * 5, pz = z - Math.cos(ry) * 1.8 + (random() - .5) * 2; bush(parent, px, field.heightAt(px, pz), pz, .7 + random() * .4, random); }
-    const tx = x - Math.cos(ry) * 4.5, tz = z + Math.sin(ry) * 4.5;
-    (w.taiga > .4 ? spruce : (p, a, b, c, s, r) => broadleaf(p, a, b, c, s, r, w.autumn > .4 ? 'autumn' : 'birch'))(parent, tx, field.heightAt(tx, tz), tz, 1, random);
-    return 7;
-  },
 };
 
-// ── Landmarks: one big formation per 320 m region, on open rising ground, to steer by.
-const REGION = 320;
-const regionHash = (i, j, k) => { const s = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return s - Math.floor(s); };
-function landmarkOf(field, i, j, avoid) {
-  if (regionHash(i, j, 1) > .55) return null;
-  const x = (i + .2 + regionHash(i, j, 2) * .6) * REGION, z = (j + .2 + regionHash(i, j, 3) * .6) * REGION, h = field.heightAt(x, z);
-  if (h < 4 || h > 42 || field.roadClearance(x, z) < 22 || avoid(x, z)) return null;
-  return { x, z, kind: regionHash(i, j, 4) < .5 ? 'tower' : 'arch', ry: regionHash(i, j, 5) * 6.3 };
-}
-function landmark(parent, field, mark, random) {
-  const { x, z, ry } = mark, h = field.heightAt(x, z), at = (lx, lz) => [x + lx * Math.cos(ry) + lz * Math.sin(ry), z - lx * Math.sin(ry) + lz * Math.cos(ry)];
-  if (mark.kind === 'tower') {
-    // A weathered rock tower: stacked corner blocks narrowing upward, buttresses and a ring of scree.
-    rockModule(parent, 'cliffCorner', x, h - .6, z, ry, 1.3, random);
-    rockModule(parent, 'cliffCorner', x + .3, h + 6.6, z - .2, ry + .9, 1, random);
-    rockModule(parent, 'cliffCorner', x - .2, h + 12.4, z + .1, ry + 1.7, .72, random);
-    for (const [lx, lz, a] of [[3.2, .5, 0], [-2.8, 1.8, 2.1], [.4, -3.3, 4.2]]) { const [px, pz] = at(lx, lz); rockModule(parent, 'cliffTall', px, field.heightAt(px, pz) - .8, pz, ry + a, .55, random); }
-    for (let k = 0; k < 4; k++) { const a = ry + k * 1.57, [px, pz] = at(Math.cos(a) * 5, Math.sin(a) * 5); scree(parent, px, 0, pz, a, 6, random, field.heightAt); }
-  } else {
-    // A natural arch: two pillars and a heavy lintel slab, grass on top, scree below.
-    for (const side of [-1, 1]) { const [px, pz] = at(side * 4.2, 0); rockModule(parent, 'cliffCorner', px, field.heightAt(px, pz) - .6, pz, ry + side * .3, 1.05, random); }
-    const [cx, cz] = at(0, 0), top = Math.max(field.heightAt(...at(-4.2, 0)), field.heightAt(...at(4.2, 0))) + 6.4;
-    const g = new THREE.Group(); g.position.set(cx, top, cz); g.rotation.y = ry; parent.add(g);
-    const material = rockMaterial(TONES[0], 'grass');
-    rock(g, 'slab', 12, 2.6, 4, 0, -.2, 0, 0, 0, .03, material, random); rock(g, 'outcrop', 7, 1.8, 3.2, -.4, 1.6, -.2, 0, .05, 0, material, random);
-    for (const side of [-1, 1]) { const [px, pz] = at(0, side * 2.6); scree(parent, px, 0, pz, ry + (side > 0 ? 0 : Math.PI), 8, random, field.heightAt); }
-  }
-}
-
 /** The landscape pass for one chunk; runs before trees, returns circles the trees should keep out of. */
-/** What the last chunks placed (dev aid for looking at cliffs, stamps and landmarks in the game). */
+/** What the last chunks placed (dev aid for looking at stamps in the game). */
 export const placementLog = globalThis.__rockPlacements ??= [];
 export function landscapeChunk(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
   const placed = [];
-  cliffs(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid, placed);
-  // Landmarks whose point falls inside this chunk.
-  const i = Math.floor((x0 + size / 2) / REGION), j = Math.floor((z0 + size / 2) / REGION), mark = landmarkOf(field, i, j, avoid);
-  if (mark && mark.x >= x0 && mark.x < x0 + size && mark.z >= z0 && mark.z < z0 + size) { landmark(parent, field, mark, random); placed.push({ x: mark.x, z: mark.z, r: 12, kind: `landmark:${mark.kind}` }); }
   // One or two stamps, chosen by what grows here.
   for (let k = 0; k < 2; k++) {
     if (random() > .38) continue;
     const x = x0 + 8 + random() * (size - 16), z = z0 + 8 + random() * (size - 16), h = field.heightAt(x, z);
-    if (h < waterLevel + 1 || h > 44 || field.roadClearance(x, z) < 10 || avoid(x, z) || placed.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 8)) continue;
+    if (h < waterLevel + 1 || h > TREELINE - 4 || field.roadClearance(x, z) < 10 || avoid(x, z) || placed.some(p => Math.hypot(p.x - x, p.z - z) < p.r + 8)) continue;
     const slope = Math.abs(field.heightAt(x + 3, z) - h) + Math.abs(field.heightAt(x, z + 3) - h);
     if (slope > 2.4) continue;
     const w = biomeWeights(x, z), wooded = Math.min(1, w.taiga + w.autumn + w.forest), roll = random();
-    const kind = wooded > .5 ? (roll < .45 ? 'clearing' : roll < .8 ? 'rockNose' : 'ridge')
-      : w.plains > .4 ? (roll < .45 ? 'boulderField' : roll < .62 ? 'stoneRing' : roll < .85 ? 'ridge' : 'rockNose')
-      : (roll < .4 ? 'rockNose' : roll < .75 ? 'boulderField' : 'ridge');
+    const bare = Math.max(w.badlands, w.dunes, w.volcanic) > .5;
+    if (bare && roll > .35) continue;   // deserts and ash fields stay empty
+    const kind = bare ? 'boulderField' : w.pillars > .5 ? 'clearing' : wooded > .5 ? (roll < .6 ? 'clearing' : 'boulderField') : (roll < .6 ? 'boulderField' : 'stoneRing');
     const r = STAMPS[kind](parent, field, x, z, random() * Math.PI * 2, random, w);
     placed.push({ x, z, r, kind });
   }
-  for (const p of placed) placementLog.push({ kind: p.kind || 'cliff', x: Math.round(p.x), z: Math.round(p.z) });
+  for (const p of placed) placementLog.push({ kind: p.kind || 'stamp', x: Math.round(p.x), z: Math.round(p.z) });
   if (placementLog.length > 4000) placementLog.splice(0, placementLog.length - 4000);
   return placed;
 }
