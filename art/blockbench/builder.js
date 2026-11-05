@@ -40,9 +40,13 @@ function AshenBuild(spec, options = {}) {
     image: (m, f, x, y) => {
       const img = IMAGES[m.image];
       if (!img) return STYLES[m.fallback || 'flat'](m, f, x, y);
-      const px = (x + f.seed * 7 + f.cubeIndex * 5) % img.w, py = (y + f.seed * 3 + f.cubeIndex * 11) % img.h, i = (py * img.w + px) * 4;
+      // A card (m.fit) shows the whole picture on its face; anything else tiles the picture from an offset of its own, so neighbours never line up.
+      const px = m.fit ? Math.min(img.w - 1, Math.floor((x + .5) / f.w * img.w)) : (x + f.seed * 7 + f.cubeIndex * 5) % img.w;
+      const py = m.fit ? Math.min(img.h - 1, Math.floor((y + .5) / f.h * img.h)) : (y + f.seed * 3 + f.cubeIndex * 11) % img.h, i = (py * img.w + px) * 4;
       if (img.data[i + 3] < 128) return null;
-      return [img.data[i], img.data[i + 1], img.data[i + 2]];
+      // Grading: the pictures are bright and rich; the world is not. Saturation and gain per material (default a little under the picture).
+      const sat = m.sat ?? .78, gain = m.gain ?? .88, r = img.data[i], g = img.data[i + 1], b = img.data[i + 2], l = r * .3 + g * .59 + b * .11;
+      return [clamp(Math.round((l + (r - l) * sat) * gain), 0, 255), clamp(Math.round((l + (g - l) * sat) * gain), 0, 255), clamp(Math.round((l + (b - l) * sat) * gain), 0, 255)];
     },
     flat: (m, f, x, y) => m.ramp[random() < .78 ? 1 : random() < .5 ? 0 : 2],
     skin: (m, f, x, y) => m.ramp[random() < .86 ? 1 : random() < .5 ? 0 : 2],

@@ -62,7 +62,7 @@ export function deadTree(parent, x, y, z, scale, random) {
 // they fall back to the block trees.
 const SPECIES = {
   redwood: ['redwood_1', 'redwood_2'], willow: ['willow_1', 'willow_2'], acacia: ['acacia_1', 'acacia_2'], palm: ['palm_1', 'palm_2'], cypress: ['cypress_1', 'cypress_2'],
-  jade: ['jade_1', 'jade_2'], heath: ['heath_1', 'heath_2'], blossom: ['blossom_1', 'blossom_2'], purple: ['purple_1', 'purple_2'], olive: ['olive_1', 'olive_2'],
+  jade: ['jade_1', 'jade_2'], heath: ['heath_1', 'heath_2'], blossom: ['blossom_1', 'blossom_2'], olive: ['olive_1', 'olive_2'],
   charred: ['charred_1', 'charred_2'], cactus: ['cactus_1', 'cactus_2', 'cactus_3'], mangrove: ['mangrove_1', 'mangrove_2'],
 };
 export function species(parent, kind, x, y, z, scale, random) {
@@ -278,12 +278,12 @@ export function groundCoverChunk(field, biomeWeights, waterLevel, x0, z0, size, 
     if (Math.abs(dxs) + Math.abs(dzs) > 1.2) continue;
     let sprite;
     if (dry > .35) sprite = roll < .6 ? SPRITE.deadGrass : roll < .8 ? SPRITE.grassShort : SPRITE.tallGrass;
-    else if (w.highland > .4 && roll < .78) sprite = roll < .22 ? SPRITE.flowerPurple : roll < .4 ? SPRITE.fern : roll < .58 ? SPRITE.deadGrass : SPRITE.tallGrass;
-    else if (w.pillars > .4 && roll < .6) sprite = roll < .3 ? SPRITE.fern : roll < .38 ? SPRITE.flowerYellow : SPRITE.tallGrass;
+    else if (w.highland > .4 && roll < .78) sprite = roll < .35 ? SPRITE.deadGrass : roll < .55 ? SPRITE.grassShort : SPRITE.tallGrass;
+    else if (w.pillars > .4 && roll < .6) sprite = roll < .3 ? SPRITE.grassShort : SPRITE.tallGrass;
     else if (w.marsh > .5 && roll < .5) sprite = roll < .12 ? SPRITE.cattail : roll < .3 ? SPRITE.rush : SPRITE.sedge;
     else if (h < waterLevel + 1.6 && roll < .35) sprite = roll < .12 ? SPRITE.rush : SPRITE.sedge;
-    else if (w.taiga > .5) sprite = roll < .35 ? SPRITE.fern : roll < .6 ? SPRITE.deadGrass : SPRITE.tallGrass;
-    else if (w.autumn > .5) sprite = roll < .4 ? SPRITE.deadGrass : roll < .55 ? SPRITE.fern : roll < .6 ? SPRITE.flowerYellow : SPRITE.tallGrass;
+    else if (w.taiga > .5) sprite = roll < .35 ? SPRITE.grassShort : roll < .6 ? SPRITE.deadGrass : SPRITE.tallGrass;
+    else if (w.autumn > .5) sprite = roll < .4 ? SPRITE.deadGrass : roll < .55 ? SPRITE.grassShort : roll < .6 ? SPRITE.flowerYellow : SPRITE.tallGrass;
     else if (w.forest > .6 && roll < .3) sprite = SPRITE.fern;
     else if (roll < .05 + w.plains * .08 + Math.max(0, patch(x, z, 0) - .62) * 2.2 * (1 - w.taiga)) {
       const lead = FLOWERS[Math.floor(patch(x, z, 5) * 7) % FLOWERS.length];
@@ -512,7 +512,7 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
     else if (w.autumn > .5) { const k = random(); k < .9 ? broadleaf(parent, x, h, z, s, random, k < .34 ? 'autumn' : k < .56 ? 'maple' : k < .76 ? 'birchGold' : k < .82 ? 'oak' : 'autumn') : k < .96 ? spruce(parent, x, h, z, s, random) : deadTree(parent, x, h, z, s, random); }
     else if (w.forest > .5) random() < .75 ? spruce(parent, x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : 'oak');
     else if (random() < .04) deadTree(parent, x, h, z, s, random);
-    else { const k = random(); k < .045 ? species(parent, 'blossom', x, h, z, s, random) : k < .075 ? species(parent, 'purple', x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn'); }
+    else { const k = random(); k < .045 ? species(parent, 'blossom', x, h, z, s, random) : broadleaf(parent, x, h, z, s, random, random() < .5 ? 'birch' : random() < .7 ? 'oak' : 'autumn'); }
   }
   plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
   details(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid);
@@ -522,17 +522,16 @@ function scatterTrees(parent, field, biomeWeights, waterLevel, x0, z0, size, ran
  *  regions, ferns and toadstools in the woods, drifts of poppy, bluebell and lavender in the meadows. null = none. */
 function plantFor(w, x, z, h, roll, k, drift) {
   const v = (base, n = 2) => `${base}_${1 + Math.floor(k * n)}`;
-  if (w.badlands > .4) return roll < .06 ? v('agave') : roll < .16 ? v('dry_shrub') : roll < .18 ? v('pampas') : null;
-  if (w.dunes > .4) return roll < .09 ? v('dry_shrub') : roll < .12 ? v('agave') : roll < .15 && h < 36 ? v('pampas') : null;
+  if (w.badlands > .4) return roll < .05 ? v('agave') : roll < .14 ? v('dry_shrub') : roll < .16 ? v('pampas') : null;
+  if (w.dunes > .4) return roll < .08 ? v('dry_shrub') : roll < .1 ? v('agave') : roll < .13 && h < 36 ? v('pampas') : null;
   if (w.volcanic > .4) return roll < .012 ? 'mushroom_glow_1' : null;
-  if (w.highland > .4) return roll < .27 ? v('heather') : roll < .3 ? 'thistle_1' : roll < .32 ? v('mushroom_brown') : roll < .335 ? 'bluebell_1' : null;
-  if (w.pillars > .4) return roll < .16 ? v('fern_big') : roll < .22 ? 'bluebell_1' : roll < .26 ? v('mushroom_red') : roll < .3 ? 'mushroom_glow_1' : null;
+  if (w.highland > .4) return roll < .13 ? v('heather') : roll < .15 ? v('mushroom_brown') : null;
+  if (w.pillars > .4) return roll < .14 ? v('fern_big') : roll < .19 ? v('mushroom_red') : roll < .22 ? 'mushroom_glow_1' : null;
   if (w.marsh > .4) return roll < .05 ? v('fern_big') : roll < .08 ? v('mushroom_brown') : roll < .095 ? 'mushroom_glow_1' : null;
   if (w.taiga > .4) return roll < .08 ? v('fern_big') : roll < .12 ? v('mushroom_brown') : roll < .14 ? v('mushroom_red') : null;
   if (w.autumn > .4) return roll < .1 ? v('fern_big') : roll < .15 ? v('mushroom_red') : roll < .2 ? v('mushroom_brown') : null;
-  if (z > 380) return roll < .09 ? v('pampas') : roll < .14 ? v('dry_shrub') : roll < .16 ? 'agave_1' : roll < .2 ? 'poppy_1' : null;
-  if (drift > .62) return roll < .5 ? 'poppy_1' : roll < .75 ? 'bluebell_1' : 'lavender_1';
-  return roll < .012 ? 'thistle_1' : roll < .02 ? v('fern_big') : null;
+  if (z > 380) return roll < .09 ? v('pampas') : roll < .14 ? v('dry_shrub') : roll < .16 ? 'agave_1' : null;
+  return roll < .012 ? v('fern_big') : null;
 }
 function plantsPass(parent, field, biomeWeights, waterLevel, x0, z0, size, random, avoid) {
   if (!plantsLoaded()) return;

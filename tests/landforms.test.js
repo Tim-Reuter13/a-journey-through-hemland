@@ -125,12 +125,12 @@ test('steep ground gets rock detail, gentle ground gets none', () => {
 test('regions colour ground and stone of their own; open country is untouched', () => {
   assert.deepEqual(groundLook(open).stone, [1, 1, 1]);
   const mesa = groundLook({ ...open, badlands: 1 });
-  assert.ok(mesa.stone[0] > mesa.stone[2] * 2, 'red stone');
+  assert.ok(mesa.stone[0] > mesa.stone[2] * 1.4, 'warm red-brown stone');
   const ash = groundLook({ ...open, volcanic: 1 });
   assert.ok(ash.stone.every(v => v < .5), 'black stone');
   const s = field.surface(ZONES.badlands.x, ZONES.badlands.z, 40, .3);
   assert.equal(s.rock.length, 3); assert.equal(s.tint.length, 3);
-  assert.ok(s.rock[0] > 1.1, 'the terrain carries the same red');
+  assert.ok(s.rock[0] > 1.05 && s.rock[0] > s.rock[2] * 1.4, 'the terrain carries the same earth red');
 });
 
 test('a chunk of terrain is cheap to build', () => {

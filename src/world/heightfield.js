@@ -301,24 +301,25 @@ export function createHeightfield() {
     const c = new Array(GROUND.length).fill(0), give = (name, v) => { const i = GROUND_INDEX[name]; c[i] = Math.max(c[i], Math.min(1.4, v)); };
     const retreat = k => { dirt *= 1 - k; sandW *= 1 - k; litter *= 1 - k; rock *= 1 - k * .6; };
     if (w.badlands > 0) {
-      // Strata: bands of red clay, dark red rock and orange sand follow the height, so every mesa wall is layered; cracked mud on the canyon floors.
-      const band = h * .16 + fbm(x * .02, z * .02, 2, 5) * 1.4, bf = band - Math.floor(band);
-      const earth = ss(.04, .1, bf) * ss(.38, .32, bf), ledge = ss(.38, .44, bf) * ss(.7, .64, bf), dust = ss(.7, .76, bf) * ss(1, .94, bf);
-      give('red_clay', w.badlands * Math.max(earth * .95, (1 - ss(.74, .9, patches)) * .8)); give('red_rock', w.badlands * (ledge * 1.1 + ss(.5, 1.3, slope) * 1.3));
-      give('red_sand', w.badlands * (dust * .95 + ss(.76, .94, patches) * .5)); give('cracked_mud', w.badlands * ss(11, 5, h) * .9);
+      // Weathered sandstone country: red clay over the flat tops with patches of dry grass, layered rock on the walls (bands by height, only where the
+      // ground is steep: on a flat they showed as stripes), cracked mud on the canyon floors.
+      const band = h * .16 + fbm(x * .02, z * .02, 2, 5) * 1.4, bf = band - Math.floor(band), wall = ss(.28, .75, slope);
+      const earth = ss(.04, .1, bf) * ss(.38, .32, bf), ledge = ss(.38, .44, bf) * ss(.7, .64, bf);
+      give('red_clay', w.badlands * Math.max(earth * wall, 1 - wall * .5)); give('red_rock', w.badlands * (ledge * 1.1 * wall + ss(.5, 1.3, slope) * 1.3));
+      give('cracked_mud', w.badlands * (ss(11, 5, h) * .9 + ss(.82, .95, patches) * .45)); give('dry_grass', w.badlands * ss(.62, .84, patches) * (1 - wall) * .85);
       retreat(w.badlands);
     }
     if (w.dunes > 0) {
-      give('dune_sand', w.dunes * 1.2); give('dry_grass', w.dunes * ss(.7, .9, patches) * .85); give('red_sand', w.dunes * ss(.8, 1.2, slope) * .6);
+      give('dune_sand', w.dunes * 1.2); give('dry_grass', w.dunes * ss(.7, .9, patches) * .85);
       retreat(w.dunes);
     }
     if (w.volcanic > 0) {
-      // Ash: black earth everywhere, bare basalt on the steeper flanks, a glassy crust high up round the crater; no meadow.
-      give('ash_ground', w.volcanic * 1.25); give('basalt', w.volcanic * (ss(.3, .9, slope) * 1.3)); give('obsidian_crust', w.volcanic * ss(70, 104, h) * .95);
+      // Ash: black earth everywhere, bare basalt on the steeper flanks and high up round the crater; no meadow.
+      give('ash_ground', w.volcanic * 1.25); give('basalt', w.volcanic * Math.max(ss(.3, .9, slope) * 1.3, ss(70, 104, h) * .95));
       retreat(w.volcanic);
     }
     if (w.highland > 0) {
-      // Peat and heather: heather over the hills, peat in the hollows and round the pools, granite on the knobs, moss where it is damp.
+      // Moor: dusty heather over the hills, peat in the hollows and round the pools, granite on the knobs, moss where it is damp.
       give('heather', w.highland * (1 - ss(.8, .95, patches) * .5) * 1.1); give('peat', w.highland * (ss(WATER_LEVEL + 6, WATER_LEVEL + .5, h) * 1.2 + ss(.86, .96, patches) * .35));
       give('granite', w.highland * ss(.45, 1.1, slope) * 1.3); give('moss_rock', w.highland * ss(.7, .92, patches) * ss(.2, .6, slope) * .9);
       retreat(w.highland * .9);
@@ -333,6 +334,11 @@ export function createHeightfield() {
     // Woods and meadows: needles under the taiga, clover and flowers in patches over the open meadows.
     if (w.taiga > 0) give('pine_needles', w.taiga * .8 * (.55 + patches * .45) * (1 - under));
     const wild = Math.max(w.badlands, w.dunes, w.volcanic, w.highland, w.pillars);
+    // Rock of more than one kind: where the land is bare stone outside the regions, broad areas (a few hundred units across) are pale limestone, grey granite or
+    // dark slate (the old stone picture), with gravel where it crumbles under the slope; each area keeps its own kind over the hills.
+    const kind = fbm(x * .0036 + 17, z * .0036 - 9, 2, 91), limeW = ss(-.02, .3, kind), graniteW = ss(-.02, -.3, kind), scree = ss(.9, 1.6, slope) * ss(.3, .7, fbm(x * .02, z * .02, 2, 92) * .5 + .5);
+    const bare = rock * (1 - wild) * (1 - Math.min(1, w.marsh + w.taiga * .2));
+    if (bare > .02) { give('limestone', bare * limeW * 1.2); give('granite', bare * graniteW * 1.2); give('gravel', bare * scree * .8); rock *= 1 - Math.min(.97, (limeW + graniteW) * (1 - wild)); }
     give('clover_meadow', (1 - wild) * (1 - w.taiga) * (1 - w.autumn * .6) * (1 - w.marsh) * ss(.55, .82, patches) * .7 * (1 - under) * (1 - shore));
     return {
       a: [roadW * (1 - paved) * (1 - streets), dirt, rock, snow],

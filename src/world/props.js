@@ -12,7 +12,7 @@ export const PROPS = ['handcart', 'wheelbarrow', 'barrels', 'crates', 'sacks', '
 export const CAVE_PROPS = ['torch_wall', 'fire_pit', 'mushrooms', 'bone_pile', 'totem', 'altar', 'drums', 'banner', 'bed', 'junk', 'cart', 'rails', 'scrap', 'carving', 'chest', 'key', 'cage',
   'gate_wood', 'gate_iron', 'lever_base', 'lever_handle', 'chain_pull', 'pillar', 'brazier', 'plate', 'idol', 'socket', 'skull_stake', 'mushroom_giant', 'filth', 'spikes', 'meat_rack', 'stew_pot'];
 // Plants of the landform regions (› plants → plants.gltf) and the points of interest of the wild regions (› pois → pois.gltf).
-export const PLANTS = ['heather_1', 'heather_2', 'lavender_1', 'poppy_1', 'bluebell_1', 'thistle_1', 'pampas_1', 'pampas_2', 'dry_shrub_1', 'dry_shrub_2', 'agave_1', 'agave_2',
+export const PLANTS = ['heather_1', 'heather_2', 'pampas_1', 'pampas_2', 'dry_shrub_1', 'dry_shrub_2', 'agave_1', 'agave_2',
   'fern_big_1', 'fern_big_2', 'mushroom_red_1', 'mushroom_red_2', 'mushroom_brown_1', 'mushroom_brown_2', 'mushroom_glow_1'];
 export const POIS = ['mine_headframe', 'ribcage', 'obelisk', 'caravan_camp', 'obsidian_altar', 'burned_hut', 'stone_circle', 'peat_hut', 'jade_shrine', 'hollow_log'];
 const templates = new Map();

@@ -1,12 +1,12 @@
 export const SETTINGS_KEY='hemland-settings-v1';
-export const DEFAULT_SETTINGS=Object.freeze({graphicsQuality:'medium',masterVolume:1,musicVolume:.6,effectsVolume:.8,mouseSensitivity:1,fov:75,invertY:false,subtitles:true,pixelFilter:true,colorGrade:'standard',touchControls:'auto'});
+export const DEFAULT_SETTINGS=Object.freeze({graphicsQuality:'medium',masterVolume:1,musicVolume:.6,effectsVolume:.8,mouseSensitivity:1,fov:75,invertY:false,subtitles:true,pixelFilter:true,colorGrade:'standard',touchControls:'auto'});   // 'standard' is the natural look since 2026-11-05; 'vivid' is the old rich one
 const ranges={masterVolume:[0,1],musicVolume:[0,1],effectsVolume:[0,1],mouseSensitivity:[.3,2],fov:[60,90]};
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 
 export function normalizeSettings(values={}){
   const input=values&&typeof values==='object'&&!Array.isArray(values)?values:{},result={...DEFAULT_SETTINGS};
   if(['low','medium','high'].includes(input.graphicsQuality))result.graphicsQuality=input.graphicsQuality;
-  if(['standard','dark'].includes(input.colorGrade))result.colorGrade=input.colorGrade;
+  if(['standard','vivid','dark','nordic','golden','filmic'].includes(input.colorGrade))result.colorGrade=input.colorGrade;
   if(['auto','on','off'].includes(input.touchControls))result.touchControls=input.touchControls;
   for(const [key,[min,max]] of Object.entries(ranges))if(typeof input[key]==='number'&&Number.isFinite(input[key]))result[key]=clamp(input[key],min,max);
   for(const key of ['invertY','subtitles','pixelFilter'])if(typeof input[key]==='boolean')result[key]=input[key];
@@ -72,7 +72,7 @@ export function createSettingsPanel(root,{values=loadSettings(),onChange}={}){
     <label class="settings-row" for="setting-graphicsQuality"><span>Grafikqualität</span><select id="setting-graphicsQuality" name="graphicsQuality"><option value="low">Leistung</option><option value="medium">Ausgewogen</option><option value="high">Qualität</option></select></label>
     ${[['masterVolume','Gesamtlautstärke',.05],['musicVolume','Musik',.05],['effectsVolume','Effekte',.05],['mouseSensitivity','Blickempfindlichkeit',.05],['fov','Sichtfeld',1]].map(([key,label,step])=>`<label class="settings-row" for="setting-${key}"><span>${label}</span><span class="settings-range"><input id="setting-${key}" name="${key}" type="range" min="${ranges[key][0]}" max="${ranges[key][1]}" step="${step}"><output for="setting-${key}" data-output="${key}"></output></span></label>`).join('')}
     <label class="settings-row" for="setting-invertY"><span>Y-Achse umkehren</span><input id="setting-invertY" name="invertY" type="checkbox"></label>
-    <label class="settings-row" for="setting-colorGrade"><span>Farbstil</span><select id="setting-colorGrade" name="colorGrade"><option value="standard">Standard</option><option value="dark">Dunkle Fantasy</option></select></label>
+    <label class="settings-row" for="setting-colorGrade"><span>Farbstil</span><select id="setting-colorGrade" name="colorGrade"><option value="standard">Natürlich</option><option value="vivid">Lebendig</option><option value="dark">Dunkle Fantasy</option><option value="nordic">Nordisch</option><option value="golden">Goldener Herbst</option><option value="filmic">Filmisch</option></select></label>
     <label class="settings-row" for="setting-pixelFilter"><span>Pixelfilter (Retro-Auflösung)</span><input id="setting-pixelFilter" name="pixelFilter" type="checkbox"></label>
     <label class="settings-row" for="setting-subtitles"><span>Untertitel</span><input id="setting-subtitles" name="subtitles" type="checkbox"></label>
     <label class="settings-row" for="setting-touchControls"><span>Touch-Steuerung</span><select id="setting-touchControls" name="touchControls"><option value="auto">Automatisch</option><option value="on">An</option><option value="off">Aus</option></select></label>

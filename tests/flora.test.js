@@ -54,6 +54,7 @@ test('the terrain gives each region its own grounds', () => {
   assert.ok(has(at('badlands', 50, 1.4), 'red_rock'), 'mesa walls are red rock');
   assert.ok(has(at('dunes'), 'dune_sand'));
   assert.ok(has(at('volcanic', 30), 'ash_ground') && has(at('volcanic', 30, 1), 'basalt'));
+  assert.ok(has(at('dunes'), 'dune_sand'));
   assert.ok(has(at('highland', 30), 'heather'));
   assert.ok(has(at('pillars', 6, .1), 'jade_grass') && has(at('pillars', 40, 1.5), 'moss_rock'));
   const open = field.surface(0, 0, 3, .1);

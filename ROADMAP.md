@@ -394,3 +394,13 @@ the pictures on them are 47 textures made by Codex's image tool (art/textures/co
 - [x] Tests: tests/flora.test.js (specs build, pictures exist, regions get their grounds, places are flat and named).
 - [ ] Open: far terrain (32-unit grid) turns the sheer pillars into cones; the models of the new plants are placed by region, not yet by season; birds / insects per region;
   ground textures for river banks (gravel, limestone are made but unused); trees do not yet burn differently by species; chunk scatter takes ~23 ms (was ~12).
+
+### Feedback on the flora rework (2026-11-05, same day) — fixed
+- Colours too bright and too saturated, a red biome that was far too red, a purple moor, garish mixed-colour trees, one kind of rock, flat cards that showed a shifted piece of
+  their picture, flower cards that duplicated the old ground sprites, toadstool cards cutting through the 3D toadstools.
+- [x] Pictures are graded as they go in (saturation / gain per material in the models, per ground in groundLayers.js): sandstone is weathered brown-red, the moor is dusty brown
+  peat and heather (not purple), granite is grey, grass less neon. Mesa tops are clay with dry-grass patches; the layer bands show only on walls (they were stripes on the flat).
+- [x] Cards (`fit: true`) show the whole picture on their face (they used to tile it from an offset). Gone: jacaranda, blossom mixed with oak leaves (blossom trees are pure),
+  lavender / poppy / bluebell / thistle cards (the old sprites are those flowers), cards inside the toadstools, sprite ferns where the 3D ferns grow.
+- [x] More rock: limestone, granite and dark slate in broad areas, gravel where a slope crumbles (red sand and obsidian crust left the ground array to make room).
+- [x] Colour presets (Einstellungen > Farbstil): Natürlich (new default, 'standard'), Lebendig (the old rich look), Dunkle Fantasy, Nordisch, Goldener Herbst, Filmisch.

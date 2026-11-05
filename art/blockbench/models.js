@@ -93,43 +93,37 @@ function AshenModels() {
     leavesBush: { style: 'leaves', ramp: ['#1e3018', '#283e20', '#324c26', '#3e5c2e', '#4a6a36', '#56763e'] },
     // Trees of the new regions. `image` materials are pictures by Codex (art/textures/codex); until a picture is there they paint
     // from their ramp in the `fallback` style, so a model always builds.
-    barkRedwood: { style: 'image', image: 'bark_redwood', fallback: 'bark', ramp: ['#3a1a12', '#522818', '#6a3a22', '#80502f', '#946a44'] },
-    barkWillow: { style: 'image', image: 'bark_willow', fallback: 'bark', ramp: ['#2e2a24', '#443d34', '#58504a', '#6c645a', '#80786c'] },
-    barkAcacia: { style: 'image', image: 'bark_acacia', fallback: 'bark', ramp: ['#1e1814', '#2c231c', '#3a2e24', '#493a2d', '#5a4838'] },
-    barkCharred: { style: 'image', image: 'bark_charred', fallback: 'bark', ramp: ['#0e0c0b', '#171412', '#221d1a', '#2e2823', '#3d352e'] },
-    barkJade: { style: 'image', image: 'bark_jade', fallback: 'bark', ramp: ['#4a5446', '#5e6a58', '#738068', '#8a9880', '#a0ae98'], moss: .3, mossColor: '#4e7a3a' },
-    barkPalm: { style: 'image', image: 'bark_palm', fallback: 'bark', ramp: ['#5c4a30', '#74603e', '#8c7650', '#a08a60', '#b49c70'] },
-    cactusSkin: { style: 'image', image: 'cactus_skin', fallback: 'bark', ramp: ['#2c4a2a', '#385c34', '#446e3e', '#528048', '#629256'] },
-    barkCypress: { style: 'image', image: 'bark_cypress', fallback: 'bark', ramp: ['#3e342c', '#52463a', '#665848', '#7a6a58', '#8e7e68'] },
-    barkHeath: { style: 'image', image: 'bark_heath', fallback: 'bark', ramp: ['#4a2c18', '#62381e', '#7a4824', '#92592c', '#a86c38'] },
-    leavesRedwood: { style: 'image', image: 'leaves_redwood', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#16282a', '#1e3633', '#28443c', '#335246', '#3f6050', '#4c6e5a'] },
-    leavesWillow: { style: 'image', image: 'leaves_willow', fallback: 'leaves', holes: .55, ramp: ['#3a4a1e', '#4a5c26', '#5c7030', '#70853a', '#869c46', '#9cb256'] },
-    leavesAcacia: { style: 'image', image: 'leaves_acacia', fallback: 'leaves', clump: 1, holes: .25, ramp: ['#3a4620', '#4c5a28', '#5e6e30', '#738338', '#8a9944', '#a0ae52'] },
-    leavesPalm: { style: 'image', image: 'leaves_palm', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#24401e', '#2e5224', '#3a652c', '#487836', '#588c42', '#6aa050'] },
-    leavesCypress: { style: 'image', image: 'leaves_cypress', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#14281c', '#1c3624', '#25442c', '#305236', '#3c6040', '#486e4a'] },
+    barkRedwood: { style: 'image', sat: .85, gain: .88, image: 'bark_redwood', fallback: 'bark', ramp: ['#3a1a12', '#522818', '#6a3a22', '#80502f', '#946a44'] },
+    barkWillow: { style: 'image', sat: .85, gain: .9, image: 'bark_willow', fallback: 'bark', ramp: ['#2e2a24', '#443d34', '#58504a', '#6c645a', '#80786c'] },
+    barkAcacia: { style: 'image', sat: .85, gain: .9, image: 'bark_acacia', fallback: 'bark', ramp: ['#1e1814', '#2c231c', '#3a2e24', '#493a2d', '#5a4838'] },
+    barkCharred: { style: 'image', sat: .8, gain: .95, image: 'bark_charred', fallback: 'bark', ramp: ['#0e0c0b', '#171412', '#221d1a', '#2e2823', '#3d352e'] },
+    barkJade: { style: 'image', sat: .6, gain: .85, image: 'bark_jade', fallback: 'bark', ramp: ['#4a5446', '#5e6a58', '#738068', '#8a9880', '#a0ae98'], moss: .3, mossColor: '#4e7a3a' },
+    barkPalm: { style: 'image', sat: .7, gain: .85, image: 'bark_palm', fallback: 'bark', ramp: ['#5c4a30', '#74603e', '#8c7650', '#a08a60', '#b49c70'] },
+    cactusSkin: { style: 'image', sat: .62, gain: .78, image: 'cactus_skin', fallback: 'bark', ramp: ['#2c4a2a', '#385c34', '#446e3e', '#528048', '#629256'] },
+    barkCypress: { style: 'image', sat: .8, gain: .9, image: 'bark_cypress', fallback: 'bark', ramp: ['#3e342c', '#52463a', '#665848', '#7a6a58', '#8e7e68'] },
+    barkHeath: { style: 'image', sat: .62, gain: .8, image: 'bark_heath', fallback: 'bark', ramp: ['#4a2c18', '#62381e', '#7a4824', '#92592c', '#a86c38'] },
+    leavesRedwood: { style: 'image', sat: .8, gain: .85, image: 'leaves_redwood', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#16282a', '#1e3633', '#28443c', '#335246', '#3f6050', '#4c6e5a'] },
+    leavesWillow: { style: 'image', sat: .62, gain: .78, image: 'leaves_willow', fallback: 'leaves', holes: .55, ramp: ['#3a4a1e', '#4a5c26', '#5c7030', '#70853a', '#869c46', '#9cb256'] },
+    leavesAcacia: { style: 'image', sat: .7, gain: .82, image: 'leaves_acacia', fallback: 'leaves', clump: 1, holes: .25, ramp: ['#3a4620', '#4c5a28', '#5e6e30', '#738338', '#8a9944', '#a0ae52'] },
+    leavesPalm: { style: 'image', sat: .68, gain: .82, image: 'leaves_palm', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#24401e', '#2e5224', '#3a652c', '#487836', '#588c42', '#6aa050'] },
+    leavesCypress: { style: 'image', sat: .8, gain: .85, image: 'leaves_cypress', fallback: 'leaves', clump: 1, holes: .1, ramp: ['#14281c', '#1c3624', '#25442c', '#305236', '#3c6040', '#486e4a'] },
     leavesJade: { style: 'leaves', ramp: ['#1c4a4a', '#245c58', '#2e6e66', '#3c8076', '#4e9488', '#62a89a'] },
-    leavesBlossom: { style: 'image', image: 'leaves_blossom', fallback: 'leaves', ramp: ['#8a4458', '#a05468', '#b8667a', '#cc7c8e', '#dc94a2', '#eaacb6'] },
-    leavesPurple: { style: 'image', image: 'leaves_purple', fallback: 'leaves', ramp: ['#4c3a78', '#5e4890', '#7058a4', '#8468b8', '#9a7ccc', '#b092dc'] },
-    leavesOlive: { style: 'image', image: 'leaves_olive', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#3e4a30', '#4e5c3c', '#606e4a', '#748258', '#8a966a', '#a0aa7c'] },
+    leavesBlossom: { style: 'image', sat: .5, gain: .8, image: 'leaves_blossom', fallback: 'leaves', ramp: ['#8a4458', '#a05468', '#b8667a', '#cc7c8e', '#dc94a2', '#eaacb6'] },
+    leavesOlive: { style: 'image', sat: .75, gain: .85, image: 'leaves_olive', fallback: 'leaves', clump: 1, holes: .2, ramp: ['#3e4a30', '#4e5c3c', '#606e4a', '#748258', '#8a966a', '#a0aa7c'] },
     leavesBlossomHeart: { style: 'leaves', ramp: ['#3a2630', '#4a303c', '#5a3a48', '#6a4454'], holes: .03 },
-    leavesPurpleHeart: { style: 'leaves', ramp: ['#2a2040', '#342850', '#3e3060', '#483a70'], holes: .03 },
     leavesJadeHeart: { style: 'leaves', ramp: ['#102c2c', '#163838', '#1e4444', '#265050'], holes: .03 },
     leavesOliveHeart: { style: 'leaves', ramp: ['#2a3224', '#343e2c', '#3e4a34', '#48563c'], holes: .03 },
     // Plants, mushrooms and the stone and wood of the wild points of interest.
-    plantHeather: { style: 'image', image: 'plant_heather_bloom', fallback: 'leaves', ramp: ['#3a2a52', '#563a74', '#72508e', '#8c68a6', '#a684be', '#bea0d2'] },
-    plantLavender: { style: 'image', image: 'plant_lavender', fallback: 'leaves', ramp: ['#3a3a5e', '#4c4c7a', '#62629a', '#7a7ab4', '#9494c8', '#aeaede'] },
-    plantPoppy: { style: 'image', image: 'plant_poppy', fallback: 'leaves', ramp: ['#7a1c1c', '#962424', '#b02e2e', '#c84040', '#3a5a2a', '#4a6e34'] },
-    plantBluebell: { style: 'image', image: 'plant_bluebell', fallback: 'leaves', ramp: ['#26366a', '#34468a', '#4660aa', '#5e7cc4', '#3a5a2a', '#4a6e34'] },
-    plantThistle: { style: 'image', image: 'plant_thistle', fallback: 'leaves', ramp: ['#3e4e3a', '#4e6048', '#607458', '#8a4a8a', '#a860a8', '#c07cc0'] },
-    plantPampas: { style: 'image', image: 'plant_pampas', fallback: 'leaves', ramp: ['#7a704a', '#968a5c', '#b2a470', '#cabc88', '#dcd0a0', '#ece4bc'] },
-    plantDryShrub: { style: 'image', image: 'plant_dry_shrub', fallback: 'leaves', ramp: ['#4a3a24', '#5e4a2c', '#745c36', '#8a7042', '#a08850', '#b8a05e'] },
-    mushCardRed: { style: 'image', image: 'mushroom_red', fallback: 'leaves', ramp: ['#5a1a16', '#7a2420', '#962e28', '#b0443a', '#d8d0bc', '#ece4d0'] },
-    mushCardBrown: { style: 'image', image: 'mushroom_brown', fallback: 'leaves', ramp: ['#2e1e14', '#442d1e', '#5c3e2a', '#785238', '#947050', '#b08c68'] },
-    mushCardGlow: { style: 'image', image: 'mushroom_glow', fallback: 'leaves', ramp: ['#1c4a46', '#26645e', '#3a8478', '#58a898', '#82c8b8', '#b0e4d4'] },
-    mushStem: { style: 'flat', ramp: ['#b8ac94', '#cdc2aa', '#ddd3bc'] }, mushRed: { style: 'flat', ramp: ['#7a1c18', '#962420', '#b02e26'] },
-    mushBrown: { style: 'flat', ramp: ['#4a3022', '#5e3e2c', '#744e38'] }, mushGlow: { style: 'glow', ramp: ['#3aa89a', '#58c8b4', '#8ae8d0'], unshaded: true },
+    plantHeather: { style: 'image', fit: true, sat: .5, gain: .78, image: 'plant_heather_bloom', fallback: 'leaves', ramp: ['#3a2a52', '#563a74', '#72508e', '#8c68a6', '#a684be', '#bea0d2'] },
+    plantPampas: { style: 'image', fit: true, sat: .7, gain: .85, image: 'plant_pampas', fallback: 'leaves', ramp: ['#7a704a', '#968a5c', '#b2a470', '#cabc88', '#dcd0a0', '#ece4bc'] },
+    plantDryShrub: { style: 'image', fit: true, sat: .62, gain: .82, image: 'plant_dry_shrub', fallback: 'leaves', ramp: ['#4a3a24', '#5e4a2c', '#745c36', '#8a7042', '#a08850', '#b8a05e'] },
+    mushCardRed: { style: 'image', fit: true, sat: .8, gain: .85, image: 'mushroom_red', fallback: 'leaves', ramp: ['#5a1a16', '#7a2420', '#962e28', '#b0443a', '#d8d0bc', '#ece4d0'] },
+    mushCardBrown: { style: 'image', fit: true, sat: .8, gain: .85, image: 'mushroom_brown', fallback: 'leaves', ramp: ['#2e1e14', '#442d1e', '#5c3e2a', '#785238', '#947050', '#b08c68'] },
+    mushCardGlow: { style: 'image', fit: true, sat: .7, gain: .95, image: 'mushroom_glow', fallback: 'leaves', ramp: ['#1c4a46', '#26645e', '#3a8478', '#58a898', '#82c8b8', '#b0e4d4'] },
+    mushStem: { style: 'flat', ramp: ['#b8ac94', '#cdc2aa', '#ddd3bc'] }, mushRed: { style: 'flat', ramp: ['#5a1c18', '#6e231e', '#82291f'] },
+    mushBrown: { style: 'flat', ramp: ['#3e2a1e', '#503828', '#624632'] }, mushGlow: { style: 'glow', ramp: ['#2c7c72', '#3e9a8a', '#5cb8a4'], unshaded: true },
     mushGlowStem: { style: 'flat', ramp: ['#7a9a94', '#94b4ac', '#aecac2'] },
-    agaveLeaf: { style: 'flat', ramp: ['#3a5c52', '#486e62', '#588274'] }, agaveBloom: { style: 'flat', ramp: ['#a88a2a', '#c4a43a', '#dcbe52'] },
+    agaveLeaf: { style: 'flat', ramp: ['#3a5c52', '#486e62', '#588274'] }, agaveBloom: { style: 'flat', ramp: ['#8a7226', '#a08a30', '#b6a040'] },
     fernFrond: { style: 'leaves', clump: 1, holes: .08, ramp: ['#2c4a20', '#38602a', '#447434', '#52883e', '#629c4a', '#74b058'] },
     sandstone: { style: 'fur', ramp: ['#9c8258', '#b09468', '#c4a87a', '#d4ba8c'] }, sandstoneDark: { style: 'fur', ramp: ['#6a5638', '#7a6644', '#8c7650', '#a08a60'] },
     obsidian: { style: 'metal', ramp: ['#0e0c12', '#16131c', '#201c2a', '#2c2638', '#3a3248'] }, basalt: { style: 'fur', ramp: ['#1e1e22', '#2a2a2e', '#34343a', '#3e3e46'] },
@@ -928,10 +922,8 @@ function AshenModels() {
     tree('jade_2', 251, t => jade(t, { layers: 4, R: 26 }));
     tree('heath_1', 257, t => heath(t, { reach: 24, R: 28 }));
     tree('heath_2', 263, t => heath(t, { reach: 28, R: 24 }));
-    tree('blossom_1', 269, t => grand(t, { leaves: ['leavesBlossom', 'leavesBlossom', 'leavesOak'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 12, segments: [[26, 4], [22, 6], [12, 8]], limbs: 5, reach: 36, R: 46, Ry: 36, leaf: 24, bark: 'bark' }));
-    tree('blossom_2', 271, t => grand(t, { leaves: ['leavesBlossom', 'leavesBlossom', 'leavesBlossom', 'leavesOak'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 13, segments: [[22, 5], [20, 7], [12, 9]], limbs: 6, reach: 38, R: 50, Ry: 34, leaf: 24, bark: 'bark' }));
-    tree('purple_1', 277, t => grand(t, { leaves: ['leavesPurple', 'leavesPurple', 'leavesOak'], heart: 'leavesPurpleHeart', ...GRAND, trunk: 11, segments: [[30, 4], [24, 6], [12, 8]], limbs: 5, reach: 34, R: 44, Ry: 34, leaf: 22, bark: 'bark' }));
-    tree('purple_2', 281, t => grand(t, { leaves: ['leavesPurple', 'leavesPurple', 'leavesBirch'], heart: 'leavesPurpleHeart', ...GRAND, trunk: 12, segments: [[26, 5], [22, 7], [12, 9]], limbs: 6, reach: 36, R: 48, Ry: 32, leaf: 22, bark: 'bark' }));
+    tree('blossom_1', 269, t => grand(t, { leaves: ['leavesBlossom'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 12, segments: [[26, 4], [22, 6], [12, 8]], limbs: 5, reach: 36, R: 46, Ry: 36, leaf: 24, bark: 'bark' }));
+    tree('blossom_2', 271, t => grand(t, { leaves: ['leavesBlossom'], heart: 'leavesBlossomHeart', ...GRAND, trunk: 13, segments: [[22, 5], [20, 7], [12, 9]], limbs: 6, reach: 38, R: 50, Ry: 34, leaf: 24, bark: 'bark' }));
     tree('olive_1', 283, t => grand(t, { leaves: ['leavesOlive'], heart: 'leavesOliveHeart', ...GRAND, trunk: 16, segments: [[14, 8], [14, 10], [10, 12]], limbs: 7, reach: 34, R: 40, Ry: 26, leaf: 20, bark: 'barkGrey', wood: 'barkGrey', roots: 5 }));
     tree('olive_2', 293, t => grand(t, { leaves: ['leavesOlive'], heart: 'leavesOliveHeart', ...GRAND, trunk: 18, segments: [[12, 10], [12, 12], [10, 14]], limbs: 8, reach: 30, R: 36, Ry: 24, leaf: 20, bark: 'barkGrey', wood: 'barkGrey', roots: 5 }));
     tree('charred_1', 307, t => dead(t, 'barkCharred'));
@@ -967,15 +959,14 @@ function AshenModels() {
       };
       return { put, card, clump, mush, r };
     }
-    const CLUMPS = [['heather_1', 3, 'plantHeather', 4, 28, 22, 9], ['heather_2', 5, 'plantHeather', 6, 24, 18, 14], ['lavender_1', 7, 'plantLavender', 5, 24, 24, 10],
-      ['poppy_1', 11, 'plantPoppy', 4, 22, 22, 9], ['bluebell_1', 13, 'plantBluebell', 4, 22, 22, 9], ['thistle_1', 17, 'plantThistle', 3, 24, 24, 7],
-      ['pampas_1', 19, 'plantPampas', 3, 28, 40, 7], ['pampas_2', 23, 'plantPampas', 5, 26, 34, 12]];
+    // Only what the old ground sprites are not: heather clumps, pampas (flowers, ferns and grass already come as sprites; the plants here are the 3D ones).
+    const CLUMPS = [['heather_1', 3, 'plantHeather', 4, 26, 24, 9], ['heather_2', 5, 'plantHeather', 6, 22, 20, 14], ['pampas_1', 19, 'plantPampas', 3, 26, 34, 7], ['pampas_2', 23, 'plantPampas', 5, 24, 30, 12]];
     for (const [name, seed, mat, count, w, h, spread] of CLUMPS) plant(name, seed).clump(mat, count, w, h, spread);
     // Dry shrub: a tangle of cards over a few woody sticks.
     for (const [name, seed] of [['dry_shrub_1', 29], ['dry_shrub_2', 31]]) {
       const p = plant(name, seed);
       for (let k = 0; k < 5; k++) p.put('stick', [-.7, 0, -.7], [.7, 10 + p.r() * 8, .7], 'barkAcacia', { origin: [0, 0, 0], rotation: [30 + p.r() * 40, k * 72 + p.r() * 30, 0] });
-      p.clump('plantDryShrub', 3, 26, 22, 4);
+      p.clump('plantDryShrub', 3, 26, 26, 4);
     }
     // Agave: a rosette of thick leaves; the second one is in flower, on a tall stalk.
     for (const [name, seed, tall] of [['agave_1', 37, false], ['agave_2', 41, true]]) {
@@ -990,11 +981,11 @@ function AshenModels() {
       for (let k = 0; k < n; k++) { const len = 20 + p.r() * 10, tilt = 36 + p.r() * 34; p.put('frond', [-3.5, 0, -.5], [3.5, len, .5], 'fernFrond', { origin: [0, 1, 0], rotation: [tilt, k * 360 / n + p.r() * 20, 0], hide: ['east', 'west'] }); }
     }
     // Mushrooms: red toadstools with white spots, brown forest caps, pale glowing ones for caves and the deep wood; each with a card of its own kind behind.
-    { const p = plant('mushroom_red_1', 53); p.card([0, -1, 0], 28, 22, 'mushCardRed', 20); p.mush(-5, 4, 9, 11, 'mushStem', 'mushRed', .22); p.mush(5, 2, 6, 8, 'mushStem', 'mushRed', .25); p.mush(0, -6, 5, 6, 'mushStem', 'mushRed', .3); }
+    { const p = plant('mushroom_red_1', 53); p.mush(-5, 4, 9, 11, 'mushStem', 'mushRed', .22); p.mush(5, 2, 6, 8, 'mushStem', 'mushRed', .25); p.mush(0, -6, 5, 6, 'mushStem', 'mushRed', .3); }
     { const p = plant('mushroom_red_2', 59); p.mush(0, 0, 12, 14, 'mushStem', 'mushRed', .2); p.mush(8, 6, 6, 8, 'mushStem', 'mushRed', .25); p.mush(-7, 5, 4, 6, 'mushStem', 'mushRed', .3); }
-    { const p = plant('mushroom_brown_1', 61); p.card([0, -1, 0], 28, 22, 'mushCardBrown', -20); p.mush(-4, 3, 7, 9, 'mushStem', 'mushBrown', 0); p.mush(5, 1, 5, 7, 'mushStem', 'mushBrown', 0); }
+    { const p = plant('mushroom_brown_1', 61); p.mush(-4, 3, 7, 9, 'mushStem', 'mushBrown', 0); p.mush(5, 1, 5, 7, 'mushStem', 'mushBrown', 0); }
     { const p = plant('mushroom_brown_2', 67); for (let k = 0; k < 5; k++) p.mush(Math.cos(k * 1.3) * 7, Math.sin(k * 1.3) * 7, 3 + p.r() * 5, 5 + p.r() * 4, 'mushStem', 'mushBrown', 0); }
-    { const p = plant('mushroom_glow_1', 71); p.card([0, -1, 0], 28, 22, 'mushCardGlow', 10); p.mush(-4, 2, 8, 10, 'mushGlowStem', 'mushGlow', 0); p.mush(5, 3, 5, 7, 'mushGlowStem', 'mushGlow', 0); p.mush(1, -5, 6, 8, 'mushGlowStem', 'mushGlow', 0); }
+    { const p = plant('mushroom_glow_1', 71); p.mush(-4, 2, 8, 10, 'mushGlowStem', 'mushGlow', 0); p.mush(5, 3, 5, 7, 'mushGlowStem', 'mushGlow', 0); p.mush(1, -5, 6, 8, 'mushGlowStem', 'mushGlow', 0); }
     return { name: 'plants', bones, cubes, materials: MATERIALS, atlasWidth: 256 };
   }
 

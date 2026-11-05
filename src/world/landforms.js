@@ -208,11 +208,11 @@ export function pillars(x, z) {
 // ── Look: the tint a region gives living ground (grass) and stone. Multipliers on the textures, shared by the terrain
 // (heightfield.js) and the rocks standing on it (rocks.js), so a red mesa and the boulders at its foot match.
 export const LOOK = {
-  badlands: { grass: [1.28, 1.02, .55], stone: [1.4, .66, .46] },
-  dunes: { grass: [1.4, 1.18, .6], stone: [1.6, 1.32, .86] },
+  badlands: { grass: [1.06, .96, .7], stone: [1.1, .86, .7] },
+  dunes: { grass: [1.2, 1.08, .7], stone: [1.3, 1.12, .82] },
   volcanic: { grass: [.52, .47, .44], stone: [.42, .4, .42] },
-  highland: { grass: [1.05, .8, .98], stone: [.97, .92, .96], grassK: .85 },
-  pillars: { grass: [.8, 1.2, .84], stone: [.9, 1.02, .9] },
+  highland: { grass: [.98, .92, .76], stone: [.95, .93, .92], grassK: .8 },
+  pillars: { grass: [.86, 1.06, .86], stone: [.9, 1.0, .9] },
 };
 /** { grass, stone } tints at biome weights `w` (the old regions' own tints plus the landform regions'). */
 export function groundLook(w) {

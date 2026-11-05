@@ -58,8 +58,25 @@ const postShader = {
       #include <colorspace_fragment>
       vec3 c = gl_FragColor.rgb; float l = dot(c, vec3(.299, .587, .114));
       if (uGrade < .5) {
-        // Standard: richer colour and a touch of contrast, so meadows and roofs read warm and alive.
+        // Lebendig: richer colour and a touch of contrast, so meadows and roofs read warm and alive (the first look of the game).
         c = mix(vec3(l), c, 1.2); c = (c - .5) * 1.05 + .5; c *= vec3(1.02, 1., .97);
+      } else if (uGrade > 1.5 && uGrade < 2.5) {
+        // Natürlich (default): colour a little under what the textures say, truer greens, neutral light, a little contrast, the deep
+        // shadows a touch cool. Daylight in a northern country rather than a postcard.
+        c = mix(vec3(l), c, .84); c = (c - .5) * 1.07 + .5; c *= mix(vec3(.95, .98, 1.02), vec3(1.02, 1., .97), smoothstep(.1, .6, l));
+        c = pow(max(c, 0.), vec3(1.05));
+      } else if (uGrade > 2.5 && uGrade < 3.5) {
+        // Nordisch: cold, pale, desaturated; blue in the shadows, a grey-white light, fine grain.
+        c = mix(vec3(l), c, .66); c = (c - .5) * 1.1 + .5; c *= mix(vec3(.88, .96, 1.1), vec3(1., 1., 1.03), smoothstep(.1, .65, l));
+        vec2 vg = uv - .5; vg.x *= uAspect * .8; c *= 1. - smoothstep(.4, 1.1, length(vg)) * .22;
+        c += (fract(sin(dot(pixel + floor(uTime * 24.) * 7.31, vec2(12.9898, 78.233))) * 43758.5453) - .5) * .012;
+      } else if (uGrade > 3.5 && uGrade < 4.5) {
+        // Goldener Herbst: warm amber light, brown shadows, colour kept but never loud.
+        c = mix(vec3(l), c, .92); c = (c - .5) * 1.08 + .5; c *= mix(vec3(.96, .91, .86), vec3(1.1, 1., .82), smoothstep(.12, .7, l));
+      } else if (uGrade > 4.5) {
+        // Filmisch: teal shadows, warm highlights, firmer contrast, a soft vignette.
+        c = mix(vec3(l), c, .88); c = (c - .5) * 1.15 + .5; c *= mix(vec3(.86, .98, 1.05), vec3(1.08, 1., .9), smoothstep(.2, .8, l));
+        vec2 vg = uv - .5; vg.x *= uAspect * .8; c *= 1. - smoothstep(.35, 1.1, length(vg)) * .3;
       } else {
         // Dark fantasy: muted colour, heavy mid tones, cool grey-green shadows and a tired amber light,
         // crushed blacks, a deep vignette and a fine grain at pixel size.
@@ -149,7 +166,7 @@ export function createGraphics(renderer, world) {
   apply(quality);
   return {
     resize, apply, render, compile,
-    setGrade(mode) { uniforms.uGrade.value = mode === 'dark' ? 1 : 0; },
+    setGrade(mode) { uniforms.uGrade.value = { vivid: 0, dark: 1, standard: 2, natural: 2, nordic: 3, golden: 4, filmic: 5 }[mode] ?? 2; },
     setPixelFilter(on) { pixelFilter = !!on; uniforms.uQuant.value = uniforms.uDither.value = on ? 1 : 0; target.texture.minFilter = target.texture.magFilter = on ? THREE.NearestFilter : THREE.LinearFilter; target.texture.needsUpdate = true; resize(); },
     state: () => ({ quality, pixelFilter, fps, hitch, pixelRatio: renderer.getPixelRatio(), resolution: uniforms.uSize.value.toArray() }),
     toggleDebug() { debug = !debug; output.classList.toggle('hidden', !debug); },
