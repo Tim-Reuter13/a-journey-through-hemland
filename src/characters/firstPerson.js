@@ -516,7 +516,9 @@ export function createFirstPerson() {
     if (packPose) {
       const m = packPose.k, ease3 = m * m * (3 - 2 * m);
       sword.visible = flask.bottle.visible = spell.visible = false; hideBow(); right.visible = left.visible = true;
-      right.position.lerp(_v.set(.3, -.42, -.7), ease3); left.position.lerp(_v.set(-.3, -.42, -.7), ease3);
+      // The hands follow the pack as the view goes into it (dive).
+      const dv = packPose.dive || 0, dz = .3 * dv * dv * (3 - 2 * dv), dy = .14 * dv * dv * (3 - 2 * dv);
+      right.position.lerp(_v.set(.3, -.42 + dy, -.7 + dz), ease3); left.position.lerp(_v.set(-.3, -.42 + dy, -.7 + dz), ease3);
       // Turn the hands as quaternions: the sword arm is aimed with one, and blending Euler angles of it snapped.
       right.quaternion.slerp(_qa.setFromEuler(_ea.set(-.95, -.4, -.25)), ease3);
       left.quaternion.slerp(_qa.setFromEuler(_ea.set(-.95 - packPose.open * .35, .4, .25)), ease3);

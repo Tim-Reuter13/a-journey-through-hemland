@@ -77,22 +77,6 @@ button.primary:hover:not(:disabled) { color: #1a1408; filter: brightness(1.08); 
 .start-menu button { border: 0; border-radius: 0; background: transparent; padding: 10px 0; font: 600 18px/1.2 var(--ui-font); letter-spacing: .06em; text-align: left; color: var(--ui-dim); transition: color .18s, padding-left .22s var(--ui-ease); }
 .start-menu button:hover:not(:disabled), .start-menu button:focus-visible { color: var(--ui-text); padding-left: 14px; background: linear-gradient(90deg, var(--ui-accent-soft), transparent); border: 0; transform: none; }
 
-/* Inventory: rounded glass, soft rows, clearer selection. */
-#inventory { background: radial-gradient(ellipse at center, rgba(8, 12, 16, .5), rgba(5, 8, 11, .84)); backdrop-filter: blur(5px); }
-#inventory .inventory-shell { border: 1px solid var(--ui-line); border-radius: 20px; overflow: hidden; background: linear-gradient(180deg, rgba(22, 29, 36, .96), rgba(12, 17, 22, .97)); box-shadow: 0 30px 80px rgba(0, 0, 0, .6), inset 0 1px rgba(255, 255, 255, .06); font-family: var(--ui-font); }
-#inventory .inventory-heading { border-bottom: 1px solid var(--ui-line); box-shadow: none; background: transparent; }
-#inventory .inventory-heading h2 { font-size: 34px; }
-#inventory .inv-eyebrow, #inventory .inv-section-label, #inventory .inv-equipment-label { font: 700 10px/1.4 var(--ui-font); letter-spacing: .2em; text-transform: uppercase; color: var(--ui-accent); }
-#inventory .inventory-sidebar { border-right: 1px solid var(--ui-line); box-shadow: none; background: rgba(255, 255, 255, .02); }
-#inventory .inventory-list-panel { background: transparent; }
-#inventory button { border: 1px solid transparent; border-radius: 10px; background: rgba(255, 255, 255, .05); box-shadow: none; padding: 7px 10px; }
-#inventory button:hover:not(:disabled), #inventory button[aria-pressed='true'] { background: var(--ui-accent-soft); color: var(--ui-text); border-color: rgba(232, 180, 76, .5); }
-#inventory-categories button, #inventory-equipment button { border-radius: 10px; background: transparent; }
-#inventory-categories button[aria-pressed='true'] { border-left-color: transparent; background: var(--ui-accent-soft); }
-#inventory .inventory-search, #inventory #inventory-filter { border: 1px solid var(--ui-line); border-radius: 10px; background: rgba(0, 0, 0, .25); }
-#inventory .inventory-table th { background: rgba(28, 36, 44, .96); border-block: 1px solid var(--ui-line); font: 700 10px/1.4 var(--ui-font); letter-spacing: .14em; text-transform: uppercase; color: var(--ui-dim); }
-#inventory .inventory-table tbody tr { transition: background .12s; }
-#inventory .inventory-table tbody tr:hover { background: rgba(255, 255, 255, .06); }
 
 /* Compass: a frosted strip with a fine pointer and a soft fade at both ends. */
 .ar-compass-mount { top: 18px; }
@@ -109,3 +93,6 @@ button.primary:hover:not(:disabled) { color: #1a1408; filter: brightness(1.08); 
 .slot[data-spell].selected { border-color: var(--spell); box-shadow: 0 10px 24px rgba(0, 0, 0, .45), 0 0 18px color-mix(in srgb, var(--spell) 55%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--spell) 22%, transparent), var(--ui-glass)); }
 .slot.spell-swap .slot-sigil { animation: slot-spell .45s var(--ui-ease, ease); }
 @keyframes slot-spell { 0% { transform: scale(.4) rotate(-40deg); opacity: 0; } 60% { transform: scale(1.3); opacity: 1; } 100% { transform: none; } }
+/* Looking into the backpack (systems/inventoryAccess.js): the HUD steps aside. */
+#hud, #reticle, #world-compass, #touch-ui { transition: opacity .35s ease; }
+body.in-pack #hud, body.in-pack #reticle, body.in-pack #world-compass, body.in-pack #touch-ui, body.in-pack .stealth-veil { opacity: 0; pointer-events: none; }

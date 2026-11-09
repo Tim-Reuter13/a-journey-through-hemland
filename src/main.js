@@ -649,6 +649,14 @@ const chestPosition = world.landmarks.chest ?? new THREE.Vector3(-1, 0, 13);
 const inventoryUI = createInventoryUI({
   root: $('inventory'), player, inventory,
   onChange: inventoryChanged, onClose: closeInventory, onPerks: showPerkChoices,
+  // The menu hub on top of the pack leads to the other books.
+  onNavigate: id => setModal(id),
+  // The wanderer as a little figure between the armour slots: a second character, dressed like the first.
+  doll: {
+    make: () => dressed({ appearance: player.appearance, equipment: player.equipment }),
+    dress: model => { const { parts, tints } = outfitFor(player.equipment); restyleCharacter(model, { appearance: player.appearance, outfit: parts, tints }); equipItem(model, WEAPON_MODELS[player.equipment.weapon] || null); },
+    animator: model => createAnimator(model),
+  },
   onHeal: () => {
     if (player.potions < 1 || player.hp >= player.maxHp) return {ok:false,message:'Keine Heilung nötig oder kein Heiltrank vorhanden.'};
     applyHeal();
@@ -909,14 +917,28 @@ function syncPresentation() {
   touch?.setVisible(thumbs);
 }
 let touchHelpShown=false;
+let concealTimer = 0;
 function setModal(id, inventoryContext) {
   keys.clear();combat.setGuard(false);
-  const closingInventory = game.modal === 'inventory' && id !== 'inventory';
+  const closingInventory = game.modal === 'inventory' && id !== 'inventory', fromPack = closingInventory && access.phase === 'open';
   if (closingInventory) { inventoryUI.close(); if (access.phase === 'open') access.end(); }
   if(game.modal==='dialog'&&id!=='dialog'&&talkingNPC){talkingNPC.model.rotation.y=talkingNPC.savedFacing;talkingNPC=null;}
   if(id!=='dialog')dialogCamReady=false;
   if (game.modal === 'dialog' && id !== 'dialog') stopVoice();
   for (const name of ['dialog', 'inventory', 'journal', 'pause']) show(name, name === id);
+  // The menu grows out of the pack's mouth and folds back into it (inventory.css, systems/inventoryAccess.js).
+  const invEl = $('inventory');
+  if (id === 'inventory') {
+    clearTimeout(concealTimer); invEl.classList.remove('conceal', 'reveal');
+    const m = access.mouth(camera), shell = invEl.querySelector('.inv-shell'), r = shell.getBoundingClientRect();
+    const mx = (m ? m.x : .5) * innerWidth, my = (m ? m.y : .62) * innerHeight;
+    invEl.style.setProperty('--ox', `${mx}px`); invEl.style.setProperty('--oy', `${my}px`);
+    invEl.style.setProperty('--sx', `${mx - r.left}px`); invEl.style.setProperty('--sy', `${my - r.top}px`);
+    void invEl.offsetWidth; if (m) invEl.classList.add('reveal');
+  } else if (closingInventory && !id && fromPack) {
+    invEl.classList.remove('hidden', 'reveal'); invEl.classList.add('conceal');
+    clearTimeout(concealTimer); concealTimer = setTimeout(() => { if (game.modal !== 'inventory') invEl.classList.add('hidden'); invEl.classList.remove('conceal'); }, 300);
+  }
   const leaving = game.modal;
   game.modal = id;
   if (id === 'skills') skillTree.open(); else if (leaving === 'skills') skillTree.close();
@@ -1847,6 +1869,10 @@ function updateCameraBase(dt) {
   // Follow the interpolated position so 144 Hz frames never show 60 Hz steps. In the saddle (and getting into
   // or out of it) the eye is the rider's head, smoothed so the gait rocks the view without shaking it.
   let eye = (player.renderPosition || player.position).clone().add(v3(0, 2.30, 0));
+  // Sneaking you crouch: the eye sinks (more in first person, where it is your own head), eased in and out.
+  const crouchWant = player.sneaking && !horses.riding && !player.swimming && !player.fly ? 1 : 0;
+  cameraRig.crouch = dt >= 1 || cameraRig.crouch === undefined ? crouchWant : cameraRig.crouch + (crouchWant - cameraRig.crouch) * (1 - Math.exp(-Math.min(dt, .1) * 8));
+  eye.y -= THREE.MathUtils.smootherstep(cameraRig.crouch, 0, 1) * (player.mode === 'first' ? .66 : .4);
   if (horses.riding && playerModel.userData.rig?.head) {
     // Seated, the eye rides with the saddle (the gait's bob and pitch, not the rider's crouch), high enough to
     // look over the horse's head; mounting and dismounting it follows the head.
@@ -2102,6 +2128,8 @@ function animate(now) {
   }
   else accumulator = 0;
   if (game.started) { access.update(dt); updateCamera(dt); }
+  document.body.classList.toggle('in-pack', access.locked());
+  { const head = playerModel.userData.rig?.head; if (head) head.visible = !access.hideHead(); }
   const visualDt = game.modal&&game.modal!=='dialog' ? 0 : dt;
   const voice=voiceStatus();
   profile.mark('camera'); updatePhysics(game.started && !game.paused && !game.cinematic ? dt : 0); profile.mark('physics');

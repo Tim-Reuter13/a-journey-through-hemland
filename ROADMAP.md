@@ -470,3 +470,29 @@ alive in the world.
 - [ ] Open: spells are all known from the start (learning them from tomes, trainers or the Magier path later); Irrlicht in
   first person sits outside the view most of the time; frozen enemies only slow down (no full freeze yet); no spell
   combos on NPC allies; Schattenschritt does not yet pass through gaps narrower than a body.
+
+## Phase 11 — Rucksack, crouching, the look into the pack (2026-11-09, Claude)
+Request: crouch in first person while sneaking; the inventory was old-fashioned — make it modern with armour slots like
+Minecraft; a smoother opening that looks as if the wanderer looks into the backpack; a hotkey for "Weg der Asche"
+(read as the skill tree "Pfade der Glut": nothing in the game is called Weg der Asche).
+- [x] Crouching: sneaking (C) lowers the eye, eased in and out (first person 2.30 → 1.64, third person a little).
+- [x] Rucksack (ui/inventoryUI.js, inventory.css): left the wanderer as a living 3D figure (ui/paperDoll.js: a second
+  modular character in the same outfit, idling, turned by dragging) between eight slots — Kopf, Brust, Hände, Füße on
+  the left, Waffe, Bogen, Umhang, Schmuck on the right — with Rüstung, Schaden, Leben, Magicka below; the middle is the
+  pack as a grid of 3D item pictures (ui/itemThumbs.js renders each item's preview model once), rarity as colour
+  (grey/green/blue/gold), stack counts, worn/favourite/quest marks, names on hover; tabs with counts, search, sort
+  (name, power, value, weight, rarity, count), filter; right the item turning in 3D with its numbers, a ▲/▼ comparison
+  with what is worn, the action button and favourite/junk/drop. Drag an item onto its slot to put it on, a worn one back
+  into the pack to take it off; double-click works too; clicking an empty slot shows what fits there. Trading (prices
+  on the cells, quantity stepper) and chests use the same layout. A menu hub on top (I Rucksack, B Zauberbuch,
+  K Pfade der Glut with a badge for unspent Glutsplitter, J Chronik) switches between the books; inside the pack B/K/J
+  jump there too. Checked at 1280×720, 1600×610 and 844×390.
+- [x] The look into the pack (systems/inventoryAccess.js): third person the camera comes over the shoulder to the
+  wanderer's own eyes (the head is hidden then) and looks down into the open pack held at the chest; first person the
+  pack comes up from below with its mouth tipped toward the eye, the flap standing up behind it, the hands holding it;
+  the view then sinks a little toward the opening while the menu grows out of the pack's mouth (a circle opening from
+  that screen point); closing folds the menu back into the mouth, pulls out, shuts the flap and shoulders the pack. The
+  HUD fades away meanwhile. Re-opening while it closes carries on from where the pack is.
+- [x] K for Pfade der Glut now in the key hints; the hub reaches it from the pack on touch too.
+- [ ] Open: no splitting stacks by drag; no comparison for rings/amulets beyond the magic number; the figure does not
+  yet show the held bow; touch has no long-press menu on cells (tap selects, the button acts).

@@ -13,7 +13,8 @@ Skyrim-like RPG in Three.js + Vite, German UI. Hemland is a continent that grows
 - First-person hands are ONE plain Minecraft arm for every item; held items must not cover the screen centre.
 - Sky: plain gradient with square sun and moon, no painted clouds; clouds are 3D voxels (src/world/clouds.js).
   The owner loves the god rays (post pass in src/systems/graphics.js; the sky writes alpha 0 as open-sky mask).
-- Controls: W runs (5.6 m/s), Shift sprints, Caps Lock walks, G grabs, E interacts/takes down, F first/third person.
+- Controls: W runs (5.6 m/s), Shift sprints, Caps Lock walks, G grabs, E interacts/takes down, F first/third person,
+  C sneaks (crouched, lower eye), I opens the Rucksack (drag items onto the eight gear slots; hub to B/K/J).
   Horses: T reins (lead/let go), E mount/dismount/tie at a rail or tree, H whistle; riding W trots, Shift taps spur
   (hold keeps the pace), S reins in, Caps Lock walks, Space jumps (standing: rears).
   Goblin caves: walk down the sunken way to its dark end (the Eisengrube: E at the shaft's rim climbs down); inside,
@@ -64,6 +65,9 @@ Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobi
   geometry (tests/spells.test.js); src/systems/spellcraft.js — the eight new spells' runtime and world effects (ice floes
   via iceAt() in the player's ground, wisp light for goblins via lightNear(), clouds that explode on fireAt()), created by
   combat.js; src/ui/spellbook.js + spellbook.css — the "Buch der Glut" menu.
+- src/ui/inventoryUI.js + inventory.css — the Rucksack (gear slots, item grid, detail, hub); ui/paperDoll.js (the 3D
+  figure), ui/itemThumbs.js (item pictures from itemPreview.js models); systems/inventoryAccess.js — the pack swung
+  round, the camera into it, mouth() for where the menu grows from, hideHead() in third person, hold()/tilt() test hooks.
 - src/systems/thievery.js — pure rules for skills by use, detection, locks, pockets, pickpocket chance (tests/thievery.test.js);
   src/ui/thief.js + thief.css — lockpick and pickpocket windows and the stealth veil; src/data/skillTrees.js — the six paths
   (perks are tree nodes, canUnlock); src/ui/skillTree.js + skillTree.css — the "Pfade der Glut" menu; src/ui/sigils.js —

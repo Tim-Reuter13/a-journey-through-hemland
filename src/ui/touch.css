@@ -95,34 +95,5 @@ body.touch-mode #cinematic-caption { font-size:15px; bottom:14vh; }
   .ornament { margin:6px 0; }
   .footnote { margin-top:8px; }
   .start-menu button { font-size:21px; padding-block:3px; }
-  /* Inventory: the list gets the height, headings and footers shrink to one slim line each. */
-  #inventory { padding:4px; }
-  #inventory .inventory-shell { height:calc(100dvh - 8px); font-size:13px; }
-  .inventory-heading { padding:3px 10px; gap:10px; }
-  .inventory-heading .inv-eyebrow { display:none; }
-  .inventory-heading h2 { font-size:24px; margin:0; }
-  #inventory .inv-icon-button { padding:3px; }
-  #inventory svg { width:18px; height:18px; }
-  .inventory-sidebar { padding:6px 4px; }
-  .inv-equipment-label { margin-top:8px; padding-top:6px; }
-  #inventory-equipment button { min-height:34px; }
-  .inventory-toolbar { flex-wrap:nowrap; padding:6px; }
-  .inventory-search { flex:1 1 auto; flex-basis:auto; }
-  #inventory-filter { width:118px; min-width:0; }
-  .inventory-list-caption { min-height:20px; padding:0 10px 2px; }
-  .inventory-list-bottom { display:none; }
-  .inventory-table td { padding:5px 3px; }
-  .inventory-preview { height:84px; margin:6px; }
-  .preview-hint { display:none; }
-  #inventory-detail-body { padding:2px 10px 10px; }
-  #inventory-detail-body h3 { font-size:22px; margin:2px 0 6px; }
-  .item-description { font-size:13px; }
-  #inventory-message { min-height:0; padding:2px 12px; font-size:12px; }
-  .inventory-footer { padding:4px 12px; gap:12px; }
-  #inventory #inventory-stats { font-size:10px; }
-  .inventory-footer-stats b { font-size:12px; }
-  .inventory-gold b { font-size:16px; }
-  .inventory-carry b { font-size:12px; }
 }
-body.touch-mode .inventory-key-hints,body.touch-mode .inventory-search kbd { display:none; }
 body.touch-mode .resource span { white-space: nowrap; }
