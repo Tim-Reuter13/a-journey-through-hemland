@@ -56,6 +56,9 @@ import { createSkillTree } from './ui/skillTree.js';
 import { canUnlock, findNode } from './data/skillTrees.js';
 import { createLockpick, createPickpocket, createStealthMeter } from './ui/thief.js';
 import { SKILL_NAMES, trainSkill, skillProgress, detection, unaware, sneakFactor, lockLevel, LOCKS, pocketsFor, bountyFor, pickSurvives } from './systems/thievery.js';
+import { createSpellbook } from './ui/spellbook.js';
+import { SPELLS, ELEMENTS, spellCost, cycleSpell, magickaRegen, equipSpell, unequipSpell, keepActive } from './data/spells.js';
+import { sigilSvg } from './ui/sigils.js';
 import { createAIManager } from './systems/ai/manager.js';
 import { campSchedule } from './systems/ai/camp.js';
 import { AI } from './systems/ai/config.js';
@@ -219,7 +222,7 @@ const keys = new Set();
 // Touch controls (src/ui/touchControls.js), created with the settings at the end; touchMode follows the setting.
 let touch = null, touchMode = false;
 // The paths menu and the thief's windows (ui/skillTree.js, ui/thief.js), created with the settings at the end.
-let skillTree = null, lockpickUI = null, pickpocketUI = null, stealthMeter = null;
+let skillTree = null, lockpickUI = null, pickpocketUI = null, stealthMeter = null, spellbook = null;
 const tip = (desk, finger) => touchMode ? finger : desk;
 const npcs = [
   { id: 'elira', name: 'Elira', role: 'DORFÄLTESTE', x: -7.1, z: 4.4, facing: -.2, trust: 0, mood: 'besorgt', memories: ['die erste Glutnacht', 'verlorene Dorfbewohner'], lines: ['Die Asche fällt wieder. Der letzte Glutstein beginnt zu erwachen.', 'Im Westen haben Plünderer unser Heiligtum entweiht. Ohne die Glut wird die Aschmark verstummen.'] },
@@ -448,7 +451,7 @@ const caves = createCaves({ scene, world, physics, mouths: caveMouthAt });
 const goblins = createGoblins({ scene, enemies, createCharacter, createAnimator, equipItem, player, hurt: amount => hurt(amount), guard: () => combat.guarding,
   noise: () => perceivablePlayer(), sound: (...args) => goblinSound(...args), effects: { spray: (...args) => combat.effects.spray(...args) },
   bark: (model, ukhai, gloss) => { if (model.position.distanceTo(player.position) < 30) barks.say(model, game.flags.guild_joined ? `${ukhai} (${gloss})` : ukhai); },
-  knockDown: (dir, force) => motion.knockDown(playerModel, dir, force), fireNear: (p, r) => p.distanceTo(player.position) < r && (player.tool === 1 || combat.action?.kind === 'cast') });
+  knockDown: (dir, force) => motion.knockDown(playerModel, dir, force), fireNear: (p, r) => p.distanceTo(player.position) < r && (player.tool === 1 || combat.action?.kind === 'cast') || !!combat?.spellcraft?.lightNear(p, r + 4) });
 goblins.setSummon((drummer, n) => {
   // The drum wakes whoever still sleeps or works in this cave; if none are left, more come out of the dark.
   let called = 0;
@@ -758,7 +761,22 @@ const prey = { targets: (radius = 30) => wildlife.targets(player.position, radiu
 const motion = createMotion({ world, physics, createRagdoll, hooks: { event: (...args) => motionEvent(...args), wantsFree: (t, h, g) => motionWantsFree(t, h, g) } });
 const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damageEnemy,onHurt:hurt,onHeal:applyHeal,
   sneakAttack:enemy=>{if(!player.sneaking||!unaware(enemy))return 1;practice('sneak',10);return sneakFactor(player.perks);},
-  motion:{impact:(e,info)=>enemyImpact(e,info),playerHit:(e,info)=>playerImpact(e,info),grapple:(e,kind)=>enemyGrapple(e,kind),handles:e=>!!motion.get(e.model)},
+  motion:{impact:(e,info)=>enemyImpact(e,info),playerHit:(e,info)=>playerImpact(e,info),grapple:(e,kind)=>enemyGrapple(e,kind),handles:e=>!!motion.get(e.model),
+    knock:(e,dir,force,up=0)=>motion.knockDown(e.model,dir,force,up?v3(0,up,0):null)},
+  // The Zauberbuch (data/spells.js, systems/spellcraft.js): the spell in hand, its price, what it reaches in the world.
+  activeSpell:()=>player.spells.active,spellCost:id=>spellCost(id,{skill:player.skills.magic||0,perks:player.perks}),
+  onCast:(id,ok)=>{if(ok)practice('magic',spellCost(id)/5);updateHUD();},
+  magic:{
+    wildfire:{extinguish:(x,z,r)=>wildfire.extinguish(x,z,r),steam:(x,z,n)=>wildfire.steam(x,z,n),ignite:(p,o)=>wildfire.ignite(p,o),heatAt:(x,z)=>wildfire.heatAt(x,z)},
+    shove:(point,direction,radius,scale=1)=>{
+      const go=(body,mass)=>{const p=body.translation(),d=Math.hypot(p.x-point.x,p.y-point.y,p.z-point.z);if(d>=radius)return;
+        const force=Math.min(mass,30)*4.5*scale*(1-d/radius);body.applyImpulse({x:direction.x*force,y:Math.max(.35,direction.y)*force,z:direction.z*force},true);};
+      for(const {body,mass} of physics.props.values())go(body,mass);
+      for(const ragdoll of physics.ragdolls)for(const part of ragdoll.parts)go(part.body,.35*scale);},
+    hurtPlayer:(amount,from)=>hurt(amount),
+    healPlayer:amount=>{player.hp=Math.min(player.maxHp,player.hp+amount);},
+    movePlayer:(x,y,z)=>{player.position.set(x,y,z);snapPlayerView();updateCamera(1);},
+  },
   weaponDamage:()=>itemStats().damage+playerDamageBonus(),magicDamage:()=>39+playerMagicBonus(),toast,
   // The hunting bow (systems/archery.js): arrows from the satchel, damage by bow and draw.
   bow:{ammo:{count:()=>player.satchel.pfeil||0,use:()=>inventory.remove('pfeil'),add:n=>{inventory.add('pfeil',n);updateHUD();}},
@@ -769,6 +787,7 @@ const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damag
     :out.copy(player.position).add(v3(-Math.cos(player.yaw)*.34-Math.sin(player.yaw)*.7,1.73+Math.sin(player.pitch)*.7,Math.sin(player.yaw)*.34-Math.cos(player.yaw)*.7)),
   // Fire blasts shove loose props and corpses.
   onImpact:(point,direction,radius)=>{
+    combat.spellcraft.fireAt(point,radius);
     const shove=(body,mass)=>{const p=body.translation(),d=Math.hypot(p.x-point.x,p.y-point.y,p.z-point.z);if(d>=radius)return;
       const force=Math.min(mass,30)*4*(1-d/radius);body.applyImpulse({x:direction.x*force,y:Math.max(.35,direction.y)*force,z:direction.z*force},true);};
     for(const {body,mass} of physics.props.values())shove(body,mass);
@@ -901,6 +920,7 @@ function setModal(id, inventoryContext) {
   const leaving = game.modal;
   game.modal = id;
   if (id === 'skills') skillTree.open(); else if (leaving === 'skills') skillTree.close();
+  if (id === 'spellbook') spellbook.open(); else if (leaving === 'spellbook') spellbook.close();
   if (leaving === 'lockpick' && id !== 'lockpick') lockpickUI.close();
   if (leaving === 'pickpocket' && id !== 'pickpocket') pickpocketUI.close();
   game.paused = !!id || !game.started || !!game.cinematic;
@@ -915,7 +935,7 @@ function startGame(continueExisting = false) {
   setModal(null);
   show('start-screen', false); show('hud', true);
   game.started = true; game.paused = false; game.modal = null;
-  objective(); updateHUD();
+  objective(); spellChanged();
   updatePlayer(0); updateCamera(1);
   grantBow(loaded);
   if (!loaded) playIntro();
@@ -1224,7 +1244,7 @@ function updateJournal() {
 }
 function updateHUD() {
   const steed = horses.mounted ? horses.ride.horse.ride : null, stamina = steed ? steed.stamina : player.stamina, maxStamina = steed ? 100 : player.maxStamina;
-  setBarVisibility(player.hp, player.maxHp, stamina, maxStamina, 1, 1);
+  setBarVisibility(player.hp, player.maxHp, stamina, maxStamina, player.magicka ?? 100, player.maxMagicka ?? 100);
   $('health-fill').style.width = `${100 * player.hp / player.maxHp}%`; $('health-text').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
   $('stamina-fill').style.width = `${100 * stamina / maxStamina}%`; $('stamina-text').textContent = steed ? `${horses.ride.horse.name} · ${Math.ceil(stamina)}` : `${Math.ceil(stamina)} / ${maxStamina}`;
   $('level').textContent = `STUFE ${player.level} · WANDERER`;
@@ -1233,6 +1253,14 @@ function updateHUD() {
   $('world-time').textContent = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} · ${period}`;
   document.querySelector('.slot small').textContent = ITEMS[player.equipment.weapon]?.name || 'Unbewaffnet';
   document.querySelectorAll('.slot small')[2].textContent = `Heiltrank × ${player.potions}`;
+  // Slot 2 is the hand of the Zauberbuch: the spell in it, its sigil in its element's colour.
+  const spell = SPELLS[player.spells.active] || SPELLS.funken, spellSlot = document.querySelectorAll('.slot')[1];
+  if (spellSlot.dataset.spell !== player.spells.active) {
+    spellSlot.dataset.spell = player.spells.active; spellSlot.querySelector('small').textContent = spell.name;
+    spellSlot.querySelector('span').innerHTML = sigilSvg(spell.sigil, { className: 'slot-sigil' });
+    spellSlot.style.setProperty('--spell', ELEMENTS[spell.element].color); spellSlot.style.setProperty('--spell-glow', ELEMENTS[spell.element].glow);
+  }
+  spellSlot.dataset.count = Math.floor(player.magicka ?? 0);
   document.querySelectorAll('.slot small')[3].textContent = ITEMS[player.equipment.ranged] ? `${ITEMS[player.equipment.ranged].name} · ${player.satchel.pfeil || 0}` : 'Kein Bogen';
   // The compact touch quickbar shows only the icons and these counts.
   const slots = document.querySelectorAll('.slot'); slots[2].dataset.count = player.potions; slots[3].dataset.count = ITEMS[player.equipment.ranged] ? player.satchel.pfeil || 0 : '–';
@@ -1498,12 +1526,23 @@ function attack() {
   combat.attack();
 }
 let bowHintShown=false,potionHintShown=false;
-function selectTool(tool){
+function selectTool(tool,cycle=true){
+  // Choosing the spell hand again turns to the next spell in it.
+  if(cycle&&tool===1&&player.tool===1){nextSpell(1);return;}
   player.tool=tool;updateHUD();
   if(tool===2&&!potionHintShown){potionHintShown=true;toast(tip('HEILTRANK · LINKSKLICK TRINKT · RECHTSKLICK HALTEN SCHÜTTELT DIE FLASCHE','HEILTRANK · SCHLAG TRINKT · BLOCK HALTEN SCHÜTTELT DIE FLASCHE'),4200);}
   if(tool===3&&!bowHintShown&&ITEMS[player.equipment.ranged]){bowHintShown=true;toast(tip('BOGEN · LINKE MAUSTASTE HALTEN ZUM SPANNEN, LOSLASSEN ZUM SCHIESSEN · RECHTSKLICK SENKT IHN','BOGEN · GROSSE TASTE HALTEN ZUM SPANNEN, DABEI WISCHEN ZUM ZIELEN, LOSLASSEN ZUM SCHIESSEN'),4200);}
 }
 function heal(){if(game.started&&!game.paused&&!game.cinematic)combat.drink();}
+/** The next spell in the Zauberhand (2 again, X, or tapping the spell slot again). */
+function nextSpell(step=1){
+  const id=cycleSpell(player.spells.loadout,player.spells.active,step);if(!id)return;
+  player.spells.active=id;player.tool=1;spellChanged();
+  const s=SPELLS[id];toast(`${s.name.toUpperCase()} · ${ELEMENTS[s.element].name.toUpperCase()} · ${spellCost(id,{skill:player.skills.magic||0,perks:player.perks})} MAGICKA`,1300);
+  const slot=document.querySelectorAll('.slot')[1];slot.classList.remove('spell-swap');void slot.offsetWidth;slot.classList.add('spell-swap');
+}
+/** The hand shows the element of the spell in it (first-person palm, HUD). */
+function spellChanged(){player.spells.active=keepActive(player.spells.loadout,player.spells.active);firstPerson.setElement?.(SPELLS[player.spells.active].element);updateHUD();}
 function applyHeal(){
   if(player.potions<1)return;
   player.potions--;player.hp=Math.min(player.maxHp,player.hp+ITEMS.heiltrank.heal);
@@ -1548,7 +1587,10 @@ function updatePlayer(dt) {
   const sprinting = active && !player.sneaking && shift && player.stamina > 1;
   const running = active && !player.sneaking && !sprinting && !player.walkMode && !(pad && pad.mag < .5);
   // Ground under the feet: a bridge deck or floor far overhead (swimming under a bridge) does not count.
-  const groundAt = (x, z) => { const g = world.heightAt(x, z); return g > player.position.y + 1.6 ? world.terrainHeightAt(x, z) : g; };
+  const groundAt = (x, z) => { const g = world.heightAt(x, z), ice = combat.spellcraft.iceAt(x, z);
+    // An ice floe (Frostlanze) carries you over the water, even lifts a swimmer onto it.
+    if (ice !== null && ice > g && ice < player.position.y + 2) return ice;
+    return g > player.position.y + 1.6 ? world.terrainHeightAt(x, z) : g; };
   // Water: wading slows you down, deeper you swim with the head above the surface.
   const depth = WATER_LEVEL - groundAt(player.position.x, player.position.z);
   player.swimming = depth > 1.9 && !player.fly;
@@ -1557,6 +1599,7 @@ function updatePlayer(dt) {
   const speed = (sprinting ? 9.2 : running ? 5.6 : player.sneaking ? 1.9 : 2.1)*combat.speedFactor*(physics.holding?.kind === 'ragdoll' ? .52 : 1)*wade*(heldBy ? .3 : holdingSomeone ? .55 : 1);
   if (sprinting) player.stamina = Math.max(0, player.stamina - 21 * dt);
   else if(!combat.action&&!combat.guarding) player.stamina = Math.min(player.maxStamina, player.stamina + 18 * dt);
+  player.magicka = Math.min(player.maxMagicka, (player.magicka ?? 0) + magickaRegen(player.maxMagicka, (performance.now() - (player.castAt || 0)) / 1000) * dt);
   player.velocity ??= v3(0, 0, 0);
   let planar = 0;
   if (player.fly) {
@@ -1878,6 +1921,7 @@ window.addEventListener('keydown', (event) => {
   }
   if (event.code === 'KeyJ' && game.started) { setModal(game.modal === 'journal' ? null : 'journal'); return; }
   if (event.code === 'KeyK' && game.started && !event.repeat) { event.stopImmediatePropagation(); setModal(game.modal === 'skills' ? null : 'skills'); return; }
+  if (event.code === 'KeyB' && game.started && !event.repeat && (!game.modal || game.modal === 'spellbook' || game.modal === 'pause')) { event.stopImmediatePropagation(); setModal(game.modal === 'spellbook' ? null : 'spellbook'); return; }
   if (game.paused) return;
   keys.add(event.code);
   if (event.repeat) return;
@@ -1894,6 +1938,7 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyF') { player.mode = player.mode === 'third' ? 'first' : 'third'; toast(player.mode === 'third' ? 'THIRD-PERSON-ANSICHT' : 'FIRST-PERSON-ANSICHT', 1500); }
   if (event.code === 'Digit1' || event.code === 'Digit2' || event.code === 'Digit3' || event.code === 'Digit4') selectTool(Number(event.code.at(-1)) - 1);
   if (event.code === 'KeyQ') heal();
+  if (event.code === 'KeyX' && game.started) nextSpell(event.shiftKey ? -1 : 1);
   if (event.code === 'KeyR') combat.setGuard(true);
 });
 window.addEventListener('keyup', (event) => { keys.delete(event.code);if(event.code==='KeyE'&&grabbing.pressed!==null){const held=performance.now()-grabbing.pressed;grabbing.pressed=null;if(physics.holding)physics.release();else if(held<320&&!game.paused){if(motion.holding(playerModel))motion.command(playerModel,'takedown');else interact();}}if(event.code==='KeyR')combat.setGuard(false); });
@@ -1959,6 +2004,7 @@ $('dialog-close').addEventListener('click', () => setModal(null));
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => setModal(null)));
 $('resume').addEventListener('click', () => setModal(null));
 $('pause-skills').addEventListener('click', () => setModal('skills'));
+$('pause-spells').addEventListener('click', () => setModal('spellbook'));
 $('pause-journal').addEventListener('click', () => setModal('journal'));
 $('pause-fullscreen').addEventListener('click', () => { toggleFullscreen(); setModal(null); });
 $('save').addEventListener('click', () => saveGame(true));
@@ -2076,7 +2122,7 @@ function animate(now) {
   if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
   aimZoom();
   // Behind a full-screen menu the world stands still: the last frame stays on screen and the GPU rests.
-  if (!['skills', 'lockpick', 'pickpocket'].includes(game.modal)) graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
+  if (!['skills', 'lockpick', 'pickpocket', 'spellbook'].includes(game.modal)) graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
   graphics.update(rawDt);
   const total = performance.now() - frameStart;
   if (total > profile.worst.total || now - profile.worst.at > 4000) profile.worst = { total, at: now, ...Object.fromEntries(Object.entries(profile.sections).map(([k, v]) => [k, +v.toFixed(1)])), world: { ...world.profile } };
@@ -2123,9 +2169,9 @@ function fireHazards() {
     if (performance.now() - fireWarned > 6000) { fireWarned = performance.now(); toast('DU STEHST IN FLAMMEN!', 1400); }
   }
 }
-combat.effects.warm(true); combat.spellFx.warm(true);
+combat.effects.warm(true); combat.spellFx.warm(true); combat.spellcraft.warm(true);
 graphics.compile(scene, camera);
-combat.effects.warm(false); combat.spellFx.warm(false);
+combat.effects.warm(false); combat.spellFx.warm(false); combat.spellcraft.warm(false);
 nextFrame(animate);
 
 // ── Physics: carrying, corpses, kicking props.
@@ -2482,7 +2528,9 @@ function animateActors(dt, voice) {
   poseBow(cine);
   // Funken ready (tool 2): a flame burns in the left hand in third person (first person: firstPerson.js).
   const handFire = player.tool === 1 && player.mode === 'third' && !cine && playerModel.visible && !motion.isDown(playerModel) && (!horses.riding || horses.mounted);
-  combat.spellFx.handFlame(handFire ? playerModel.userData.rig.grip_left.getWorldPosition(v3()).add(v3(0, .08, 0)) : null, dt);
+  const handPoint = handFire ? playerModel.userData.rig.grip_left.getWorldPosition(v3()).add(v3(0, .08, 0)) : null;
+  combat.spellFx.handFlame(player.spells.active === 'funken' ? handPoint : null, dt);
+  if (handPoint && player.spells.active !== 'funken') combat.spellcraft.handGlow(handPoint, dt, player.spells.active);
   playerModel.userData.face?.update(dt, { expression: player.invuln > .3 ? 'pain' : combat.action?.kind === 'sword' ? 'angry' : 'neutral' });
   for (const npc of npcs) {
     if (npc.dead) continue;
@@ -2675,6 +2723,12 @@ skillTree = createSkillTree($('skills'), {
 lockpickUI = createLockpick($('lockpick'), { sound: kind => combat.effects.sound(kind === 'set' || kind === 'open' ? 'parry' : kind === 'break' ? 'impact' : 'swing') });
 pickpocketUI = createPickpocket($('pickpocket'), { sound: kind => combat.effects.sound(kind === 'take' ? 'swing' : 'impact') });
 stealthMeter = createStealthMeter($('stealth'));
+spellbook = createSpellbook($('spellbook'), {
+  player: () => player, close: () => setModal(null),
+  equip: (id, slot) => { player.spells.loadout = equipSpell(player.spells.loadout, id, slot); player.spells.active = id; spellChanged(); saveGame(false); },
+  unequip: slot => { player.spells.loadout = unequipSpell(player.spells.loadout, slot); spellChanged(); saveGame(false); },
+  sound: kind => combat.effects.sound(kind === 'seal' ? 'parry' : kind === 'out' ? 'impact' : 'swing'),
+});
 createMenu({ values: settings, onSettingsChange: applySettings });
 applySettings(settings);
 
@@ -2701,7 +2755,9 @@ window.__ASHEN_TEST__ = {
     lifeState:()=>npcs.map(n=>({id:n.id,activity:n.life?.activity,x:+n.model.position.x.toFixed(1),z:+n.model.position.z.toFixed(1),inside:n.life?.inside,bark:n.life?.bark})),
     snapshot:async(file='shot')=>{graphics.render(scene,camera,player.mode==='first'&&game.started&&!game.paused?firstPerson.render:null);const blob=await new Promise(r=>renderer.domElement.toBlob(r,'image/png'));return fetch('http://127.0.0.1:5299/save?file=work/screens/'+file+'.png',{method:'POST',body:blob}).then(r=>r.text());},
     rootPosition:()=>playerModel.position.toArray(),
-    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),thief:()=>({lockpick:lockpickUI,pickpocket:pickpocketUI,skills:skillTree}),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access}),
+    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),thief:()=>({lockpick:lockpickUI,pickpocket:pickpocketUI,skills:skillTree}),
+    spells:()=>({...player.spells,magicka:player.magicka,maxMagicka:player.maxMagicka,fx:combat.spellcraft.state(),book:spellbook}),
+    cast:id=>{if(!SPELLS[id])return false;if(!player.spells.loadout.includes(id))player.spells.loadout=equipSpell(player.spells.loadout,id,Math.max(0,player.spells.loadout.indexOf(player.spells.active)));player.spells.active=id;player.tool=1;player.magicka=player.maxMagicka;spellChanged();return combat.attack();},profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access}),
     fire:()=>wildfire.state(),igniteAt:(x,z,power=1,radius=2.2)=>wildfire.ignite(v3(x,0,z),{power,radius}),douse:(x,z,r=6)=>wildfire.extinguish(x,z,r),
     horses:()=>horses.state(),mount:(name='Asche')=>{const h=horses.horses.find(o=>o.name===name);if(h){player.position.copy(h.pos).add(v3(-Math.cos(h.yaw)*1.4,0,Math.sin(h.yaw)*1.4));snapPlayerView();mountHorse(h);}return horses.state().ride;},
     dismount:()=>horses.dismount(player),reins:horseReins,whistle:horseWhistle,

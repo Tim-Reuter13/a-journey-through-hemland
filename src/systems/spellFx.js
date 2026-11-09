@@ -262,6 +262,8 @@ export function createSpellFx(scene,world,{onImpact,onBurnDamage,sound=()=>{}}={
     for(const mesh of decals){mesh.visible=false;mesh.removeFromParent();group.add(mesh);}
   }
   const api={startBall,updateBall,releaseBall,setCharge,impact,ignite,update,reset,handFlame,onIgnite:null,onSteam:null,
+    /** Puts out a burning foe (frost, water). */
+    douse:enemy=>burns.delete(enemy),burning:enemy=>burns.has(enemy),
     state:()=>({spellParticles:particles.reduce((n,p)=>n+(p.life>0),0),scorches:ledger.items.length,burning:burns.size,smoulders:patches.filter(p=>p.life>0).length}),
     /** Shows every pooled material for one shader-compile pass (see graphics.compile), then hides them again. */
     warm(on){for(const p of particles){p.mesh.visible=on;}for(const m of decals)m.visible=on;},

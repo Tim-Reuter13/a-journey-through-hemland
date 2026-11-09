@@ -125,3 +125,4 @@ body.touch-mode #cinematic-caption { font-size:15px; bottom:14vh; }
   .inventory-carry b { font-size:12px; }
 }
 body.touch-mode .inventory-key-hints,body.touch-mode .inventory-search kbd { display:none; }
+body.touch-mode .resource span { white-space: nowrap; }

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createCombatEffects } from './combatEffects.js';
 import { ACTIONS,crossedImpact,inAttackArc } from './combatRules.js';
 import { createSpellFx,traceSpellSurface } from './spellFx.js';
+import { createSpellcraft } from './spellcraft.js';
 import { createNavGrid,PENDING } from './navGrid.js';
 import { createArchery, BOW } from './archery.js';
 import { reflex, onEvent } from './ai/brain.js';
@@ -18,7 +19,9 @@ export const ARCHER_DRAW=1.1;
  * its intents; the rest keep the simple tactics below. Combat tells it about noise, wounds, arrows and fire. */
 // Heavy suits (and Rauk) turn blows aside anywhere on the body; plate, mail and leather decide it where a blow lands.
 const HEAVY_ARMOR = new Set(['aschenrüstung', 'hauptmannsplatte', 'wachpanzer']);
-export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null,sneakAttack=null}) {
+export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null,sneakAttack=null,
+  activeSpell=()=>'funken',spellCost=()=>0,onCast=null,magic={}}) {
+  // magic: what the Zauberbuch's spells reach in the world (systems/spellcraft.js): wildfire, shove, hurtPlayer, healPlayer, movePlayer.
   // motion (HUMANITY MOTION): impact(enemy, info) for forces on bodies, playerHit(enemy, info), grapple(enemy, 'grab'|'shove'), handles(enemy).
   let strikeKind=null,aimPoint=null;   // aimPoint: where the blade really crosses the body (resolveSword)
   const isSuited=e=>!!(e.storyId||HEAVY_ARMOR.has(e.look?.equipment?.armor));
@@ -33,6 +36,13 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     onHit(enemy,amount,true);effects.burnDamage(enemy,amount);
     if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}
   }});
+  // Damage over time without a blow's weight (fire, rot): no stagger, no blood spray.
+  function dot(enemy,amount){if(enemy.dead)return;onHit(enemy,amount,true);effects.burnDamage(enemy,amount);if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}}
+  const spellcraft=createSpellcraft({scene,world,player,enemies,spellFx,ai,toast,magicDamage,targets:()=>targets(),dot,
+    strike:(target,amount,from,kind)=>{strikeKind=kind||'spell';strike(target,amount,true,from);strikeKind=null;},
+    // Thrown by wind or stone: bodies with HUMANITY MOTION fall for real, the rest slide back.
+    knock:(e,dir,force=2,up=0)=>{if(e.dead)return;if(motion?.knock&&motion.handles?.(e)&&motion.knock(e,dir,force,up))return;e.knock=vector(dir.x,0,dir.z).normalize().multiplyScalar(2.2+force*1.4);e.stagger=Math.max(e.stagger||0,1);},
+    ...magic});
   let action=null,guard=false,guardStart=0,time=0,combo=0,lastAttack=-10,queued=false,hitPause=0;
   const before=new THREE.Vector3(),next=new THREE.Vector3(),center=new THREE.Vector3(),segment=new THREE.Vector3(),offset=new THREE.Vector3();
   const hand=new THREE.Vector3(),surface={point:new THREE.Vector3(),normal:new THREE.Vector3()},normal=new THREE.Vector3();
@@ -83,12 +93,16 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   function begin(kind){
     const spec=ACTIONS[kind];
     if(action){if(kind==='sword'&&action.kind==='sword'&&action.t>.38)queued=true;return false;}
-    if(player.stamina<spec.cost){toast('ZU WENIG AUSDAUER',1300);return false;}
-    player.stamina-=spec.cost;guard=false;
+    // Spells cost magicka, blows stamina.
+    const spell=kind==='cast'?activeSpell():null,cost=spell?spellCost(spell):spec.cost;
+    if(spell){if((player.magicka??0)<cost){toast('ZU WENIG MAGICKA',1300);effects.sound('parry');return false;}player.magicka-=cost;player.castAt=performance.now();}
+    else{if(player.stamina<spec.cost){toast('ZU WENIG AUSDAUER',1300);return false;}player.stamina-=spec.cost;}
+    guard=false;
     combo=time-lastAttack<1.15?(combo+1)%3:0;lastAttack=time;
-    action={kind,t:0,duration:spec.duration,combo,progress:0};player.attack=spec.duration;
+    action={kind,t:0,duration:spec.duration,combo,progress:0,spell,cost};player.attack=spec.duration;
     effects.sound(kind==='sword'?'swing':kind==='cast'?'cast':'drink');
-    if(kind!=='drink')ai?.noise(kind==='sword'?'swing':'spell',player.position,{source:'player'});return true;
+    // A shadow step makes no sound worth hearing.
+    if(kind!=='drink'&&spell!=='schattenschritt')ai?.noise(kind==='sword'?'swing':'spell',player.position,{source:'player'});return true;
   }
   function attack(){if(player.tool===3)return !action&&!!archery?.draw();if(player.tool===2)return drink();return begin(player.tool===1?'cast':'sword');}
   function drink(){if(player.potions<1){toast('KEINE HEILTRÄNKE');return false;}if(player.hp>=player.maxHp){toast('LEBEN BEREITS VOLLSTÄNDIG');return false;}return begin('drink');}
@@ -201,12 +215,27 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
       }
     }
   }
-  function launchSpell(){
-    const origin=castOrigin(hand),direction=vector(-Math.sin(player.yaw)*Math.cos(player.pitch),Math.sin(player.pitch),-Math.cos(player.yaw)*Math.cos(player.pitch));
-    let candidate=null,best=21;
+  /** Where the hand points: straight along the view, or at a foe close to the line of sight (aim help). */
+  function aimFrom(origin,range=21){
+    const direction=vector(-Math.sin(player.yaw)*Math.cos(player.pitch),Math.sin(player.pitch),-Math.cos(player.yaw)*Math.cos(player.pitch));
+    let candidate=null,best=range;
     for(const e of targets()){if(e.dead)continue;const d=e.model.position.distanceTo(player.position);
-      if(d<best&&inAttackArc(e.model.position.x-player.position.x,e.model.position.z-player.position.z,player.yaw,22,.975)){candidate=e;best=d;}}
+      if(d<best&&inAttackArc(e.model.position.x-player.position.x,e.model.position.z-player.position.z,player.yaw,range+1,.975)){candidate=e;best=d;}}
     if(candidate)direction.copy(candidate.model.position).add(vector(0,aimY(candidate),0)).sub(origin).normalize();
+    return {direction,candidate};
+  }
+  /** Any spell of the Zauberbuch but Funken: aim, keep the hand out of walls, hand it to spellcraft. */
+  function castSpell(id){
+    const origin=castOrigin(hand).clone(),{direction,candidate}=aimFrom(origin,id==='kettenblitz'?24:21);
+    before.copy(player.position);before.y+=2.05;
+    if(traceSpellSurface(world,before,origin,surface))origin.copy(before);
+    const ok=spellcraft.cast(id,{origin,dir:direction,target:candidate});
+    if(ok===false&&action?.cost)player.magicka=Math.min(player.maxMagicka??100,(player.magicka??0)+action.cost);
+    onCast?.(id,ok!==false);
+  }
+  function launchSpell(){
+    const origin=castOrigin(hand),{direction}=aimFrom(origin);
+    onCast?.('funken',true);
     // An outstretched hand must not spawn the projectile through a nearby wall.
     before.copy(player.position);before.y+=2.05;
     const contact=traceSpellSurface(world,before,origin,surface);
@@ -255,6 +284,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   }
   function moveEnemy(e,dx,dz){const p=e.model.position;
     if(e.limpUntil>time){dx*=.55;dz*=.55;}   // a cut leg drags
+    if(e.chill>0){dx*=.38;dz*=.38;}          // frozen to the bone (Frostlanze)
     // Inside a crate or a tent (a spawn or a schedule spot put them there): walk out to the nearest free spot.
     if(world.blocked(p.x,p.z,.45,p.y)){const out=reachable(p,p.y);if(out!==p){const ox=out.x-p.x,oz=out.z-p.z,od=Math.hypot(ox,oz)||1,step=Math.min(od,Math.max(.04,Math.hypot(dx,dz)));
       p.x+=ox/od*step;p.z+=oz/od*step;p.y=Math.max(world.heightAt(p.x,p.z),world.supportAt?world.supportAt(p.x,p.z,.3,p.y):-Infinity);return;}}
@@ -523,24 +553,26 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
         effects.spray(sp,vector(0,1,0),'splinter',3);effects.sound('parry');
       }
     }
-    spellFx.update(dt);
+    spellFx.update(dt);spellcraft.update(dt);
     if(action){const previous=action.t;action.t+=actionDt;action.progress=Math.min(1,action.t/action.duration);player.attack=Math.max(0,action.duration-action.t);
-      if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='sword')resolveSword();else if(action.kind==='cast')launchSpell();else onHeal();}
+      if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='sword')resolveSword();else if(action.kind==='cast'){if(action.spell==='funken'||!action.spell)launchSpell();else castSpell(action.spell);}else onHeal();}
       if(action.t>=action.duration){const chain=queued;action=null;queued=false;player.attack=0;if(chain)begin('sword');}}
-    spellFx.setCharge(castOrigin(hand),action?.kind==='cast'&&action.t<ACTIONS.cast.impact?action.t/ACTIONS.cast.impact:null,dt);
+    const gathering=action?.kind==='cast'&&action.t<ACTIONS.cast.impact?action.t/ACTIONS.cast.impact:null,palm=castOrigin(hand);
+    spellFx.setCharge(palm,action?.spell==='funken'?gathering:null,dt);
+    spellcraft.charge(palm,action?.spell&&action.spell!=='funken'?gathering:null,dt,action?.spell);
     if(player.tool!==0)guard=false;
     if(guard){player.stamina=Math.max(0,player.stamina-dt*4);if(player.stamina<2)guard=false;}
     if(player.tool!==3)archery?.cancel();
     archery?.update(dt);updateProjectiles(dt);updateBolts(dt);updateEnemies(dt);
   }
   function reset(){action=null;queued=false;guard=false;hitPause=0;effects.reset();archery?.reset();for(const bolt of bolts)spellFx.releaseBall(bolt.ball);bolts.length=0;
-    spellFx.reset();projectiles.length=0;
+    spellFx.reset();spellcraft.reset();projectiles.length=0;
     enemies.forEach(e=>{e.stagger=0;e.windup=0;e.strikeT=0;e.deathTime=0;e.knock=null;});}
   function restore(){enemies.forEach(e=>{e.model.visible=true;
     if(e.hp<e.maxHp)effects.wound(e,e.model.position.clone().add(vector(0,1.7,-3)));
     if(e.dead){e.deathTime=1;effects.killed(e,true);}
   });}
-  return {attack,drink,setGuard,update,reset,restore,effects,spellFx,archery,
+  return {attack,drink,setGuard,update,reset,restore,effects,spellFx,spellcraft,archery,
     get action(){return action;},get guarding(){return guard;},
     get speedFactor(){return action?.kind==='drink'?.45:guard||archery?.drawing?.55:action?.kind==='sword'?.76:1;},
     state:()=>({action:action?{...action}:null,guard,projectiles:projectiles.length,bow:archery?.state()??null,...effects.state(),...spellFx.state(),enemies:enemies.map(e=>({hp:e.hp,dead:e.dead,windup:e.windup||0,stagger:e.stagger||0,corpseVisible:e.dead&&e.model.visible}))}),

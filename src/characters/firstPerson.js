@@ -5,6 +5,7 @@ import { createLiquid } from '../systems/liquid.js';
 import { APPEARANCE_OPTIONS } from './appearance.js';
 import { createHeldBow, aimObject } from './bow.js';
 import { heldItem, WEAPON_MODELS } from './models.js';
+import { ELEMENTS } from '../data/spells.js';
 
 const T = 1 / 16;
 const clamp = THREE.MathUtils.clamp;
@@ -270,7 +271,13 @@ export function createFirstPerson() {
   // white-yellow to red; a warm light flickers on the hand and arm, so the hand itself glows.
   const glow = new THREE.MeshBasicMaterial({ color: 0xffd27a });
   const core = block(spell, T * .9, T * .9, T * .9, glow);
-  const FLAMES = [[1, 0xffe08a], [.75, 0xffb03a], [.5, 0xff6a1c], [.25, 0xc8361a], [0, 0x4a1206]];
+  let FLAMES = [[1, 0xffe08a], [.75, 0xffb03a], [.5, 0xff6a1c], [.25, 0xc8361a], [0, 0x4a1206]];
+  // The element of the spell in hand (data/spells.js ELEMENTS): colours, how the light moves, the palm's light.
+  let palm = { motion: 'rise', light: 0xff8a3a };
+  function setElement(el) {
+    const E = ELEMENTS[el] ?? ELEMENTS.feuer;
+    FLAMES = E.ramp.map((c, i) => [1 - i * .25, c]); palm = E; palmLight.color.setHex(E.light); glow.color.setHex(E.ramp[1]);
+  }
   const flames = Array.from({ length: 26 }, () => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(T, T, T), new THREE.MeshBasicMaterial({ color: 0xffcc58, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     mesh.visible = false; spell.add(mesh); return { mesh, life: 0, duration: 1, size: 1, velocity: new THREE.Vector3(), swirl: 0 };
@@ -286,19 +293,27 @@ export function createFirstPerson() {
       f.duration = f.life = .32 + Math.random() * .34; f.size = (1.2 + Math.random() * 1.4) * (1 + strength * .7); f.swirl = Math.random() * 6.28;
       f.mesh.position.set((Math.random() - .5) * .05, 0, (Math.random() - .5) * .05); f.mesh.visible = true;
       f.velocity.set((Math.random() - .5) * .12, .22 + Math.random() * .2 + strength * .2, (Math.random() - .5) * .12);
+      // Each element moves its own way: frost drifts down, lightning snaps, wind and stone circle, shadow sinks.
+      const m = palm.motion, a = Math.random() * 6.28;
+      if (m === 'fall' || m === 'sink') f.velocity.y = -(.05 + Math.random() * .12);
+      else if (m === 'crackle') { f.velocity.set((Math.random() - .5) * 1.2, (Math.random() - .3) * .9, (Math.random() - .5) * 1.2); f.duration = f.life = .08 + Math.random() * .1; }
+      else if (m === 'orbit' || m === 'spiral') { f.mesh.position.set(Math.cos(a) * .06, 0, Math.sin(a) * .06); f.velocity.set(-Math.sin(a) * .35, m === 'spiral' ? .2 : .05, Math.cos(a) * .35); }
+      else if (m === 'bubble') f.velocity.set((Math.random() - .5) * .04, .1 + Math.random() * .1, (Math.random() - .5) * .04);
       f.mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
     }
     for (const f of flames) {
       if (f.life <= 0) continue;
       f.life -= dt; if (f.life <= 0) { f.mesh.visible = false; continue; }
       const k = f.life / f.duration;
-      f.swirl += dt * 10; f.velocity.y += dt * .5; f.velocity.x += Math.cos(f.swirl) * dt * .15; f.velocity.z += Math.sin(f.swirl) * dt * .15;
+      f.swirl += dt * 10;
+      if (palm.motion === 'orbit' || palm.motion === 'spiral') { const px = f.mesh.position.x, pz = f.mesh.position.z; f.velocity.x += -px * dt * 40; f.velocity.z += -pz * dt * 40; }
+      else if (palm.motion !== 'crackle') { f.velocity.y += dt * (palm.motion === 'fall' || palm.motion === 'sink' ? -.2 : .5); f.velocity.x += Math.cos(f.swirl) * dt * .15; f.velocity.z += Math.sin(f.swirl) * dt * .15; }
       f.mesh.position.addScaledVector(f.velocity, dt); f.mesh.rotation.y += dt * 4;
       f.mesh.scale.setScalar(f.size * (k > .7 ? .6 + (1 - k) * 1.5 : Math.max(.2, k * 1.4)));
       for (let i = 1; i < FLAMES.length; i++) if (k >= FLAMES[i][0]) { f.mesh.material.color.setHex(FLAMES[i][1]).lerp(flameNext.setHex(FLAMES[i - 1][1]), (k - FLAMES[i][0]) / (FLAMES[i - 1][0] - FLAMES[i][0])); break; }
       f.mesh.material.opacity = Math.min(1, k * 2.4);
     }
-    palmLight.intensity = (4 + strength * 4) * (.85 + Math.sin(time * 23) * .08 + Math.sin(time * 37 + 1) * .07);
+    palmLight.intensity = (4 + strength * 4) * (palm.motion === 'crackle' ? (Math.random() < .3 ? 1.3 : .55) : .85 + Math.sin(time * 23) * .08 + Math.sin(time * 37 + 1) * .07);
   }
   // Bow (tool 4): upright in a left fist, canted a little, the right fist drawing the string back
   // toward the cheek; built on first use, once the Blockbench bow has loaded.
@@ -522,7 +537,7 @@ export function createFirstPerson() {
   }
   reset();
   return {
-    update, reset,
+    update, reset, setElement,
     /** The backpack of the inventory animation lives in the hand scene (systems/inventoryAccess.js). */
     attachPack(object) { packRoot = object; scene.add(object); }, setPack(pose) { packPose = pose; },
     /** The sword model in view and the arm that holds it (systems/bladeBlood.js stains them). */

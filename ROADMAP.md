@@ -441,3 +441,32 @@ Request: sneaking, pickpocketing and lockpicking in the spirit of Skyrim (not a 
 - [ ] Open: most nodes are placeholders (the effects of Sturmlauf, Glutschild, Schmied and Hexer paths and the rest);
   guards do not yet arrest or fine for the bounty; a lit house at night does not yet notice a picked door; no
   pickpocketing from horseback or of sleeping people; NPC homes are not yet "owned" (taking from a chest is not theft).
+
+## Phase 10 — The Zauberbuch: eight new spells and the Buch der Glut (2026-11-09, Claude)
+Request: eight new spells of different elements and uses, a book menu to swap the spells in hand, spectacular to look at and
+alive in the world.
+- [x] Magicka: the HUD bar that was always full now counts (100, +5 a level, quicker back when the hand rests); spells cost
+  magicka instead of stamina; Glutmagie and Arkaner Fokus make them cheaper; casting trains Glutmagie.
+- [x] The Zauberhand: four spells ready (slot 2 of the quickbar shows the one in hand as its sigil in its element's colour);
+  2 again or X switches (Shift+X back), tapping the slot again on touch. Saved with the game (data/spells.js, saveState.js).
+- [x] Eight spells (systems/spellcraft.js; Funken stays in spellFx.js), each with world interaction:
+  Frostlanze (ice spear; chills foes to a crawl; freezes water into an ice floe you can stand on, even lifts a swimmer;
+  puts out grass fires and burning foes; rime on the ground) · Kettenblitz (strikes at once, jumps to up to three more foes,
+  staggers; in water it shocks everyone standing in it, the wanderer too; dry grass catches) · Sturmstoß (a cone of wind:
+  foes fall, crates, barrels and corpses fly, fires go out, rot clouds drift away, dust and leaves whirl) · Erdstachel (a
+  line of stone spikes bursting out along the ground, following slopes, stopped by walls, throwing foes and loose things up)
+  · Irrlicht (a light that follows over your shoulder for 90 s, lights night and caves; goblins see it from far and shy
+  from it like fire) · Lebensquell (heals in waves, green light, a ring of pixel flowers and grass blooming round your feet,
+  fire under you dies down) · Schattenschritt (a blink of up to 9 m that stops at walls and ledges, foes lose sight of you,
+  silent) · Seuchennebel (a lobbed glob that bursts into a lingering cloud; poisons, foes flee it; fire turns it into an
+  explosion that throws and burns; wind pushes it).
+  Particles are three instanced pools (glow, haze, solid chunks), lightning an instanced beam set, light from the shared pool.
+- [x] Buch der Glut (B, or the pause menu): an open grimoire on a dark table in candlelight — leather cover with gold
+  corners, parchment pages, three chapter ribbons; the left page lists the spells by chapter (Die Elemente, Licht und Leben,
+  Hexenwerk) with cost and the seal they lie in; the right page shows a living pixel plate of the element, the description
+  with an initial, "In der Welt", the numbers and the Zauberhand as four wax seals (click or 1–4 lays the chosen spell in,
+  swapping if needed; ✕ takes one out). Pages turn when you choose another spell; seals stamp; dust drifts in the light.
+  First-person palm and third-person hand burn in the element of the spell in hand. Checked at 1280×720, 1600×610, 844×390.
+- [ ] Open: spells are all known from the start (learning them from tomes, trainers or the Magier path later); Irrlicht in
+  first person sits outside the view most of the time; frozen enemies only slow down (no full freeze yet); no spell
+  combos on NPC allies; Schattenschritt does not yet pass through gaps narrower than a body.

@@ -423,6 +423,6 @@ export function createMotion({ world, physics = null, createRagdoll = null, hook
       slope: +a.slope.toFixed(2), presence: a.presence.kind, missing: a.adapter.missing() };
   }
 
-  return { add, remove, get, standY, impact, knockDown: (model, dir, force) => { const a = actors.get(model); return a ? knockDown(a, dir, force) : false; },
+  return { add, remove, get, standY, impact, knockDown: (model, dir, force, extra = null) => { const a = actors.get(model); return a ? knockDown(a, dir, force, extra) : false; },
     grab, command, simulate, animInput, afterAnimate, isDown, locked, heldBy, holding, lookFor, addFire, reset, state, debugActor, actors, grips, LOD };
 }

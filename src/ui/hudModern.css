@@ -103,3 +103,9 @@ button.primary:hover:not(:disabled) { color: #1a1408; filter: brightness(1.08); 
 .ar-compass__tick--cardinal { font: 700 15px/20px var(--ui-font); color: var(--ui-text); }
 .ar-compass__distance { font: 600 10px/12px var(--ui-font); color: var(--ui-accent); }
 .ar-compass__icon { image-rendering: auto; shape-rendering: geometricPrecision; }
+/* Slot 2: the spell in the Zauberhand (data/spells.js) as its sigil, glowing in its element's colour. */
+.slot .slot-sigil { width: 22px; height: 22px; image-rendering: pixelated; color: var(--spell-glow, #ffc46a); filter: drop-shadow(0 0 5px var(--spell, #e8622c)); vertical-align: middle; }
+.slot[data-spell] { --spell: #e8622c; }
+.slot[data-spell].selected { border-color: var(--spell); box-shadow: 0 10px 24px rgba(0, 0, 0, .45), 0 0 18px color-mix(in srgb, var(--spell) 55%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--spell) 22%, transparent), var(--ui-glass)); }
+.slot.spell-swap .slot-sigil { animation: slot-spell .45s var(--ui-ease, ease); }
+@keyframes slot-spell { 0% { transform: scale(.4) rotate(-40deg); opacity: 0; } 60% { transform: scale(1.3); opacity: 1; } 100% { transform: none; } }

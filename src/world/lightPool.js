@@ -28,7 +28,9 @@ export function createLightPool(scene, size = 10) {
   function follow(object, { color = 0xffffff, intensity = 1, distance = 6, decay = 2 } = {}) {
     const anchor = { object, source: new THREE.PointLight(color, intensity, distance, decay), position: new THREE.Vector3() };
     anchors.add(anchor);
-    return () => anchors.delete(anchor);
+    const release = () => anchors.delete(anchor);
+    release.light = anchor.source; // flicker or fade it by its intensity
+    return release;
   }
   function update(viewer) {
     ranked.length = 0;
