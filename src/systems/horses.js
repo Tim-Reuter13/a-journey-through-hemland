@@ -187,7 +187,7 @@ export function createHorses({ scene, world, createCharacter, sound = () => {}, 
     for (const [k, r] of [[BODY.front, BODY.radius], [0, .7], [-BODY.back, BODY.radius]]) {
       const px = x + fx * k, pz = z + fz * k, ground = world.heightAt(px, pz);
       if (world.blocked(px, pz, r, Math.max(ground, y) + .25, 2.2)) return false;
-      if (WATER_LEVEL - world.terrainHeightAt(px, pz) > 1.45) return false;
+      if (WATER_LEVEL - world.terrainHeightAt(px, pz) > 1.45 && ground < WATER_LEVEL + .2) return false;   // deep water, no deck over it
       if (ground - y > .9 && !h.airborne) return false;
     }
     return true;
@@ -207,6 +207,9 @@ export function createHorses({ scene, world, createCharacter, sound = () => {}, 
     const nx = h.pos.x + _f.x, nz = h.pos.z + _f.z;
     if (Math.abs(step) > 1e-5) {
       if (free || fits(h, nx, nz, h.yaw)) { h.pos.x = nx; h.pos.z = nz; }
+      // Along a wall: the part of the step that does not go into it (a glancing blow slides, head-on stops).
+      else if (Math.abs(_f.x) > Math.abs(_f.z) * .35 && fits(h, nx, h.pos.z, h.yaw) && Math.abs(_f.x) > Math.abs(step) * .3) { h.pos.x = nx; h.speed *= 1 - Math.min(.5, dt * 3); }
+      else if (Math.abs(_f.z) > Math.abs(_f.x) * .35 && fits(h, h.pos.x, nz, h.yaw) && Math.abs(_f.z) > Math.abs(step) * .3) { h.pos.z = nz; h.speed *= 1 - Math.min(.5, dt * 3); }
       else {
         // Into a wall at speed: it skids and rears; slower it just stops.
         if (h.speed > 8.5 && !h.rearT) { h.rearT = 1.1; sound('neigh', h.pos, 1); }
@@ -393,28 +396,54 @@ export function createHorses({ scene, world, createCharacter, sound = () => {}, 
     out.x = ax + (bx - ax) * k; out.z = az + (bz - az) * k; out.tx = (bx - ax) / len; out.tz = (bz - az) / len;
     return out;
   }
-  const _at = { x: 0, z: 0, tx: 0, tz: 0 }, _ahead = { x: 0, z: 0, tx: 0, tz: 0 };
+  const _at = { x: 0, z: 0, tx: 0, tz: 0 }, _ahead = { x: 0, z: 0, tx: 0, tz: 0 }, _lane = { x: 0, z: 0, tx: 0, tz: 0 };
   function travel(g, dt, player, visible) {
     // Someone on the road ahead of the leader: the group slows and stops short of them.
     along(g, g.s, _at);
     const leader = g.members[0], fx = _at.tx * g.dir, fz = _at.tz * g.dir;
     const px = player.position.x - leader.horse.pos.x, pz = player.position.z - leader.horse.pos.z, ahead = px * fx + pz * fz, aside = Math.abs(-px * fz + pz * fx);
     const blocking = visible && ahead > 0 && ahead < 7 && aside < 2.6;
+    // A rider fallen behind (a tight spot, a wall to get round): the column waits for them.
+    const lagging = visible && g.members.some(m => m.lag > 6);
     if (g.rest > 0) { g.rest -= dt; g.speed = 0; }
-    else g.speed = damp(g.speed, blocking ? 0 : g.pace, blocking ? 3 : 1.2, dt);
+    else g.speed = damp(g.speed, blocking || lagging ? 0 : g.pace, blocking || lagging ? 3 : 1.2, dt);
     if (blocking && !g.warned) { g.warned = true; bark(leader.model, g.lines.block || 'Aus dem Weg!'); }
     if (!blocking && ahead < -6) g.warned = false;
     g.s += g.speed * g.dir * dt;
-    if (g.s <= 0 || g.s >= g.total) { g.s = clamp(g.s, 0, g.total); g.dir *= -1; g.rest = 12 + Math.random() * 18; }
+    if (g.s <= 0 || g.s >= g.total) {
+      // The end of the road: the column wheels about where it stands and the last rider leads back, so nobody
+      // has to ride through the others (they used to all make for one point and circle it, through the houses).
+      g.s = clamp(g.s, 0, g.total);
+      g.s = clamp(g.s - g.dir * (g.members.length - 1) * g.spacing, 0, g.total);
+      g.members.reverse(); g.dir *= -1; g.rest = 12 + Math.random() * 18;
+    }
     g.members.forEach((m, i) => {
       const h = m.horse, s = g.s - g.dir * i * g.spacing;
       along(g, s, _ahead);
-      // Keep right of the road's middle; in pairs, the second rides beside the first.
+      // Keep right of the road's middle; in pairs, the second rides beside the first. Where something stands
+      // there (a bridge rail, a post, a fence), the lane moves toward the middle and over to the other side.
       const side = 1.7 + (m.beside ? 1.5 : 0), dx = _ahead.tx * g.dir, dz = _ahead.tz * g.dir;
-      const x = _ahead.x - dz * side, z = _ahead.z + dx * side;
-      if (!visible) { h.pos.set(x, h.pos.y, z); h.yaw = Math.atan2(-dx, -dz); h.speed = g.speed; return; }
-      const d = Math.hypot(x - h.pos.x, z - h.pos.z);
-      move(h, Math.min(g.pace * 1.25, d > .5 ? g.speed + (d - .5) * 1.5 : g.speed * d / .5), d > .15 ? Math.atan2(h.pos.x - x, h.pos.z - z) : Math.atan2(-dx, -dz), dt, { turn: 2.2, free: true });
+      let x = _ahead.x - dz * side, z = _ahead.z + dx * side;
+      if (visible && (m.laneT = (m.laneT || 0) - dt) <= 0) {
+        // The lane must hold the whole horse here and a few strides on, at the height of the road's middle (on a
+        // ramp or a bridge deck the side of the road is the embankment going down to the water). Checked 4× a second.
+        m.laneT = .25; m.laneK = 0;
+        const yaw = Math.atan2(-dx, -dz), mid = world.heightAt(_ahead.x, _ahead.z);
+        along(g, s + g.dir * 4, _lane);
+        const ldx = _lane.tx * g.dir, ldz = _lane.tz * g.dir, midAhead = world.heightAt(_lane.x, _lane.z);
+        for (const k of [1, .5, 0, -.5, -1]) {
+          const lx = _ahead.x - dz * side * k, lz = _ahead.z + dx * side * k, fx = _lane.x - ldz * side * k, fz = _lane.z + ldx * side * k;
+          const ly = world.heightAt(lx, lz), fy = world.heightAt(fx, fz);
+          if (Math.abs(ly - mid) < .6 && Math.abs(fy - midAhead) < .6 && fits(h, lx, lz, yaw, ly) && fits(h, fx, fz, Math.atan2(-ldx, -ldz), fy)) { m.laneK = k; break; }
+        }
+      }
+      if (visible) { const k = m.laneK ?? 1; x = _ahead.x - dz * side * k; z = _ahead.z + dx * side * k; }
+      if (!visible) { h.pos.set(x, h.pos.y, z); h.yaw = Math.atan2(-dx, -dz); h.speed = g.speed; m.lag = 0; return; }
+      const d = Math.hypot(x - h.pos.x, z - h.pos.z); m.lag = d;
+      // Toward the place in the column; a place behind is reached by turning tight at a walk, not by circling it.
+      const wishYaw = d > .6 ? Math.atan2(h.pos.x - x, h.pos.z - z) : Math.atan2(-dx, -dz);
+      const facing = Math.cos(wrap(wishYaw - h.yaw)), want = d > .5 ? g.speed + (d - .5) * 1.5 : g.speed * d / .5;
+      move(h, Math.min(g.pace * 1.25, facing < .3 ? Math.min(want, 1.2) : want * (.4 + .6 * facing)), wishYaw, dt, { turn: 2.2 });
     });
     // A word in passing.
     const dist = Math.hypot(px, pz);

@@ -19,6 +19,14 @@ export function createPreviewModel(item,material=(name,tint)=>pixelMaterial(name
   }else if(item.type==='ammo'){
     for(const k of [-1,0,1]){const o=k*.16;beam(rig,[-.75+o,-.75-o,0],[.68+o,.68-o,0],.045,material('darkPlanks',0xd0a878),{shadow:false});
       box(.16,.07,.05,metal,.74+o,.74-o,0,Math.PI/4);box(.07,.22,.04,material('clothLinen',0x9a3a2e),-.66+o,-.66-o,0,Math.PI/4);}
+  }else if(item.type==='weapon'&&item.subtype==='Speer'){
+    // Ash shaft, leather grip, a leaf-shaped head with a ridge, a red tassel; laid across the diagonal.
+    const wood=material('planks',0xc8a070),iron=material('iron',0xd8d8d8),ridge=material('iron',0x8a8a8a);
+    box(.07,1.9,.07,wood,0,-.2);box(.1,.36,.1,leather,0,-.45);box(.11,.05,.11,gold,0,-.27);box(.11,.05,.11,gold,0,-.64);box(.09,.08,.09,gold,0,-1.15);
+    box(.11,.22,.11,iron,0,.83);box(.24,.06,.05,iron,0,.86);
+    box(.2,.2,.04,iron,0,1.03);box(.15,.2,.04,iron,0,1.22);box(.1,.16,.035,iron,0,1.39);box(.05,.12,.03,iron,0,1.52);box(.04,.5,.055,ridge,0,1.2);
+    box(.05,.24,.05,material('clothRed',0xb03a2a),0,.62,.06);
+    rig.rotation.z=-.62;rig.scale.setScalar(.82);
   }else if(item.type==='weapon'){
     box(.18,1.2,.075,metal,0,.24);box(.1,.18,.075,metal,0,.93);box(.065,.07,.075,metal,0,1.055);
     box(.56,.1,.15,gold,0,-.4);box(.1,.38,.1,leather,0,-.64);box(.17,.12,.15,gold,0,-.9);

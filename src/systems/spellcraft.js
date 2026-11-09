@@ -4,6 +4,7 @@ import { boxGeometry } from '../art/blocks.js';
 import { pixelMaterial, pixelTexture, registerPixelTexture, TEXTURE_NAMES } from '../art/pixelTextures.js';
 import { SPELLS, ELEMENTS, boltPath, chainTargets, inCone } from '../data/spells.js';
 import { traceSpellSurface } from './spellFx.js';
+import { createReactions } from './reactions.js';
 
 // The spells of the Zauberbuch besides Funken (spellFx.js): Frostlanze, Kettenblitz, Sturmstoß, Erdstachel, Irrlicht,
 // Lebensquell, Schattenschritt and Seuchennebel. Everything they leave in the world lives here: ice floes on the
@@ -30,7 +31,7 @@ paint('crack', p => {
 });
 
 export function createSpellcraft({ scene, world, player, targets, enemies = [], strike, dot = () => {}, knock = () => {}, hurtPlayer = () => {}, healPlayer = () => {},
-  movePlayer = () => {}, shove = () => {}, wildfire = null, spellFx = null, ai = null, toast = () => {}, magicDamage = () => 39 }) {
+  movePlayer = () => {}, shove = () => {}, wildfire = null, spellFx = null, ai = null, toast = () => {}, magicDamage = () => 39, marks = null, shield = null }) {
   const group = new THREE.Group(); group.name = 'Spellcraft'; scene.add(group);
   const heightAt = (x, z) => world.heightAt(x, z), waterAt = (x, z) => world.water?.at?.(x, z) ?? null;
   const rand = (a, b) => a + Math.random() * (b - a), pick = list => list[Math.floor(Math.random() * list.length)];
@@ -190,6 +191,8 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     dismiss: () => tone({ f: 900, f1: 260, dur: .32, gain: .03 }),
     melt: () => noise({ dur: .9, type: 'bandpass', f: 1800, f1: 450, q: 1.5, gain: .045 }),
     cough: () => noise({ dur: .18, type: 'bandpass', f: 520, q: 2, gain: .05 }),
+    hiss: () => { noise({ dur: 1.1, type: 'highpass', f: 3200, f1: 1200, gain: .09, attack: .02 }); noise({ dur: .5, type: 'lowpass', f: 600, f1: 200, gain: .05 }); },
+    crystal: () => [0, 5, 9, 14].forEach((s2, i) => tone({ type: 'triangle', f: 880 * 2 ** (s2 / 12), dur: .5, gain: .03, delay: i * .045 })),
   };
 
   // ── Light flashes (a few pooled anchors in the light pool, faded by their intensity).
@@ -207,6 +210,9 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
   const sees = (a, b) => !world.segmentBlocked(a, b);
   const playerChest = () => v3(player.position.x, player.position.y + 1.4, player.position.z);
   const inWater = p => { const w = waterAt(p.x, p.z); return w && w.depth > .3 && p.y < w.surface + .6 ? w : null; };
+  // Every spell hit carries its element (systems/reactions.js, created below once all the helpers exist).
+  let reactions = null, lastMarks = [];
+  const hitWith = (target, amount, from, kind, opts) => reactions ? reactions.elemental(target, amount, from, kind, opts) : strike(target, amount, from, kind);
 
   // ── Chill (Frostlanze): a foe moves as through deep snow, frost smokes off him.
   const chilled = new Map();
@@ -286,9 +292,11 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
   }
   function lanceImpact(l, hit) {
     const p = hit.point;
+    // Into a cloud of rot: it freezes and falls as green hail.
+    for (const c of clouds) if (c.life > 0 && Math.hypot(c.pos.x - p.x, c.pos.z - p.z) < c.radius + .8 && Math.abs(c.pos.y + 1 - p.y) < 3) freezeCloud(c);
     if (hit.kind === 'foe') {
       const e = hit.target, dmg = magicDamage() * SPELLS.frostlanze.power;
-      strike(e, dmg, l.root.position.clone(), 'frost'); chill(e);
+      hitWith(e, dmg, l.root.position.clone(), 'frost');
       burst(p, 'eis', 40, { speed: 5, up: 1, stretch: .06 }); chunks(p, [0xe8f6ff, 0xbfe4fa, 0xa8d8f4], 12, { speed: 3.5, up: 3 });
       puff(p, 0xe8f4ff, 6, { spread: .4, size: [3, 5] });
     } else if (hit.kind === 'water') freeze(p.x, p.z, hit.surface);
@@ -321,17 +329,17 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
   }
 
   // ════ Kettenblitz ════
-  const BEAM_MAX = 520;
+  const BEAM_MAX = 1100;
   const beams = new THREE.InstancedMesh(boxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }), BEAM_MAX);
   beams.instanceMatrix.setUsage(THREE.DynamicDrawUsage); beams.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(BEAM_MAX * 3), 3);
   beams.count = 0; beams.frustumCulled = false; beams.name = 'lightning'; group.add(beams);
   const bolts = [];
-  function bolt(a, b, { life = .34, width = 1, branches = 2, color = 0xc8b0ff } = {}) {
-    bolts.push({ a: a.clone(), b: b.clone(), life, dur: life, width, branches, color, points: null, jitter: 0 });
+  function bolt(a, b, { life = .34, width = 1, branches = 2, color = 0xc8b0ff, halo = 1, jagged = 1 } = {}) {
+    bolts.push({ a: a.clone(), b: b.clone(), life, dur: life, width, branches, color, halo, jagged, points: null, jitter: 0 });
   }
   function rebuildBolt(B) {
     const len = B.a.distanceTo(B.b), segs = Math.max(4, Math.min(16, Math.round(len * 1.4)));
-    B.points = [boltPath(B.a, B.b, segs, Math.min(1.1, .18 + len * .06))];
+    B.points = [boltPath(B.a, B.b, segs, Math.min(1.1, .18 + len * .06) * B.jagged)];
     for (let k = 0; k < B.branches; k++) {
       const from = B.points[0][1 + Math.floor(Math.random() * (segs - 2))], end = { x: from.x + rand(-1.4, 1.4), y: from.y + rand(-1.2, .6), z: from.z + rand(-1.4, 1.4) };
       B.points.push(boltPath(from, end, 4, .3));
@@ -350,7 +358,8 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
           _d.set(q.x - p.x, q.y - p.y, q.z - p.z); const L = _d.length(); if (L < 1e-4) continue; _d.divideScalar(L);
           _q.setFromUnitVectors(Z, _d);
           const w = (bi ? .5 : 1) * B.width;
-          for (const [thick, bright] of [[.05 * w, 1], [.16 * w, .45]]) {
+          for (const [thick, bright] of B.halo > 1 ? [[.045 * w, 1], [.13 * w, .4], [.3 * w * B.halo, .09]] : [[.05 * w, 1], [.16 * w, .45]]) {
+            if (n >= BEAM_MAX - 1) break;
             _m.compose(_p, _q, _s.set(thick, thick, L + thick)); beams.setMatrixAt(n, _m);
             _c.copy(col0).lerp(WHITE, bright === 1 ? .7 : 0).multiplyScalar(bright * k * on * (bi ? .7 : 1)); beams.setColorAt(n, _c); n++;
           }
@@ -362,7 +371,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
   /** Shock through the water: everyone standing in it within reach is struck, the wanderer too. */
   function electrify(point, dmg) {
     const struck = [];
-    for (const e of alive()) { const p = e.model.position; if (p.distanceTo(point) < 9 && inWater(v3(p.x, p.y + .2, p.z))) { strike(e, dmg * .55, point, 'shock'); e.stagger = Math.max(e.stagger || 0, 1.1); struck.push(e); } }
+    for (const e of alive()) { const p = e.model.position; if (p.distanceTo(point) < 9 && inWater(v3(p.x, p.y + .2, p.z))) { hitWith(e, dmg * .55, point, 'shock'); e.stagger = Math.max(e.stagger || 0, 1.1); struck.push(e); } }
     if (player.position.distanceTo(point) < 9 && inWater(v3(player.position.x, player.position.y + .2, player.position.z))) { hurtPlayer(14, point); toast('STROMSCHLAG · DAS WASSER LEITET', 1800); }
     // Arcs crawl over the surface.
     for (let i = 0; i < 7; i++) { const a = Math.random() * 6.28, r = rand(2, 8), end = v3(point.x + Math.cos(a) * r, point.y + .05, point.z + Math.sin(a) * r);
@@ -370,44 +379,89 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     for (let i = 0; i < 50; i++) { const a = Math.random() * 6.28, r = rand(0, 8); spawn(glow, point.x + Math.cos(a) * r, point.y + .05, point.z + Math.sin(a) * r, rand(-2, 2), rand(0, .6), rand(-2, 2), { life: rand(.2, .5), size: rand(.8, 1.6), c0: 0xffffff, c1: 0x8a62f0, stretch: .2 }); }
     return struck;
   }
-  function castChain(origin, dir, aimTarget) {
-    const spell = SPELLS.kettenblitz, eye = playerChest().setY(player.position.y + 1.9);
-    let first = aimTarget && !aimTarget.dead && aimTarget.model.position.distanceTo(player.position) < spell.range && sees(eye, chest(aimTarget)) ? aimTarget : null;
-    if (!first) {
-      let best = Infinity;
-      for (const e of alive()) { const d = e.model.position.distanceTo(player.position); if (d > spell.range) continue;
-        if (!inCone(player.position, { x: dir.x / (Math.hypot(dir.x, dir.z) || 1), z: dir.z / (Math.hypot(dir.x, dir.z) || 1) }, e.model.position, spell.range, .32)) continue;
-        if (d < best && sees(eye, chest(e))) { best = d; first = e; } }
-    }
-    SFX.thunder();
-    if (!first) {
-      // Nobody in reach: the bolt strikes where you point (ground, wall, water) or dies in the air.
-      const end = v3().copy(origin).addScaledVector(dir, spell.range), hit = sweep(origin, end);
-      const p = hit ? hit.point : end;
-      bolt(origin, p, { width: 1.3, branches: 3 }); flash(p, 0xc8b0ff, 14, 12, .22);
-      burst(p, 'blitz', 50, { speed: 7, up: 2, stretch: .12, floor: hit ? p.y : null, bounce: .4 });
-      if (hit?.kind === 'water') electrify(p, magicDamage() * spell.power);
-      else if (hit?.kind === 'ground') { decal('scorch', p, 1.6, 16); chunks(p, [0x6a5a4a, 0x3a3028], 8, { speed: 3, up: 3.5 });
-        if (!inWater(p)) wildfire?.ignite?.(p, { power: .45, radius: 1.1 }); }
-      ai?.noise?.('fireImpact', p, { source: 'player' });
-      return;
-    }
-    const chain = chainTargets(first, alive().filter(e => !e.prey || e === first), { jumps: spell.jumps, reach: 7.5, position: e => chest(e) });
-    let from = origin.clone(), water = false;
-    chain.forEach((e, i) => {
-      const to = chest(e).clone();
-      if (i > 0 && !sees(from, to)) return;
-      bolt(from, to, { width: i ? 1 : 1.35, branches: i ? 1 : 3, life: .34 + i * .06 });
-      strike(e, magicDamage() * spell.power * (1 - i * .15), from, 'shock');
-      e.stagger = Math.max(e.stagger || 0, .8); e.cooldown = Math.max(e.cooldown || 0, .8);
-      burst(to, 'blitz', 26, { speed: 5, up: 1, stretch: .1 });
-      if (i < 3) flash(to, 0xc8b0ff, 11, 10, .2);
-      if (inWater(v3(e.model.position.x, e.model.position.y + .2, e.model.position.z))) water = to;
-      from = to;
-    });
-    if (water) electrify(v3(water.x, waterAt(water.x, water.z)?.surface ?? water.y, water.z), magicDamage() * spell.power);
-    ai?.noise?.('fireImpact', from, { source: 'player' });
+  // ════ Kettenblitz as a held stream (the hand open, lightning pouring from the fingers) ════
+  // While the cast is held: up to three foes in front, the nearest first, each wrapped in arcs that crawl over the
+  // body; they jerk and stagger. Nobody in front: the arcs spray into the ground ahead. A buzz while it lasts.
+  const STREAM = { tick: .12, cone: .42, range: 18 };
+  let stream = null;
+  const streamCol = () => pick([0x7aa8ff, 0x8f9cff, 0xa08cff, 0x6f9cff]);
+  function streamAudio() {
+    const a = audio(); if (!a) return null;
+    try {
+      const t = a.currentTime, out = a.createGain(); out.gain.setValueAtTime(.0001, t); out.gain.exponentialRampToValueAtTime(.09, t + .08); out.connect(a.destination);
+      const osc = a.createOscillator(), og = a.createGain(); osc.type = 'sawtooth'; osc.frequency.value = 72; og.gain.value = .35; osc.connect(og); og.connect(out);
+      const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 23; lg.gain.value = 40; lfo.connect(lg); lg.connect(osc.frequency);
+      const len = a.sampleRate, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (Math.random() < .08 ? 1 : .25);
+      const src = a.createBufferSource(), bp = a.createBiquadFilter(); src.buffer = buf; src.loop = true; bp.type = 'bandpass'; bp.frequency.value = 2600; bp.Q.value = .8;
+      src.connect(bp); bp.connect(out); osc.start(t); lfo.start(t); src.start(t);
+      return { stop() { const t2 = a.currentTime; out.gain.cancelScheduledValues(t2); out.gain.setValueAtTime(out.gain.value, t2); out.gain.exponentialRampToValueAtTime(.0001, t2 + .15); osc.stop(t2 + .2); lfo.stop(t2 + .2); src.stop(t2 + .2); } };
+    } catch { return null; }
   }
+  /** Each frame of the stream: origin (the hand), dir (the aim). Returns the foes in it. */
+  function channel(origin, dir, dt) {
+    if (!stream) {
+      stream = { tick: 0, t: 0, sound: streamAudio(), hand: new THREE.Object3D(), far: new THREE.Object3D(), lights: [] };
+      group.add(stream.hand, stream.far);
+      stream.lights = [world.lights?.follow(stream.hand, { color: 0xa8c0ff, intensity: 3, distance: 6 }), world.lights?.follow(stream.far, { color: 0xb8a8ff, intensity: 5, distance: 9 })];
+      SFX.thunder();
+    }
+    stream.t += dt; stream.tick -= dt;
+    stream.hand.position.copy(origin);
+    const flat = v3(dir.x, 0, dir.z).normalize(), eye = playerChest().setY(player.position.y + 1.9);
+    // Who is in the stream: the nearest in a cone, then whoever stands closest to them.
+    const inFront = alive().filter(e => { const d = e.model.position.distanceTo(player.position); return d < STREAM.range && inCone(player.position, flat, e.model.position, STREAM.range, STREAM.cone) && sees(eye, chest(e)); })
+      .sort((a, b) => a.model.position.distanceTo(player.position) - b.model.position.distanceTo(player.position));
+    const targets = inFront.length ? chainTargets(inFront[0], [...inFront, ...alive().filter(e => !inFront.includes(e))], { jumps: 2, reach: 6.5, position: e => chest(e) }) : [];
+    const flick = () => (Math.random() < .2 ? .35 : 1);
+    // Fingers: a little fan of starting points round the palm.
+    const finger = k => v3(origin.x + rand(-.07, .07), origin.y + rand(-.05, .07), origin.z + rand(-.07, .07)).addScaledVector(dir, .08 + k * .02);
+    let last = origin;
+    // New arcs every 45 ms (each lives a little longer than that), so the stream flickers instead of piling up.
+    stream.arc = (stream.arc || 0) - dt; const draw = stream.arc <= 0; if (draw) stream.arc = .045;
+    targets.forEach((e, i) => {
+      const c = chest(e).clone(), from = i === 0 ? null : chest(targets[i - 1]).clone();
+      if (draw) {
+        for (let k = 0; k < (i === 0 ? 4 : 2); k++) bolt(from ? v3().copy(from).add(v3(rand(-.2, .2), rand(-.3, .3), rand(-.2, .2))) : finger(k), v3(c.x + rand(-.25, .25), c.y + rand(-.5, .4), c.z + rand(-.25, .25)),
+          { life: .06, width: i === 0 ? .78 : .6, branches: 2, color: streamCol(), halo: 1.4, jagged: 1.5 });
+        // Arcs crawling over the body.
+        for (let k = 0; k < 2; k++) bolt(v3(c.x + rand(-.35, .35), c.y + rand(-.9, .6), c.z + rand(-.35, .35)), v3(c.x + rand(-.4, .4), c.y + rand(-.9, .6), c.z + rand(-.4, .4)), { life: .05, width: .35, branches: 1, color: streamCol() });
+      }
+      if (Math.random() < dt * 40) spawn(glow, c.x + rand(-.3, .3), c.y + rand(-.6, .5), c.z + rand(-.3, .3), rand(-3, 3), rand(-1, 3), rand(-3, 3), { life: rand(.1, .25), size: rand(.6, 1.2), c0: 0xffffff, c1: 0x7a8aff, stretch: .3, gravity: 6 });
+      // They jerk and cannot act.
+      e.stagger = Math.max(e.stagger || 0, .35); e.windup = 0; e.cooldown = Math.max(e.cooldown || 0, .5);
+      e.model.rotation.y += rand(-.06, .06);
+      last = c;
+    });
+    if (!targets.length) {
+      // Into the air and the ground ahead.
+      for (let k = 0; k < 3; k++) {
+        const a = rand(-STREAM.cone, STREAM.cone), r = rand(5, 9), cs = Math.cos(a), sn = Math.sin(a);
+        const end = v3(origin.x + (flat.x * cs - flat.z * sn) * r, 0, origin.z + (flat.x * sn + flat.z * cs) * r);
+        end.y = Math.min(origin.y + dir.y * r + rand(-.5, .5), heightAt(end.x, end.z) + rand(0, 1.8));
+        const hit = sweep(origin, end), p = hit ? hit.point : end;
+        if (draw) bolt(finger(k), p, { life: .06, width: .55, branches: 2, color: streamCol(), halo: 1.3, jagged: 1.5 });
+        if (hit && Math.random() < dt * 12) { burst(p, 'blitz', 6, { speed: 4, up: 2, stretch: .2, floor: p.y, bounce: .4 }); if (hit.kind === 'ground' && Math.random() < .08) decal('scorch', p, .9, 10); }
+        if (hit?.kind === 'water' && stream.tick <= 0) electrify(p, magicDamage() * .3);
+        sparkClouds(p);
+        last = p;
+      }
+    }
+    stream.far.position.copy(last);
+    for (const L of stream.lights) if (L?.light) L.light.intensity = (L === stream.lights[0] ? 3 : 5) * flick();
+    // Damage and the element in ticks; anyone in a cloud of rot sets it off.
+    if (stream.tick <= 0) {
+      stream.tick = STREAM.tick;
+      targets.forEach((e, i) => { hitWith(e, magicDamage() * SPELLS.kettenblitz.power * STREAM.tick * (i ? .7 : 1), origin, 'shock', { icd: 'stream' }); sparkClouds(e.model.position, 0); });
+      ai?.noise?.('fireImpact', last, { source: 'player' });
+    }
+    return targets;
+  }
+  function endChannel() {
+    if (!stream) return;
+    stream.sound?.stop(); for (const L of stream.lights) L?.(); stream.hand.removeFromParent(); stream.far.removeFromParent(); stream = null;
+  }
+  const sparkClouds = (point, r = .8) => { for (const c of clouds) if (c.life > 0 && Math.hypot(c.pos.x - point.x, c.pos.z - point.z) < c.radius + r && Math.abs(c.pos.y + 1 - point.y) < 3) explode(c); };
 
   // ════ Sturmstoß ════
   const clouds = [];
@@ -433,7 +487,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
       const p = e.model.position; if (!inCone(player.position, flat, p, spell.range, half)) continue;
       if (!sees(playerChest(), chest(e))) continue;
       const d = p.distanceTo(player.position), force = 3.2 * (1 - d / (spell.range + 2)) + 1;
-      strike(e, magicDamage() * spell.power, origin, 'wind');
+      hitWith(e, magicDamage() * spell.power, origin, 'wind');
       knock(e, flat, force);
       e.stagger = Math.max(e.stagger || 0, 1.2);
     }
@@ -489,7 +543,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     for (const e of alive()) {
       if (s.hit.has(e)) continue;
       const q = e.model.position; if (Math.hypot(q.x - s.x, q.z - s.z) > 1.25 || Math.abs(q.y - s.ground) > 2) continue;
-      s.hit.add(e); strike(e, magicDamage() * SPELLS.erdstachel.power, p, 'earth');
+      s.hit.add(e); hitWith(e, magicDamage() * SPELLS.erdstachel.power, p, 'earth');
       knock(e, v3(s.dir.x * .6, 0, s.dir.z * .6), 2.6, 8); e.stagger = Math.max(e.stagger || 0, 1.3);
     }
     shove(v3(s.x, s.ground + .3, s.z), v3(s.dir.x * .3, 1, s.dir.z * .3), 1.8, 2.2);
@@ -660,7 +714,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
         SFX.splat(); burst(p, 'gift', 40, { speed: 5, up: 2, gravity: 8, floor: hit?.kind === 'foe' ? null : p.y, bounce: .2 });
         chunks(p, [0x5a8a28, 0x3a5a18, 0x8ac840], 10, { speed: 3, up: 3, rest: 2 });
         if (hit?.kind !== 'wall') decal('scorch', v3(p.x, 0, p.z), 2.2, 18, 0x9ad060);
-        if (hit?.kind === 'foe') strike(hit.target, magicDamage() * .35, segA.clone(), 'poison');
+        if (hit?.kind === 'foe') hitWith(hit.target, magicDamage() * .35, segA.clone(), 'poison');
         const ground = hit?.kind === 'water' ? hit.surface : hit?.kind === 'wall' ? heightAt(p.x, p.z) : Math.min(p.y, heightAt(p.x, p.z) + .1);
         clouds.push({ pos: v3(p.x, ground, p.z), vel: v3(), radius: 3.6, life: 9, dur: 9, tick: 0, emit: 0, check: 0, cough: 0 });
         if (clouds.length > 4) clouds.shift();
@@ -677,6 +731,14 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     for (const c of clouds) if (c.life > 0 && Math.hypot(c.pos.x - point.x, c.pos.z - point.z) < c.radius + radius && Math.abs(c.pos.y - point.y) < 4) explode(c);
     for (const f of floes) if (f.life > 0 && Math.hypot(f.x - point.x, f.z - point.z) < f.radius + radius) melt(f);
   }
+  function freezeCloud(c) {
+    c.life = 0; c.exploded = true;
+    SFX.freeze(); flash(v3(c.pos.x, c.pos.y + 1, c.pos.z), 0xd8f0ff, 8, 10, .3);
+    for (let i = 0; i < 70; i++) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * c.radius;
+      spawn(solid, c.pos.x + Math.cos(a) * r, c.pos.y + rand(.4, 1.8), c.pos.z + Math.sin(a) * r, rand(-.3, .3), rand(-.5, .5), rand(-.3, .3),
+        { life: rand(1.5, 2.6), size: rand(.8, 1.8), c0: pick([0xc8f0b0, 0xe8f6ff, 0xa8e090]), gravity: 9, spin: 8, curve: 'steady', floor: heightAt(c.pos.x + Math.cos(a) * r, c.pos.z + Math.sin(a) * r) + .03, rest: 1.4 }); }
+    decal('rime', c.pos, c.radius * 1.4, 16, 0xd8ffc8);
+  }
   function explode(c) {
     if (c.exploded) return; c.exploded = true; c.life = 0;
     const p = v3(c.pos.x, c.pos.y + 1, c.pos.z), R = c.radius + 1.6;
@@ -687,7 +749,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     chunks(p, [0x3a3028, 0x5a4a3a, 0x2a2420], 16, { speed: 7, up: 7 });
     decal('scorch', p, 4.5, 30); decal('scorch', v3(p.x + rand(-2, 2), 0, p.z + rand(-2, 2)), 2.5, 25);
     for (const e of alive()) { const d = e.model.position.distanceTo(p); if (d > R) continue;
-      strike(e, magicDamage() * 1.25 * (1 - d / (R + 1)), p, 'blast'); spellFx?.ignite?.(e, 12);
+      hitWith(e, magicDamage() * 1.25 * (1 - d / (R + 1)), p, 'blast'); spellFx?.ignite?.(e, 12);
       knock(e, v3(e.model.position.x - p.x, 0, e.model.position.z - p.z).normalize(), 3.4, 6); }
     const pd = player.position.distanceTo(p); if (pd < R) { hurtPlayer(Math.round(24 * (1 - pd / (R + 1))), p); toast('DER NEBEL IST IN FLAMMEN AUFGEGANGEN', 1800); }
     shove(p, UP, R + 1.5, 3);
@@ -713,7 +775,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
       // It eats at whoever stands in it; foes flee it like fire.
       c.tick += dt;
       if (c.tick >= .5) { c.tick -= .5;
-        for (const e of alive()) { const p = e.model.position; if (Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < R && Math.abs(p.y - c.pos.y) < 2.5) { dot(e, magicDamage() * SPELLS.seuchennebel.power, 'poison');
+        for (const e of alive()) { const p = e.model.position; if (Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < R && Math.abs(p.y - c.pos.y) < 2.5) { dot(e, magicDamage() * SPELLS.seuchennebel.power, 'poison'); reactions.elemental(e, 0, c.pos, 'poison', { units: .7, icd: 'cloud', strikeIt: false });
           if (Math.random() < .3) burst(chest(e), 'gift', 6, { speed: 1, up: .5 }); } }
         const pp = player.position; if (Math.hypot(pp.x - c.pos.x, pp.z - c.pos.z) < R * .85 && Math.abs(pp.y - c.pos.y) < 2.5) { hurtPlayer(2, null); if ((c.cough -= .5) <= 0) { c.cough = 2.5; SFX.cough(); } }
         ai?.fireAt?.(c.pos, R);
@@ -724,12 +786,16 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     }
   }
 
+  reactions = createReactions({
+    fx: { spawn, glow, haze, solid, burst, puff, chunks, flash, bolt, decal, SFX, rand, pick },
+    alive, chest, rawStrike: strike, knock, dot, player, wildfire, spellFx, magicDamage, ai, world, group, marks, shield, toast, chill,
+  });
+
   // ── Casting.
   /** Casts a spell other than Funken. origin: the hand; dir: the aim; target: the foe aim-assist picked (or null). */
   function cast(id, { origin, dir, target = null }) {
     switch (id) {
       case 'frostlanze': castLance(origin, dir); return true;
-      case 'kettenblitz': castChain(origin, dir, target); return true;
       case 'sturmstoss': castGust(origin, dir); return true;
       case 'erdstachel': castLine(dir); return true;
       case 'irrlicht': castWisp(); return true;
@@ -773,6 +839,7 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
   function update(dt) {
     time += dt;
     stepLances(dt); stepBolts(dt); stepSpikes(dt); stepWisp(dt); stepHeal(dt); stepGlobs(dt); stepClouds(dt);
+    lastMarks = reactions.update(dt);
     for (const f of floes) {
       if (f.life <= 0) continue;
       f.life -= dt; const age = f.dur - f.life;
@@ -808,12 +875,18 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
     for (const f of flowers) { f.life = 0; f.armed = false; f.root.visible = false; }
     for (const d of decals) { d.life = 0; d.mesh.visible = false; }
     for (const f of flashes) { f.life = 0; f.release?.(); f.release = null; }
-    dismissWisp(); healing = null; clouds.length = 0; bolts.length = 0; lines.length = 0; chilled.clear();
+    endChannel(); dismissWisp(); healing = null; clouds.length = 0; bolts.length = 0; lines.length = 0; chilled.clear(); reactions.reset();
     for (const P of [glow, haze, solid]) { P.free.push(...P.items); P.items.length = 0; P.mesh.count = 0; }
     beams.count = 0;
   }
   return {
     cast, charge, handGlow, update, iceAt, lightNear, fireAt, reset, dismissWisp,
+    /** Elemental reactions (systems/reactions.js): elemental(target, amount, from, kind) and physical(target, amount). */
+    get reactions() { return reactions; }, get marks() { return lastMarks; },
+    /** Lightning into a cloud of rot sets it off like fire. */
+    sparkClouds,
+    /** Kettenblitz held: combat.js calls channel() each frame while the cast is held and endChannel() when let go. */
+    channel, endChannel, get channeling() { return !!stream; },
     get wisp() { return wisp.life > 0 ? wisp.life : 0; },
     state: () => ({ t: +time.toFixed(2), glow: glow.items.length, haze: haze.items.length, solid: solid.items.length, bolts: bolts.length, floes: floes.filter(f => f.life > 0).length,
       spikes: spikes.filter(s => s.life > 0 || s.armed).length, flowers: flowers.filter(f => f.life > 0 || f.armed).length, clouds: clouds.length, wisp: wisp.life > 0, healing: !!healing,

@@ -1,6 +1,7 @@
 import { STORY_ITEMS } from '../data/hemland/story.js';
 export const ITEMS = {
   rostiges_schwert: { name:'Rostiges Schwert',type:'weapon',subtype:'Einhandschwert',damage:32,weight:7,value:12,rarity:'gewöhnlich',description:'Die Schneide hat bessere Tage gesehen. Trotzdem liegt der Griff vertraut in der Hand.',color:0x92918a },
+  jagdspeer: { name:'Jagdspeer',type:'weapon',subtype:'Speer',damage:36,weight:5,value:80,rarity:'ungewöhnlich',reach:4.5,description:'Ein Eschenschaft mit einem Blatt aus Eisen. Er hält jeden auf Abstand: ein Stoß reicht weiter als jede Klinge, und an ihm vorbei kommt keiner leicht.',color:0xc8a070 },
   waechterklinge: { name:'Wächterklinge',type:'weapon',subtype:'Einhandschwert',damage:39,weight:6.5,value:95,rarity:'ungewöhnlich',description:'Bryn hat die Klinge neu ausgeschmiedet. Ein zuverlässiger Begleiter auf den Straßen der Aschmark.',color:0xb9c9cd },
   // The hunting bow sits in its own slot (hotbar 4) beside the blade; arrows are ammunition (systems/archery.js).
   jagdbogen: { name:'Jagdbogen',type:'weapon',slot:'ranged',subtype:'Bogen',damage:30,weight:4,value:70,rarity:'gewöhnlich',description:'Eibe, Hornspitzen an den Enden, Leder am Griff. Bringt einen Hirsch auf sechzig Schritt zu Fall – und einen Mann, der nicht hören will.',color:0x8e5a2e },
@@ -78,7 +79,7 @@ for(const item of STORY_ITEMS)ITEMS[item.id]??={name:item.name,type:'quest',subt
 export const CATEGORIES=[['all','Alle Gegenstände','all'],['weapon','Waffen','sword'],['ammo','Munition','arrow'],['armor','Rüstung','armor'],['accessory','Schmuck','amulet'],['consumable','Tränke','potion'],['food','Proviant','food'],['material','Materialien','material'],['book','Bücher','book'],['quest','Quest','quest'],['misc','Sonstiges','misc']];
 export const RARITY={gewöhnlich:0,ungewöhnlich:1,selten:2,einzigartig:3};
 export const INITIAL_SATCHEL={ausdauertrank:1,reisefladen:3,reisetagebuch:1,pfeil:24,dietrich:5};
-export const INITIAL_MERCHANT={gold:350,stock:{waechterklinge:1,jagdbogen:1,pfeil:80,lederwams:2,wandereramulett:1,glutamulett:1,heiltrank:6,ausdauertrank:4,reisefladen:8,waldapfel:6,kraeuter:6,dietrich:12}};
+export const INITIAL_MERCHANT={gold:350,stock:{waechterklinge:1,jagdspeer:1,jagdbogen:1,pfeil:80,lederwams:2,wandereramulett:1,glutamulett:1,heiltrank:6,ausdauertrank:4,reisefladen:8,waldapfel:6,kraeuter:6,dietrich:12}};
 export const isEquipment=item=>['weapon','armor','accessory'].includes(item?.type);
 /** Equipment slot an item occupies: weapon, armor (body), head, hands, feet, cloak or accessory. */
 export const equipSlot=item=>item?.slot||item?.type;
@@ -87,7 +88,7 @@ export const EQUIPMENT_SLOTS=['weapon','ranged','armor','head','hands','feet','c
 export function outfitFor(equipment){
   const parts=[],tints={};
   for(const slot of EQUIPMENT_SLOTS){const item=ITEMS[equipment?.[slot]];if(!item?.parts)continue;parts.push(...item.parts);Object.assign(tints,item.tints||{});}
-  if(ITEMS[equipment?.weapon]?.type==='weapon')parts.push('scabbard');
+  if(ITEMS[equipment?.weapon]?.type==='weapon'&&ITEMS[equipment.weapon].subtype!=='Speer')parts.push('scabbard');
   if(ITEMS[equipment?.ranged])parts.push('quiver');
   return {parts,tints};
 }

@@ -496,3 +496,39 @@ Minecraft; a smoother opening that looks as if the wanderer looks into the backp
 - [x] K for Pfade der Glut now in the key hints; the hub reaches it from the pack on touch too.
 - [ ] Open: no splitting stacks by drag; no comparison for rings/amulets beyond the magic number; the figure does not
   yet show the held bow; touch has no long-press menu on cells (tap selects, the button acts).
+
+## Phase 12 — Riders, blade blood, the spear, elemental reactions, force lightning (2026-11-10, Claude)
+Feedback: the rider in the village is buggy and goes through houses; the blood on the sword is 3D boxes, it should be
+a texture stuck to the blade with physics; a new spear; elemental effects and magic should act on each other, several
+magic statuses on an NPC giving a reaction like Genshin; lightning magic more like Star Wars.
+- [x] Riders (systems/horses.js): the road groups moved with no collision at all, and at the village end of the king's
+  road the column turned round by making every horse ride for one point — they circled it through the houses. Now the
+  column wheels about where it stands (the last rider leads back), every rider moves with the horse's body collision and
+  slides along walls, the lane moves toward the road's middle where something stands (bridge rails, posts) and stays at
+  the road's height (on a ramp the side of the road is the embankment), the column waits for a rider who fell behind,
+  and the outpost guards lift the barrier for riders too. Simulated 70 s at the village, the bridge and the outpost: no
+  horse inside anything. Bridges over deep water no longer count as deep water for a horse.
+- [x] Blade blood (systems/bladeBlood.js): no boxes any more — the blood is painted into the blade's own material (a copy
+  per weapon) from a 3 × 22 grid of cells, nearest-pixel like the textures. It still runs with gravity and the swing,
+  spreads a little sideways, beads and drips at the point, flies off in a fast swing, dries dark; it stays on the blade
+  when it is sheathed and drawn again. First and third person.
+- [x] Jagdspeer (characters/spear.js; the trader sells it, one lies in the village grass by the smithy): a box model in the
+  Blockbench language built in code (ash shaft, leather grip, brass rings, leaf head with a ridge, red tassel) until it is
+  modelled in Blockbench. Thrusts instead of cuts: 4.5 m reach instead of 3.2, a narrow aim, three thrusts (straight, high,
+  lunge) in first person, the thrust track in third person with the shaft along the arm; carried upright in the hand
+  (no scabbard), put aside for the bow and a potion. Damage 36.
+- [x] Elemental auras and reactions (systems/elements.js rules + tests, systems/reactions.js effects, ui/auraMarks.js):
+  spells leave Brennend, Unterkühlt, Geladen, Vergiftet; wading in water makes Nass. A second element reacts:
+  Schmelzen (×2 / ×1.5, meltwater wets), Verdampfen (×1.5 / ×2, a steam cloud), Überladung (explosion, throws everyone
+  near), Supraleiter (cold blast, brittle: blows ×1.5), Gefroren (in an ice block, cannot act; steel or stone shatters
+  it: Zerschmettern), Elektrisiert (shocks every second, jumping to the wet nearby), Wirbel (wind carries the element to
+  everyone near, where it may react again), Kristall (earth binds it: shards fly to you as a Kristallschild that takes
+  blows), Schwelbrand (fire + poison), Nervengift (lightning + poison: stunned), Fäulnis (water + poison: a seed that
+  bursts). Sigils over the heads show what each carries; a reaction writes its name over the body. In the world:
+  frost freezes a rot cloud into green hail, lightning sets it off like fire.
+- [x] Kettenblitz as force lightning: held, not thrown — while the cast is held, jagged blue-violet arcs pour from the
+  fingers to up to three foes (the first, then whoever stands nearest), crawl over their bodies; they jerk and cannot
+  act. 8 magicka to start, 17 a second. Nobody in front: the arcs strike the ground ahead; into water it electrifies.
+  A buzzing hum while it pours. Checked in first and third person, day and night.
+- [ ] Open: the spear is not yet a Blockbench export; NPCs do not carry spears or use elements against you; no reaction
+  for the wanderer's own body (only foes carry auras); the frozen pose is held rather than stiffened.

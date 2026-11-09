@@ -25,11 +25,14 @@ const wrapAngle = a => THREE.MathUtils.euclideanModulo(a + Math.PI, TAU) - Math.
 // and the edge leads along the path of the hand.
 // At rest the blade points forward and down from the hanging fist (crossing it, not continuing the arm).
 const BLADE = { rest: [.34, -.52, -.78], ready: [-.14, .4, -.9], guard: [-.62, .5, -.6] };
+// A spear at rest stands point up beside the body; ready and in guard it levels toward the foe.
+const SHAFT = { rest: [.08, .96, -.25], ready: [-.05, .22, -.97], guard: [-.2, .32, -.92] };
 const _body = new THREE.Quaternion(), _grip = new THREE.Quaternion(), _arm = new THREE.Quaternion(), _target = new THREE.Quaternion();
 const _blade = new THREE.Vector3(), _edge = new THREE.Vector3(), _side = new THREE.Vector3(), _hand = new THREE.Vector3(), _basis = new THREE.Matrix4();
 function aimSword(character, input, state, dt) {
   const weapon = character.userData.weapon, rig = character.userData.rig;
-  if (!weapon || !character.userData.weaponName?.startsWith('sword') || !rig.arm_lower_right) return;
+  const name = character.userData.weaponName, spear = !!name?.startsWith('spear');
+  if (!weapon || !(name?.startsWith('sword') || spear) || !rig.arm_lower_right) return;
   character.updateMatrixWorld(true);
   character.getWorldQuaternion(_body);
   rig.hand_right.getWorldPosition(_hand);
@@ -37,10 +40,13 @@ function aimSword(character, input, state, dt) {
   if (swinging) {
     rig.arm_lower_right.getWorldQuaternion(_arm);
     // The wrist bends: the blade rises out of the fist instead of running on in line with the forearm.
-    _blade.set(0, -1, 0).applyQuaternion(_arm).addScaledVector(_side.set(0, 1, 0), .55).normalize();
+    // A spear runs on in line with it: the thrust drives straight along the arm.
+    _blade.set(0, -1, 0).applyQuaternion(_arm);
+    if (spear) _blade.addScaledVector(_side.set(0, 0, -1).applyQuaternion(_body), .6).normalize();
+    else _blade.addScaledVector(_side.set(0, 1, 0), .55).normalize();
     if (state.hand && dt > 0) _edge.subVectors(_hand, state.hand); else _edge.set(0, 0, 0);
   } else {
-    _blade.fromArray(BLADE[input.guard ? 'guard' : input.combat ? 'ready' : 'rest']).applyQuaternion(_body).normalize();
+    _blade.fromArray((spear ? SHAFT : BLADE)[input.guard ? 'guard' : input.combat ? 'ready' : 'rest']).applyQuaternion(_body).normalize();
     _edge.set(0, 0, -1).applyQuaternion(_body);
   }
   (state.hand ??= new THREE.Vector3()).copy(_hand);
@@ -444,7 +450,7 @@ export function createAnimator(character) {
     if (action) {
       const p = clamp(action.progress, 0, 1);
       actionWeight = Math.min(1, p / .06, (1 - p) / .08 + .15);
-      const track = action.kind === 'sword' ? SWORD[action.combo % 3] : action.kind === 'cast' ? CAST : DRINK;
+      const track = action.kind === 'sword' ? (action.weapon === 'spear' ? THRUST : SWORD[action.combo % 3]) : action.kind === 'cast' ? CAST : DRINK;
       sample(track, p, upper);
     } else if (input.windup > 0) {
       // Enemy telegraph: slow, readable overhead wind-up (a drawn-back arm for a thrust).

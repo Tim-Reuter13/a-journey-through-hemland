@@ -1,3 +1,4 @@
+import { buildSpear, isSpearModel } from './spear.js';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -104,19 +105,23 @@ export function equipItem(character, item) {
   if (!grip) return null;
   character.userData.weapon?.removeFromParent();
   if (!item) { character.userData.weapon = null; return null; }
-  const source = templates.get('weapons')?.getObjectByName(item);
-  if (!source) return null;
-  const weapon = source.clone(true);
+  // The spear is built in code (characters/spear.js) until it comes out of Blockbench.
+  const source = isSpearModel(item) ? null : templates.get('weapons')?.getObjectByName(item);
+  if (!source && !isSpearModel(item)) return null;
+  const weapon = source ? source.clone(true) : buildSpear(item);
   weapon.position.set(0, 0, 0); weapon.rotation.copy(WEAPON_POSE); weapon.scale.setScalar(.9);
   grip.add(weapon);
   character.userData.weapon = weapon; character.userData.weaponName = item;
   return weapon;
 }
 
-export const WEAPON_MODELS = { rostiges_schwert: 'sword_rusty', waechterklinge: 'sword_guard', aschenklinge: 'sword_ash' };
+export const WEAPON_MODELS = { rostiges_schwert: 'sword_rusty', waechterklinge: 'sword_guard', aschenklinge: 'sword_ash', jagdspeer: 'spear_hunt' };
+/** How a weapon is used: 'spear' thrusts with a long reach, everything else cuts like a sword. */
+export const weaponStyle = id => isSpearModel(WEAPON_MODELS[id]) ? 'spear' : 'sword';
 
 /** A free copy of a held item (the bow, an arrow) at held scale, or null before the models load. */
 export function heldItem(name) {
+  if (isSpearModel(name)) { const spear = buildSpear(name); spear.scale.setScalar(.8); return spear; }
   const source = templates.get('weapons')?.getObjectByName(name);
   if (!source) return null;
   const item = source.clone(true);

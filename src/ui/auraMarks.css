@@ -1,0 +1,17 @@
+/* Element marks over heads and reaction names (ui/auraMarks.js). */
+.aura-layer { position: fixed; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.aura-mark { position: absolute; left: 0; top: 0; display: flex; gap: 3px; will-change: transform; }
+.aura-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: #fff;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 85%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 55%, #000));
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, .6), 0 0 10px var(--c); animation: aura-in .3s cubic-bezier(.3, 1.6, .5, 1); }
+.aura-icon svg { width: 12px; height: 12px; image-rendering: pixelated; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .6)); }
+.aura-icon.fading { animation: aura-blink .5s steps(2) infinite; }
+.aura-icon.frozen { border-radius: 4px; transform: rotate(45deg); } .aura-icon.frozen svg { transform: rotate(-45deg); }
+.reaction-text { position: absolute; left: 0; top: 0; white-space: nowrap; font: 400 26px/1 'Jacquarda Bastarda 9', serif; letter-spacing: .02em;
+  background: linear-gradient(90deg, var(--a), #fff 50%, var(--b)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .85)) drop-shadow(0 0 8px var(--a)); animation: reaction-in .35s cubic-bezier(.3, 1.8, .5, 1); }
+body.in-pack .aura-layer, body.in-cinematic .aura-layer { display: none; }
+@keyframes aura-in { from { transform: scale(0); } }
+@keyframes aura-blink { 50% { opacity: .35; } }
+@keyframes reaction-in { from { font-size: 12px; opacity: 0; } 60% { font-size: 32px; } }
+@media (max-height: 460px) { .aura-icon { width: 15px; height: 15px; } .aura-icon svg { width: 9px; height: 9px; } .reaction-text { font-size: 19px; } }

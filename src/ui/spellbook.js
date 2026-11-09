@@ -8,7 +8,7 @@ import './spellbook.css';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const NUMERALS = ['I', 'II', 'III', 'IV'];
-const effectLine = (id, s) => s.cast === 'self' ? (id === 'lebensquell' ? `${s.power} Leben` : id === 'irrlicht' ? `${s.power} s Licht` : `${s.power} m Schritt`)
+const effectLine = (id, s) => s.cast === 'channel' ? `${Math.round(s.power * 100)} % Glutkraft/s` : s.cast === 'self' ? (id === 'lebensquell' ? `${s.power} Leben` : id === 'irrlicht' ? `${s.power} s Licht` : `${s.power} m Schritt`)
   : id === 'seuchennebel' ? 'Gift · 9 s' : `${Math.round(s.power * 100)} % Glutkraft`;
 
 export function createSpellbook(root, hooks) {
@@ -71,7 +71,7 @@ export function createSpellbook(root, hooks) {
       <p class="bk-desc"><span class="bk-initial">${esc(s.desc[0])}</span>${esc(s.desc.slice(1))}</p>
       <p class="bk-world"><b>In der Welt</b>${esc(s.world)}</p>
       <dl class="bk-stats">
-        <div><dt>Magicka</dt><dd>${spellCost(selected, { skill: p.skills?.magic ?? 0, perks: p.perks })}</dd></div>
+        <div><dt>Magicka</dt><dd>${spellCost(selected, { skill: p.skills?.magic ?? 0, perks: p.perks })}${s.drain ? ` + ${s.drain}/s` : ''}</dd></div>
         <div><dt>Wirkung</dt><dd>${esc(effectLine(selected, s))}</dd></div>
         <div><dt>Reichweite</dt><dd>${s.range ? `${s.range} m` : 'du selbst'}</dd></div>
         <div><dt>Hand</dt><dd>${slot >= 0 ? `Siegel ${NUMERALS[slot]}${selected === active() ? ' · bereit' : ''}` : '—'}</dd></div>

@@ -22,7 +22,8 @@ Skyrim-like RPG in Three.js + Vite, German UI. Hemland is a continent that grows
   Thief: C sneaks (veil round the reticle); sneaking E near someone picks their pocket; locked chests and doors (homes at
   night) need a Dietrich; K opens the skill tree "Pfade der Glut" (also in the pause menu).
   Magic: 2 holds the spell hand (2 again / X switches the spell, Shift+X back); B opens the Zauberbuch "Buch der Glut" to
-  lay spells into the four seals of the Zauberhand; spells cost magicka.
+  lay spells into the four seals of the Zauberhand; spells cost magicka. Kettenblitz is held (force lightning, drains
+  magicka); elements on foes react with each other (systems/elements.js). The Jagdspeer thrusts with a long reach.
 - Story tone: serious, Game-of-Thrones-level dialogue, blood, death, tragedy (src/data/hemland/story.js).
 - Record new feedback and finished work in ROADMAP.md.
 
@@ -65,6 +66,9 @@ Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobi
   geometry (tests/spells.test.js); src/systems/spellcraft.js — the eight new spells' runtime and world effects (ice floes
   via iceAt() in the player's ground, wisp light for goblins via lightNear(), clouds that explode on fireAt()), created by
   combat.js; src/ui/spellbook.js + spellbook.css — the "Buch der Glut" menu.
+- src/systems/elements.js — auras and reactions (pure rules, tests/elements.test.js); src/systems/reactions.js — their
+  effects, created by spellcraft.js (every spell hit goes through reactions.elemental(), steel through physical());
+  src/ui/auraMarks.js — sigils over heads and reaction names. src/characters/spear.js — the Jagdspeer model (in code).
 - src/ui/inventoryUI.js + inventory.css — the Rucksack (gear slots, item grid, detail, hub); ui/paperDoll.js (the 3D
   figure), ui/itemThumbs.js (item pictures from itemPreview.js models); systems/inventoryAccess.js — the pack swung
   round, the camera into it, mouth() for where the menu grows from, hideHead() in third person, hold()/tilt() test hooks.

@@ -5,6 +5,7 @@ import { createLiquid } from '../systems/liquid.js';
 import { APPEARANCE_OPTIONS } from './appearance.js';
 import { createHeldBow, aimObject } from './bow.js';
 import { heldItem, WEAPON_MODELS } from './models.js';
+import { isSpearModel } from './spear.js';
 import { ELEMENTS } from '../data/spells.js';
 
 const T = 1 / 16;
@@ -59,6 +60,8 @@ function makeSword(parent) {
   let equipped = null, model = null;
   return {
     hilt, sword,
+    /** 'spear' (thrusts, held pointing forward) or 'sword'. */
+    get style() { return isSpearModel(equipped) ? 'spear' : 'sword'; },
     equip(weapon = 'rostiges_schwert') {
       const key = WEAPON_MODELS[weapon] || 'sword_rusty';
       if (key === equipped && model) return;
@@ -213,6 +216,27 @@ const STRIKES = [
     { at: [.05, -.2, .8], blade: [-.75, -.3, -.6] },
     { at: [-.2, -.75, .85], blade: [-.6, -.75, -.25] }] },
 ];
+// The spear: held low on the right, the point forward and a little up, past the right of the screen's middle; it
+// thrusts along the view (drawn back, driven out, held a beat, recovered), the third thrust a lunge.
+const SPEAR_REST = { at: [1.16, -.74, .92], blade: [-.26, .72, -.64] };
+const SPEAR_GUARD = { at: [.98, -.6, .86], blade: [-.42, .5, -.76] };
+const SPEAR_STRIKES = [
+  { times: [0, .26, .36, .46, .62, 1], keys: [ // straight thrust: drawn back, driven out along the view, recovered
+    { at: [1.2, -.66, .66], blade: [-.42, .46, -.78] },
+    { at: [.62, -.42, 1.32], blade: [-.3, .26, -.92] },
+    { at: [.56, -.4, 1.42], blade: [-.28, .24, -.93] },
+    { at: [.9, -.58, 1.02], blade: [-.42, .44, -.79] }] },
+  { times: [0, .26, .36, .46, .62, 1], keys: [ // high thrust, over a shield
+    { at: [1.2, -.46, .68], blade: [-.4, .62, -.68] },
+    { at: [.6, -.14, 1.34], blade: [-.3, .42, -.86] },
+    { at: [.55, -.1, 1.42], blade: [-.28, .4, -.87] },
+    { at: [.9, -.44, 1.02], blade: [-.42, .54, -.73] }] },
+  { times: [0, .32, .42, .52, .68, 1], keys: [ // lunge: drawn far back, driven low and deep
+    { at: [1.26, -.8, .58], blade: [-.38, .4, -.83] },
+    { at: [.5, -.48, 1.58], blade: [-.24, .14, -.96] },
+    { at: [.46, -.47, 1.68], blade: [-.22, .12, -.97] },
+    { at: [.88, -.64, 1.08], blade: [-.4, .38, -.83] }] },
+];
 const _pa = new THREE.Vector3(), _pb = new THREE.Vector3();
 const read = (v, src) => src.isVector3 ? v.copy(src) : v.fromArray(src);
 /** Blends two sword poses (arrays or Vector3s) into `out`; the blade blends and renormalises. `out` may be
@@ -227,8 +251,8 @@ function blendPose(out, a, b, t) {
   return out;
 }
 /** Where the sword is during an attack, from the pose it starts and ends in. */
-function strikePose(out, base, progress, combo) {
-  const { times, keys } = STRIKES[combo], frames = [base, ...keys, base];
+function strikePose(out, base, progress, combo, set = STRIKES) {
+  const { times, keys } = set[combo], frames = [base, ...keys, base];
   let index = 0;
   while (index < frames.length - 2 && progress > times[index + 1]) index++;
   return blendPose(out, frames[index], frames[index + 1], phase(progress, times[index], times[index + 1]));
@@ -385,8 +409,9 @@ export function createFirstPerson() {
   const swordPose = { at: new THREE.Vector3(), blade: new THREE.Vector3() };
   const bladeLocal = new THREE.Vector3(), armInverse = new THREE.Quaternion(), forearm = new THREE.Vector3();
   function poseSword(action, lift) {
-    blendPose(swordPose, SWORD_REST, SWORD_GUARD, guarding);
-    if (action?.kind === 'sword') strikePose(swordPose, swordPose, clamp(action.progress, 0, 1), clamp(Math.floor(action.combo || 0), 0, 2));
+    const spear = weapon.style === 'spear';
+    blendPose(swordPose, spear ? SPEAR_REST : SWORD_REST, spear ? SPEAR_GUARD : SWORD_GUARD, guarding);
+    if (action?.kind === 'sword') strikePose(swordPose, swordPose, clamp(action.progress, 0, 1), clamp(Math.floor(action.combo || 0), 0, 2), spear ? SPEAR_STRIKES : STRIKES);
     const wide = Math.min(1.35, Math.max(1, camera.aspect / (16 / 9))), z = swordPose.at.z;
     right.position.set(swordPose.at.x * wide * HALF * z + lift.x, swordPose.at.y * HALF * z + lift.y, -z);
     aimArm(right, forearm.subVectors(right.position, SHOULDER).normalize());
@@ -507,7 +532,7 @@ export function createFirstPerson() {
       right.position.x += Math.sin(time * 26) * .05 * shaking; right.position.y += Math.sin(time * 52) * .02 * shaking;
       right.rotation.z += Math.sin(time * 26 + .6) * .35 * shaking;
     }
-    rollBlade(dt, action?.kind === 'sword');
+    rollBlade(dt, action?.kind === 'sword' && weapon.style !== 'spear');   // a spear's head stays flat to you while it thrusts
     if (tool === 3) poseBow(bow, bob, sway, dip); else hideBow();
     core.rotation.set(time * .25, time * .5, .35); core.scale.setScalar(1 + Math.sin(time * 31) * .15);
     if (tool === 1) burn(dt, action?.kind === 'cast' ? Math.sin(Math.min(1, action.progress) * Math.PI) : 0);

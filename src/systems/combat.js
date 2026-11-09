@@ -3,6 +3,8 @@ import { createCombatEffects } from './combatEffects.js';
 import { ACTIONS,crossedImpact,inAttackArc } from './combatRules.js';
 import { createSpellFx,traceSpellSurface } from './spellFx.js';
 import { createSpellcraft } from './spellcraft.js';
+import { SPELLS } from '../data/spells.js';
+const SPELL_CHANNEL=id=>SPELLS[id]?.cast==='channel';
 import { createNavGrid,PENDING } from './navGrid.js';
 import { createArchery, BOW } from './archery.js';
 import { reflex, onEvent } from './ai/brain.js';
@@ -20,7 +22,7 @@ export const ARCHER_DRAW=1.1;
 // Heavy suits (and Rauk) turn blows aside anywhere on the body; plate, mail and leather decide it where a blow lands.
 const HEAVY_ARMOR = new Set(['aschenrüstung', 'hauptmannsplatte', 'wachpanzer']);
 export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null,sneakAttack=null,
-  activeSpell=()=>'funken',spellCost=()=>0,onCast=null,magic={}}) {
+  activeSpell=()=>'funken',spellCost=()=>0,onCast=null,magic={},weaponStyle=()=>'sword'}) {
   // magic: what the Zauberbuch's spells reach in the world (systems/spellcraft.js): wildfire, shove, hurtPlayer, healPlayer, movePlayer.
   // motion (HUMANITY MOTION): impact(enemy, info) for forces on bodies, playerHit(enemy, info), grapple(enemy, 'grab'|'shove'), handles(enemy).
   let strikeKind=null,aimPoint=null;   // aimPoint: where the blade really crosses the body (resolveSword)
@@ -99,7 +101,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     else{if(player.stamina<spec.cost){toast('ZU WENIG AUSDAUER',1300);return false;}player.stamina-=spec.cost;}
     guard=false;
     combo=time-lastAttack<1.15?(combo+1)%3:0;lastAttack=time;
-    action={kind,t:0,duration:spec.duration,combo,progress:0,spell,cost};player.attack=spec.duration;
+    action={kind,t:0,duration:spec.duration,combo,progress:0,spell,cost,channel:spell&&SPELL_CHANNEL(spell),weapon:kind==='sword'?weaponStyle():null};player.attack=spec.duration;
     effects.sound(kind==='sword'?'swing':kind==='cast'?'cast':'drink');
     // A shadow step makes no sound worth hearing.
     if(kind!=='drink'&&spell!=='schattenschritt')ai?.noise(kind==='sword'?'swing':'spell',player.position,{source:'player'});return true;
@@ -114,6 +116,8 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // A blade from the shadows into someone who never saw it coming (arrows have their own rule in archery.js).
     const sneak=!magic&&strikeKind!=='arrow'?(sneakAttack?.(enemy)||1):1;
     if(sneak>1){amount*=sneak;hitPause=.12;toast(`MEUCHELANGRIFF · ×${sneak}`,1500);}
+    // Steel on a frozen body shatters the ice; on a brittle one (superconduct) it bites deeper (systems/reactions.js).
+    if(!magic&&spellcraft)amount=spellcraft.reactions.physical(enemy,amount);
     // Where the blow lands decides everything: the shield, the armour, the wound, the pain.
     const suited=isSuited(enemy);if(suited)enemy.suited=true;
     const probe=magic?null:effects.probe(enemy,from,{kind:strikeKind||'sword',combo,point:aimPoint,armored:suited});
@@ -150,9 +154,11 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}
   }
   function resolveSword(){
-    effects.slash(player.position,player.yaw,combo);
+    if(weaponStyle()!=='spear')effects.slash(player.position,player.yaw,combo);   // a thrust leaves no arc
     const E=eye(),fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw);
-    const maxOff=combo===2?.55:1.1,pitch=THREE.MathUtils.clamp(player.pitch,-1.3,1.3);
+    // A spear reaches further and straighter: it thrusts along the aim instead of sweeping an arc.
+    const spear=weaponStyle()==='spear',reach=spear?4.5:3.2;
+    const maxOff=spear?(combo===2?.28:.4):combo===2?.55:1.1,pitch=THREE.MathUtils.clamp(player.pitch,-1.3,1.3);
     // The blade goes where you aim. The crosshair is a ray through the world: whatever body it meets within reach
     // (alive or lying on the ground) is struck exactly there — a leg, a head, a corpse on the ground when you look down.
     // Only when the crosshair is off every body does the swing's own shape (pitch, distance, arc) pick someone.
@@ -163,7 +169,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
         if(seen.has(e)||!e.model?.visible)continue;seen.add(e);
         const hit=effects.blood.pick(e,from,dir,18);if(!hit)continue;
         const q=hit.point,dx=q.x-player.position.x,dz=q.z-player.position.z,d=Math.hypot(dx,dz),dot=fx*dx+fz*dz;
-        if(d>3.4||(d>.01&&dot<=0))continue;
+        if(d>reach+.2||(d>.01&&dot<=0))continue;
         const off=d<.01?0:Math.atan2(fx*dz-fz*dx,dot);
         if(Math.abs(off)>maxOff*1.3||world.segmentBlocked(E,q))continue;
         if(!cross||hit.distance<cross.hit.distance)cross={e,hit,off};
@@ -171,7 +177,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     }
     const swing=(p,height)=>{
       const dx=p.x-player.position.x,dz=p.z-player.position.z,d=Math.hypot(dx,dz),dot=fx*dx+fz*dz;
-      if(d>3.2||(d>.01&&dot<=0))return null;
+      if(d>reach||(d>.01&&dot<=0))return null;
       const off=d<.01?0:Math.atan2(fx*dz-fz*dx,dot);
       if(Math.abs(off)>maxOff)return null;
       let rel=player.position.y+1.4+Math.tan(pitch)*Math.max(.8,d)*.8-p.y;
@@ -273,7 +279,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
       }
       if(fraction<=1){
         p.root.position.copy(before).addScaledVector(segment,fraction);
-        if(target){const damage=magicDamage();strike(target,damage,true,before);if(!target.prey)spellFx.ignite(target,Math.max(4,Math.round(damage*.3/4)*4));}
+        if(target){const damage=magicDamage();if(target.prey)strike(target,damage,true,before);else{spellcraft.reactions.elemental(target,damage,before.clone(),'fire');spellFx.ignite(target,Math.max(4,Math.round(damage*.3/4)*4));}}
         else if(contact&&!object)p.root.position.copy(contact.point);
         spellFx.impact(p.root.position,p.direction,normal,{enemy:!!target,object});
         ai?.fireAt(p.root.position,2.6);ai?.noise('fireImpact',p.root.position,{source:'player'});
@@ -511,6 +517,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
       if(e.dead){e.deathTime=Math.min(1,(e.deathTime||0)+dt*1.4);if(!e.drive)p.y=world.heightAt(p.x,p.z);continue;}
       e.cooldown-=dt;e.stagger=Math.max(0,(e.stagger||0)-dt);e.strikeT=Math.max(0,(e.strikeT||0)-dt);
       const dx=player.position.x-p.x,dz=player.position.z-p.z,distance=Math.hypot(dx,dz);
+      if(e.frozen>0){e.windup=0;e.strikeT=0;e.knock=null;continue;}   // frozen in ice (systems/reactions.js)
       if(e.knock){moveEnemy(e,e.knock.x*dt,e.knock.z*dt);e.knock.multiplyScalar(Math.exp(-dt*9));}
       if(e.motionLock){e.windup=0;e.casting=null;continue;}
       if(e.stagger>0)continue;
@@ -555,7 +562,19 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     }
     spellFx.update(dt);spellcraft.update(dt);
     if(action){const previous=action.t;action.t+=actionDt;action.progress=Math.min(1,action.t/action.duration);player.attack=Math.max(0,action.duration-action.t);
-      if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='sword')resolveSword();else if(action.kind==='cast'){if(action.spell==='funken'||!action.spell)launchSpell();else castSpell(action.spell);}else onHeal();}
+      // A held stream (Kettenblitz): the arm stays out at the moment of release while the cast is held and magicka lasts.
+      if(action.channel){
+        const hold=ACTIONS.cast.impact+.06;
+        // A tap still lets a short burst go (a quarter of a second).
+        if(action.t>=hold&&(action.held!==false||(action.streamed||0)<.25)){
+          action.t=hold;const drain=SPELLS[action.spell].drain*dt*spellCost(action.spell)/SPELLS[action.spell].cost;
+          if((player.magicka??0)<drain){action.held=false;toast('ZU WENIG MAGICKA',1100);}
+          else{player.magicka-=drain;player.castAt=performance.now();
+            const origin=castOrigin(hand).clone(),{direction}=aimFrom(origin,18);spellcraft.channel(origin,direction,dt);action.streamed=(action.streamed||0)+dt;}
+        }
+        if(action.held===false&&spellcraft.channeling){spellcraft.endChannel();onCast?.(action.spell,true);}
+      }
+      else if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='sword')resolveSword();else if(action.kind==='cast'){if(action.spell==='funken'||!action.spell)launchSpell();else castSpell(action.spell);}else onHeal();}
       if(action.t>=action.duration){const chain=queued;action=null;queued=false;player.attack=0;if(chain)begin('sword');}}
     const gathering=action?.kind==='cast'&&action.t<ACTIONS.cast.impact?action.t/ACTIONS.cast.impact:null,palm=castOrigin(hand);
     spellFx.setCharge(palm,action?.spell==='funken'?gathering:null,dt);
@@ -565,14 +584,16 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     if(player.tool!==3)archery?.cancel();
     archery?.update(dt);updateProjectiles(dt);updateBolts(dt);updateEnemies(dt);
   }
-  function reset(){action=null;queued=false;guard=false;hitPause=0;effects.reset();archery?.reset();for(const bolt of bolts)spellFx.releaseBall(bolt.ball);bolts.length=0;
+  /** The cast button let go: a held stream stops (the arm comes back). */
+  function release(){if(action?.channel&&action.held!==false){action.held=false;if(action.t<ACTIONS.cast.impact)action.t=ACTIONS.cast.impact;}}
+  function reset(){action=null;queued=false;guard=false;hitPause=0;spellcraft.endChannel();effects.reset();archery?.reset();for(const bolt of bolts)spellFx.releaseBall(bolt.ball);bolts.length=0;
     spellFx.reset();spellcraft.reset();projectiles.length=0;
     enemies.forEach(e=>{e.stagger=0;e.windup=0;e.strikeT=0;e.deathTime=0;e.knock=null;});}
   function restore(){enemies.forEach(e=>{e.model.visible=true;
     if(e.hp<e.maxHp)effects.wound(e,e.model.position.clone().add(vector(0,1.7,-3)));
     if(e.dead){e.deathTime=1;effects.killed(e,true);}
   });}
-  return {attack,drink,setGuard,update,reset,restore,effects,spellFx,spellcraft,archery,
+  return {attack,drink,setGuard,update,reset,restore,release,effects,spellFx,spellcraft,archery,
     get action(){return action;},get guarding(){return guard;},
     get speedFactor(){return action?.kind==='drink'?.45:guard||archery?.drawing?.55:action?.kind==='sword'?.76:1;},
     state:()=>({action:action?{...action}:null,guard,projectiles:projectiles.length,bow:archery?.state()??null,...effects.state(),...spellFx.state(),enemies:enemies.map(e=>({hp:e.hp,dead:e.dead,windup:e.windup||0,stagger:e.stagger||0,corpseVisible:e.dead&&e.model.visible}))}),

@@ -3,7 +3,8 @@ import { createWorld } from './world/world.js';
 import { loadPropModels } from './world/props.js';
 import { loadTreeModels } from './world/trees.js';
 import { loadGroundLayers } from './world/groundLayers.js';
-import { loadCharacterModels, createCharacter, equipItem, WEAPON_MODELS, heldItem } from './characters/models.js';
+import { loadCharacterModels, createCharacter, equipItem, WEAPON_MODELS, heldItem, weaponStyle } from './characters/models.js';
+import { buildSpear } from './characters/spear.js';
 import { createAnimator, solveArm } from './characters/animator.js';
 import { createHeldBow, aimObject } from './characters/bow.js';
 import { traceSpellSurface } from './systems/spellFx.js';
@@ -57,6 +58,7 @@ import { canUnlock, findNode } from './data/skillTrees.js';
 import { createLockpick, createPickpocket, createStealthMeter } from './ui/thief.js';
 import { SKILL_NAMES, trainSkill, skillProgress, detection, unaware, sneakFactor, lockLevel, LOCKS, pocketsFor, bountyFor, pickSurvives } from './systems/thievery.js';
 import { createSpellbook } from './ui/spellbook.js';
+import { createAuraMarks } from './ui/auraMarks.js';
 import { SPELLS, ELEMENTS, spellCost, cycleSpell, magickaRegen, equipSpell, unequipSpell, keepActive } from './data/spells.js';
 import { sigilSvg } from './ui/sigils.js';
 import { createAIManager } from './systems/ai/manager.js';
@@ -121,9 +123,12 @@ const LOOSE = [
   ['waldapfel', 5.3, 9.3, 'apple'], ['waldapfel', 5.6, 9.0, 'apple'], ['waldapfel', 3.4, 11.2, 'apple'], ['reisefladen', 6.1, 8.0, 'bread'],
   [null, -1.4, 6.8, 'bucket'], [null, 1.2, 12.4, 'crate'], [null, 1.9, 13.4, 'crate'], [null, -0.2, 14.6, 'barrel'],
   [null, -5.6, 11.6, 'log'], [null, -5.9, 12.2, 'log'], ['kraeuter', -8.8, 5.4, 'herbs'], [null, 7.6, 9.4, 'pot'],
+  ['jagdspeer', 8.6, 10.8, 'spear'],
 ];
 function looseObject(kind) {
   const g = new THREE.Group();
+  // A hunting spear lies in the grass (characters/spear.js), along its box.
+  if (kind === 'spear') { const spear = buildSpear(); spear.scale.setScalar(.9); spear.rotation.z = Math.PI / 2; spear.position.x = -.36; g.add(spear); return { object: g, half: [1.15, .07, .07], mass: 2.5 }; }
   const shapes = { apple: [[.14, .14, .14, 'clothRed']], bread: [[.32, .12, .2, 'hay']], bucket: [[.36, .38, .36, 'planksVertical'], [.4, .05, .4, 'iron']],
     crate: [[.5, .5, .5, 'planks']], barrel: [[.6, .8, .6, 'planksVertical'], [.64, .06, .64, 'iron']], log: [[1.1, .26, .26, 'bark']],
     herbs: [[.2, .1, .14, 'oakLeaves']], pot: [[.34, .28, .34, 'iron'], [.24, .06, .24, 'stone']] }[kind];
@@ -316,7 +321,9 @@ function walkTo(npc, to, dt) {
 function updateBarriers(dt) {
   for (const b of barriers) {
     const near = (x, z) => Math.hypot(x - b.roadAt.x, z - b.roadAt.z) < 13;
-    const someone = near(player.position.x, player.position.z) || npcs.some(n => n !== b.guard && !n.dead && n.model && near(n.model.position.x, n.model.position.z));
+    // Walkers and riders alike: the guard lifts the pole for the patrols and messengers on the king's road too.
+    const someone = near(player.position.x, player.position.z) || npcs.some(n => n !== b.guard && !n.dead && n.model && near(n.model.position.x, n.model.position.z))
+      || horses.horses.some(h => h.model.visible && near(h.pos.x, h.pos.z));
     b.quiet = someone ? 0 : b.quiet + dt;
     const want = someone ? 1 : b.quiet > 6 ? 0 : b.target, g = b.guard;
     if (!g || g.dead || g === talkingNPC) b.target = want;
@@ -767,7 +774,9 @@ const prey = { targets: (radius = 30) => wildlife.targets(player.position, radiu
   toast(`${animal.name.toUpperCase()} ERLEGT · +${animal.def.xp} EP`); } };
 // ── HUMANITY MOTION (systems/motion/, README there): one body rule for the wanderer and every person.
 const motion = createMotion({ world, physics, createRagdoll, hooks: { event: (...args) => motionEvent(...args), wantsFree: (t, h, g) => motionWantsFree(t, h, g) } });
-const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damageEnemy,onHurt:hurt,onHeal:applyHeal,
+// Elements on bodies and their reactions show over heads (ui/auraMarks.js, systems/reactions.js).
+const auraMarks = createAuraMarks(document.body);
+const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damageEnemy,onHurt:hurt,onHeal:applyHeal,weaponStyle:()=>weaponStyle(player.equipment.weapon),
   sneakAttack:enemy=>{if(!player.sneaking||!unaware(enemy))return 1;practice('sneak',10);return sneakFactor(player.perks);},
   motion:{impact:(e,info)=>enemyImpact(e,info),playerHit:(e,info)=>playerImpact(e,info),grapple:(e,kind)=>enemyGrapple(e,kind),handles:e=>!!motion.get(e.model),
     knock:(e,dir,force,up=0)=>motion.knockDown(e.model,dir,force,up?v3(0,up,0):null)},
@@ -784,6 +793,9 @@ const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damag
     hurtPlayer:(amount,from)=>hurt(amount),
     healPlayer:amount=>{player.hp=Math.min(player.maxHp,player.hp+amount);},
     movePlayer:(x,y,z)=>{player.position.set(x,y,z);snapPlayerView();updateCamera(1);},
+    marks:auraMarks,
+    // Crystal (earth on an element): a shield that takes blows for you for a while.
+    shield:amount=>{player.shield=Math.min(60,(player.shield||0)+amount);player.shieldT=20;updateHUD();toast(`KRISTALLSCHILD · ${Math.round(player.shield)}`,1400);},
   },
   weaponDamage:()=>itemStats().damage+playerDamageBonus(),magicDamage:()=>39+playerMagicBonus(),toast,
   // The hunting bow (systems/archery.js): arrows from the satchel, damage by bow and draw.
@@ -1267,7 +1279,8 @@ function updateJournal() {
 function updateHUD() {
   const steed = horses.mounted ? horses.ride.horse.ride : null, stamina = steed ? steed.stamina : player.stamina, maxStamina = steed ? 100 : player.maxStamina;
   setBarVisibility(player.hp, player.maxHp, stamina, maxStamina, player.magicka ?? 100, player.maxMagicka ?? 100);
-  $('health-fill').style.width = `${100 * player.hp / player.maxHp}%`; $('health-text').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+  $('health-fill').style.width = `${100 * player.hp / player.maxHp}%`; $('health-text').textContent = `${Math.ceil(player.hp)} / ${player.maxHp}${player.shield > 0 ? ` · ◆ ${Math.round(player.shield)}` : ''}`;
+  $('health-fill').parentElement.classList.toggle('shielded', player.shield > 0);
   $('stamina-fill').style.width = `${100 * stamina / maxStamina}%`; $('stamina-text').textContent = steed ? `${horses.ride.horse.name} · ${Math.ceil(stamina)}` : `${Math.ceil(stamina)} / ${maxStamina}`;
   $('level').textContent = `STUFE ${player.level} · WANDERER`;
   const hour = Math.floor(worldClock.hour), minute = Math.floor(worldClock.hour % 1 * 60);
@@ -1575,6 +1588,7 @@ function hurt(amount) {
   if (player.invuln > 0 || player.hp <= 0 || player.fly) return;
   const stats = itemStats();
   amount = Math.max(1, amount - stats.armor);
+  if (player.shield > 0) { const took = Math.min(player.shield, amount); player.shield -= took; amount -= took; combat.effects.sound('parry'); updateHUD(); if (amount <= 0) { player.invuln = .3; return; } }
   player.hp = Math.max(0, player.hp - amount); player.invuln = .65;
   $('damage-flash').style.opacity = '.22'; setTimeout(() => { $('damage-flash').style.opacity = '0'; }, 170);
   if (player.hp <= 0) {
@@ -1622,6 +1636,7 @@ function updatePlayer(dt) {
   if (sprinting) player.stamina = Math.max(0, player.stamina - 21 * dt);
   else if(!combat.action&&!combat.guarding) player.stamina = Math.min(player.maxStamina, player.stamina + 18 * dt);
   player.magicka = Math.min(player.maxMagicka, (player.magicka ?? 0) + magickaRegen(player.maxMagicka, (performance.now() - (player.castAt || 0)) / 1000) * dt);
+  if (player.shield > 0 && (player.shieldT -= dt) <= 0) { player.shield = 0; updateHUD(); }
   player.velocity ??= v3(0, 0, 0);
   let planar = 0;
   if (player.fly) {
@@ -1717,7 +1732,9 @@ function updatePlayerGear() {
   const threat = enemies.some(e => !e.dead && !e.calm && (!e.ai || e.ai.hostility === 'hostile') && e.model.position.distanceTo(player.position) < 15);
   if (combat.action || combat.guarding || threat || combat.archery?.bow) player.drawnUntil = performance.now() + 4000;
   const drawn = performance.now() < (player.drawnUntil || 0);
-  const weaponModel = (player.tool === 0 && drawn) || combat.action?.kind === 'sword' ? WEAPON_MODELS[player.equipment.weapon] || 'sword_rusty' : null;
+  // A spear has no scabbard: it is carried upright in the hand, put aside only for the bow and a potion.
+  const spearHeld = weaponStyle(player.equipment.weapon) === 'spear' && player.tool !== 3 && player.tool !== 2;
+  const weaponModel = (player.tool === 0 && drawn) || combat.action?.kind === 'sword' || spearHeld ? WEAPON_MODELS[player.equipment.weapon] || 'sword_rusty' : null;
   if (playerModel.userData.weaponName !== weaponModel) { equipItem(playerModel, weaponModel); playerModel.userData.weaponName = weaponModel; }
   playerModel.visible = player.mode === 'third'&&!talkingNPC;
 }
@@ -1985,7 +2002,7 @@ function primaryDown() {
   if (physics.holding) { const d = camera.getWorldDirection(v3(0, 0, 0)); physics.release(d.multiplyScalar(11).add(v3(0, 2, 0))); }
   else attack();
 }
-function primaryUp() { if (player.tool === 3 && combat.archery?.release()) updateHUD(); }
+function primaryUp() { if (player.tool === 3 && combat.archery?.release()) updateHUD(); combat.release(); }
 // With the potion in hand the block button shakes the flask instead (firstPerson.js, systems/liquid.js).
 function secondaryDown() { if (game.started && !game.paused && !game.cinematic && (!horses.riding || horses.mounted)) { if (player.tool === 3) combat.archery?.cancel(); else if (player.tool === 2) player.shaking = true; else combat.setGuard(true); } }
 function secondaryUp() { combat.setGuard(false); player.shaking = false; }
@@ -2141,6 +2158,7 @@ function animate(now) {
   if (game.started && !game.paused && (fireTick -= dt) <= 0) { fireTick = .25; fireHazards(); bleedTick(.25); }
   updateParticles(visualDt);
   combat.effects.update(game.paused?0:dt,camera);
+  auraMarks.update(game.paused ? 0 : dt, camera, game.started && !game.cinematic ? combat.spellcraft.marks : []);
   combat.effects.blade.sync(playerModel.userData.weapon);
   if (player.mode === 'first') { combat.effects.blade.sync(firstPerson.swordItem(), { emit: false }); firstPerson.setBlood(combat.effects.blade.amount); }
   const kick=combat.effects.shake;camera.rotation.z+=Math.sin(elapsed*83)*kick;
@@ -2587,7 +2605,7 @@ function animateActors(dt, voice) {
     const pose = e.ai && !e.dead ? (e.shieldUp && e.ai.intent.pose !== 'surrender' ? 'shieldUp' : e.ai.intent.pose) : e.goblin && !e.dead ? e.goblinPose : null, fighting = near && !e.calm && (!e.ai || e.ai.hostility === 'hostile');
     const spell = e.casting || e.castRelease > 0 ? { kind: 'cast', progress: e.casting ? .3 * (1 - e.windup / (e.windupTotal || 1)) : .3 + .7 * (1 - e.castRelease / .5) } : null;
     if (e.casting && near && Math.random() < .5) combat.effects.spray(e.model.userData.rig?.hand_left?.getWorldPosition(v3(0, 0, 0)) ?? e.model.position.clone().add(v3(0, 1.5, 0)), v3(0, .6, 0), e.casting === 'heal' ? 'heal' : 'ember', 1);
-    if (!e.ragdoll && !motion.isDown(e.model)) e.animator.update(dt, { ...motion.animInput(e.model), pain: painInput(e), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
+    if (!e.ragdoll && !motion.isDown(e.model) && !(e.frozen > 0)) e.animator.update(dt, { ...motion.animInput(e.model), pain: painInput(e), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
     if (e.guardBroken > 0) e.guardBroken = Math.max(0, e.guardBroken - dt);
     if (e.ai && !e.dead) holdWeapons(e);
     if (e.archer) poseEnemyBow(e, drawing);
