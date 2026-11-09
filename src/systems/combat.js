@@ -18,7 +18,7 @@ export const ARCHER_DRAW=1.1;
  * its intents; the rest keep the simple tactics below. Combat tells it about noise, wounds, arrows and fire. */
 // Heavy suits (and Rauk) turn blows aside anywhere on the body; plate, mail and leather decide it where a blow lands.
 const HEAVY_ARMOR = new Set(['aschenrüstung', 'hauptmannsplatte', 'wachpanzer']);
-export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null}) {
+export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null,sneakAttack=null}) {
   // motion (HUMANITY MOTION): impact(enemy, info) for forces on bodies, playerHit(enemy, info), grapple(enemy, 'grab'|'shove'), handles(enemy).
   let strikeKind=null,aimPoint=null;   // aimPoint: where the blade really crosses the body (resolveSword)
   const isSuited=e=>!!(e.storyId||HEAVY_ARMOR.has(e.look?.equipment?.armor));
@@ -97,6 +97,9 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     if(enemy.dead)return;
     const riposte=!magic&&enemy.riposteUntil>time;
     if(riposte){enemy.riposteUntil=0;amount*=2.2;hitPause=.14;toast('KONTER',700);effects.sound('impact');}
+    // A blade from the shadows into someone who never saw it coming (arrows have their own rule in archery.js).
+    const sneak=!magic&&strikeKind!=='arrow'?(sneakAttack?.(enemy)||1):1;
+    if(sneak>1){amount*=sneak;hitPause=.12;toast(`MEUCHELANGRIFF · ×${sneak}`,1500);}
     // Where the blow lands decides everything: the shield, the armour, the wound, the pain.
     const suited=isSuited(enemy);if(suited)enemy.suited=true;
     const probe=magic?null:effects.probe(enemy,from,{kind:strikeKind||'sword',combo,point:aimPoint,armored:suited});

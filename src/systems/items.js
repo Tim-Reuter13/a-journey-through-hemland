@@ -34,6 +34,7 @@ export const ITEMS = {
   wollschal: { name:'Wollschal',type:'armor',slot:'cloak',parts:['shawl'],tints:{shawl:'#9a8f7a'},subtype:'Umhang',armor:0,weight:.5,value:8,rarity:'gewöhnlich',description:'Warm und kratzig.',color:0x9a8f7a },
   glutamulett: { name:'Glutamulett',type:'accessory',subtype:'Amulett',magic:6,weight:.2,value:110,rarity:'selten',description:'Ein warmer Stein in einer Fassung aus Messing. Verstärkt Funken um 6 Schaden.',color:0xef9751 },
   wandereramulett: { name:'Zeichen des Wanderers',type:'accessory',subtype:'Amulett',carry:15,weight:.2,value:55,rarity:'ungewöhnlich',description:'Ein kleines Andenken an ungezählte Reisen. Erhöht die Traglast um 15.',color:0x7ab59a },
+  dietrich: { name:'Dietrich',type:'misc',subtype:'Werkzeug',weight:.05,value:6,rarity:'gewöhnlich',description:'Ein gebogener Draht mit einer Kerbe. Öffnet Schlösser, wenn die Hand ruhig bleibt, und bricht, wenn nicht.',color:0x9aa3ab },
   heiltrank: { name:'Heiltrank',type:'consumable',subtype:'Wiederherstellung',heal:45,weight:.5,value:25,rarity:'gewöhnlich',description:'Ein roter Trank aus Waldkräutern. Stellt beim Trinken 45 Leben wieder her.',color:0xb52d45 },
   ausdauertrank: { name:'Ausdauertrank',type:'consumable',subtype:'Wiederherstellung',stamina:55,weight:.4,value:18,rarity:'gewöhnlich',description:'Herb, kühl und belebend. Stellt sofort 55 Ausdauer wieder her.',color:0x5dba89 },
   reisefladen: { name:'Reisefladen',type:'food',subtype:'Proviant',heal:12,weight:.2,value:4,rarity:'gewöhnlich',description:'Ein haltbarer Fladen mit getrockneten Kräutern. Stellt 12 Leben wieder her.',color:0xc39552 },
@@ -76,8 +77,8 @@ const STORY_TEXT={
 for(const item of STORY_ITEMS)ITEMS[item.id]??={name:item.name,type:'quest',subtype:'Questgegenstand',weight:0,value:0,rarity:'einzigartig',description:STORY_TEXT[item.id]??'Ein Beweisstück.',color:0xb9a37a};
 export const CATEGORIES=[['all','Alle Gegenstände','all'],['weapon','Waffen','sword'],['ammo','Munition','arrow'],['armor','Rüstung','armor'],['accessory','Schmuck','amulet'],['consumable','Tränke','potion'],['food','Proviant','food'],['material','Materialien','material'],['book','Bücher','book'],['quest','Quest','quest'],['misc','Sonstiges','misc']];
 export const RARITY={gewöhnlich:0,ungewöhnlich:1,selten:2,einzigartig:3};
-export const INITIAL_SATCHEL={ausdauertrank:1,reisefladen:3,reisetagebuch:1,pfeil:24};
-export const INITIAL_MERCHANT={gold:350,stock:{waechterklinge:1,jagdbogen:1,pfeil:80,lederwams:2,wandereramulett:1,glutamulett:1,heiltrank:6,ausdauertrank:4,reisefladen:8,waldapfel:6,kraeuter:6}};
+export const INITIAL_SATCHEL={ausdauertrank:1,reisefladen:3,reisetagebuch:1,pfeil:24,dietrich:5};
+export const INITIAL_MERCHANT={gold:350,stock:{waechterklinge:1,jagdbogen:1,pfeil:80,lederwams:2,wandereramulett:1,glutamulett:1,heiltrank:6,ausdauertrank:4,reisefladen:8,waldapfel:6,kraeuter:6,dietrich:12}};
 export const isEquipment=item=>['weapon','armor','accessory'].includes(item?.type);
 /** Equipment slot an item occupies: weapon, armor (body), head, hands, feet, cloak or accessory. */
 export const equipSlot=item=>item?.slot||item?.type;

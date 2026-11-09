@@ -1,0 +1,90 @@
+/* The thief's windows (ui/thief.js): a glass card over the darkened world, the brass lock or the pockets
+   inside it; and the veil round the reticle while sneaking. */
+.thief-screen { position: fixed; inset: 0; z-index: 23; display: grid; place-items: center; padding: 16px; outline: none;
+  background: radial-gradient(70% 70% at 50% 50%, rgba(10, 12, 16, .55), rgba(4, 5, 8, .88)); backdrop-filter: blur(6px) saturate(.8);
+  font-family: var(--ui-font, system-ui, sans-serif); color: var(--ui-text, #eef0f1); text-shadow: none; }
+.thief-screen.hidden { display: none !important; }
+.th-card { position: relative; width: min(420px, 92vw); max-height: calc(100dvh - 24px); overflow-y: auto; padding: 22px 24px 18px; border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, .1); background: linear-gradient(180deg, rgba(24, 28, 35, .82), rgba(10, 12, 16, .9));
+  box-shadow: 0 30px 80px -24px rgba(0, 0, 0, .9), inset 0 1px rgba(255, 255, 255, .07); backdrop-filter: blur(18px); scrollbar-width: thin; }
+.th-card::before { content: ''; position: absolute; left: 22px; right: 22px; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--th-accent, #e8b44c), transparent); }
+.enter .th-card { animation: th-in .45s var(--ui-ease, ease) both; }
+.th-head small { display: block; font: 600 10px/1.5 var(--ui-font); letter-spacing: .28em; text-transform: uppercase; color: var(--th-accent, #e8b44c); }
+.th-head h2 { margin: 2px 0 2px; font: 400 32px/1.05 'Jacquarda Bastarda 9', serif; color: #f6efe2; }
+.th-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 6px 12px; align-items: baseline; margin: 12px 0 4px; font: 500 12px/1.4 var(--ui-font); color: var(--ui-dim); }
+.th-row b { color: var(--ui-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.th-hint { margin: 10px 0 0; font: 500 11.5px/1.55 var(--ui-font); color: rgba(238, 240, 241, .55); text-align: center; }
+.th-hint .touch { display: none; }
+body.touch-mode .th-hint .touch { display: inline; }
+body.touch-mode .th-hint .desk { display: none; }
+.thief-screen .th-close { position: absolute; top: 14px; right: 14px; width: 34px; height: 34px; padding: 0; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(255, 255, 255, .05); color: var(--ui-text); font: 400 15px/1 var(--ui-font); box-shadow: none; cursor: pointer; }
+.thief-screen .th-close:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+
+/* Lock. */
+.lockpick { --th-accent: #d7a84a; }
+.lp-stage { position: relative; display: grid; place-items: center; margin: 14px auto 6px; width: min(300px, 70vw, 52dvh); aspect-ratio: 1; cursor: pointer; touch-action: manipulation; }
+.lp-lock { width: 100%; height: 100%; image-rendering: pixelated; filter: drop-shadow(0 14px 22px rgba(0, 0, 0, .6)) drop-shadow(0 0 30px rgba(215, 168, 74, .15)); }
+.lp-flash { position: absolute; inset: 6%; border-radius: 50%; pointer-events: none; opacity: 0; }
+.lp-flash.good { animation: lp-good .45s ease-out; }
+.lp-flash.bad { animation: lp-bad .45s ease-out; }
+.lp-rings { display: flex; justify-content: center; gap: 8px; margin: 2px 0 4px; }
+.lp-rings i { width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px; background: rgba(255, 255, 255, .1); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); transition: background .25s, box-shadow .25s; }
+.lp-rings i.now { box-shadow: inset 0 0 0 2px #d7a84a; animation: th-breathe 1.4s ease-in-out infinite; }
+.lp-rings i.set { background: linear-gradient(135deg, #fff1c6, #d7a84a); box-shadow: 0 0 10px rgba(215, 168, 74, .8); }
+.lockpick.shake .th-card { animation: th-shake .38s; }
+.lockpick.won .lp-lock { animation: lp-open .6s var(--ui-ease, ease) both; }
+.lockpick.lost .lp-lock { filter: grayscale(.8) brightness(.6); }
+
+/* Pockets. */
+.pickpocket { --th-accent: #9ed9a8; }
+.pp-who { display: block; font: 500 12px/1.4 var(--ui-font); color: var(--ui-dim); }
+.pp-pulse { position: relative; margin: 14px 0 10px; padding: 8px 10px; border-radius: 12px; background: rgba(0, 0, 0, .35); border: 1px solid rgba(255, 255, 255, .07); }
+.pp-wave { display: block; width: 100%; height: 44px; image-rendering: pixelated; }
+.pp-calm { position: absolute; top: 8px; left: 12px; font: 700 10px/1.4 var(--ui-font); letter-spacing: .2em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; background: rgba(0, 0, 0, .5); }
+.pp-calm.calm { color: #8ee0a6; } .pp-calm.uneasy { color: #e8b44c; } .pp-calm.alert { color: #f07a6a; }
+.pp-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pp-items button { width: 100%; display: grid; grid-template-columns: 26px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; text-align: left;
+  border: 1px solid rgba(255, 255, 255, .08); background: rgba(255, 255, 255, .035); color: var(--ui-text); box-shadow: none; cursor: pointer; transition: background .2s, border-color .2s, transform .15s; }
+.pp-items button:hover { background: rgba(158, 217, 168, .1); border-color: rgba(158, 217, 168, .45); transform: translateX(2px); color: #fff; }
+.pp-ico svg { width: 22px; height: 22px; image-rendering: pixelated; color: #d9c8a0; }
+.pp-label { font: 600 13px/1.3 var(--ui-font); }
+.pp-chance { font: 700 13px/1 var(--ui-font); color: #9ed9a8; font-variant-numeric: tabular-nums; }
+.pp-items kbd { font: 600 10px/1 var(--ui-font); padding: 3px 6px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, .16); color: var(--ui-dim); }
+body.touch-mode .pp-items kbd { display: none; }
+.pp-items li.taken button { animation: pp-taken .3s ease forwards; }
+.pp-empty { padding: 14px; text-align: center; color: var(--ui-dim); font-size: 13px; }
+.pickpocket.caught .th-card { animation: th-shake .38s; border-color: rgba(224, 85, 74, .7); box-shadow: 0 0 0 1px rgba(224, 85, 74, .5), 0 30px 80px -24px rgba(0, 0, 0, .9); }
+
+/* The veil round the reticle (only while sneaking). */
+.stealth-veil { position: fixed; left: 50%; top: 50%; z-index: 3; width: 0; height: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+  --k: 0; --veil: #9cc0e4; }
+.stealth-veil.on { opacity: 1; }
+.stealth-veil i { position: absolute; top: -13px; width: 7px; height: 26px; border: 2px solid var(--veil); filter: drop-shadow(0 0 6px var(--veil)) drop-shadow(0 1px 1px rgba(0, 0, 0, .8));
+  transition: border-color .3s, filter .3s; }
+.stealth-veil i.l { left: calc(-34px + var(--k) * 20px); border-right: none; border-radius: 10px 0 0 10px; }
+.stealth-veil i.r { right: calc(-34px + var(--k) * 20px); border-left: none; border-radius: 0 10px 10px 0; }
+.stealth-veil span { position: absolute; left: 0; top: 24px; transform: translateX(-50%); white-space: nowrap; font: 700 9.5px/1 var(--ui-font, system-ui); letter-spacing: .3em; text-transform: uppercase;
+  color: var(--veil); text-shadow: 0 1px 3px rgba(0, 0, 0, .9); opacity: .85; }
+.stealth-veil[data-state='noticed'] { --veil: #e8b44c; }
+.stealth-veil[data-state='detected'] { --veil: #f0604f; }
+.stealth-veil[data-state='detected'] i { animation: th-breathe .8s ease-in-out infinite; }
+body.in-cinematic .stealth-veil, body.in-dialog .stealth-veil { display: none; }
+
+@keyframes th-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes th-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 50% { transform: translateX(6px); } 75% { transform: translateX(-3px); } }
+@keyframes th-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes lp-good { from { opacity: .9; box-shadow: 0 0 0 0 rgba(255, 214, 120, .9), inset 0 0 40px rgba(255, 214, 120, .5); } to { opacity: 0; box-shadow: 0 0 0 26px rgba(255, 214, 120, 0); } }
+@keyframes lp-bad { from { opacity: .9; box-shadow: inset 0 0 50px rgba(240, 96, 79, .7); } to { opacity: 0; } }
+@keyframes lp-open { 0% { transform: rotate(0); } 60% { transform: rotate(-24deg) scale(1.04); } 100% { transform: rotate(-20deg) scale(1.02); filter: drop-shadow(0 0 30px rgba(255, 214, 120, .6)); } }
+@keyframes pp-taken { to { opacity: 0; transform: translateX(30px); } }
+@media (max-height: 500px) {
+  .th-card { padding: 14px 18px 12px; }
+  .th-head h2 { font-size: 24px; }
+  .lp-stage { width: min(190px, 46dvh); margin: 6px auto 2px; }
+  .th-hint { margin-top: 6px; font-size: 10.5px; }
+  .pp-pulse { margin: 8px 0 6px; padding: 4px 8px; }
+  .pp-wave { height: 30px; }
+  .pp-items button { padding: 7px 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .thief-screen *, .stealth-veil * { animation: none !important; } }

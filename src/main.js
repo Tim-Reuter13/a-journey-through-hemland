@@ -52,6 +52,10 @@ import { createCaves, CAVE_STYLE } from './systems/caves.js';
 import { CAVE_MOUTHS, caveMouth } from './world/sites/caveMouths.js';
 import { GUILD, GOBLIN_LORE, TRIBES } from './data/goblins/lore.js';
 import { createTracks } from './world/tracks.js';
+import { createSkillTree } from './ui/skillTree.js';
+import { canUnlock, findNode } from './data/skillTrees.js';
+import { createLockpick, createPickpocket, createStealthMeter } from './ui/thief.js';
+import { SKILL_NAMES, trainSkill, skillProgress, detection, unaware, sneakFactor, lockLevel, LOCKS, pocketsFor, bountyFor, pickSurvives } from './systems/thievery.js';
 import { createAIManager } from './systems/ai/manager.js';
 import { campSchedule } from './systems/ai/camp.js';
 import { AI } from './systems/ai/config.js';
@@ -105,6 +109,9 @@ for (const item of world.loose) {
 const CHEST_GOODS = [{ reisefladen: 2, heiltrank: 1 }, { leder: 3, holz: 2, waldapfel: 2 }, { ausdauertrank: 1, bernstein: 1 }, { kraeuter: 4, reisefladen: 1 }, { eisenerz: 2, leder: 1 }];
 const furnitureSpots = world.interiors.flatMap(room => room.interactables.map((piece, i) => ({ piece, room, kind: piece.userData.interact.kind, label: piece.userData.interact.label,
   items: piece.userData.interact.kind === 'loot' ? { ...CHEST_GOODS[(room.house + i) % CHEST_GOODS.length] } : null })));
+// Which chest is which (its lock id), and which doors belong to homes (locked at night): see pickLock().
+const chestIndex = new Map(furnitureSpots.map((spot, i) => [spot, i]));
+const homeDoors = new Set(world.interiors.filter(r => r.door && r.kind === 'home').map(r => r.door));
 for (const [half, top] of [[4, .215], [3.4, .615], [2.8, 1.015]]) { const s = world.landmarks.shrine, base = world.terrainHeightAt(s.x, s.z); physics.addStaticBox({ x: s.x, y: base + top - .6, z: s.z, hx: half, hy: .6, hz: half }); }
 // Loose things lying around the village: pick up (tap E), carry (hold E), throw (click while carrying), kick.
 const LOOSE = [
@@ -165,16 +172,16 @@ function playerMagicBonus() {
 function awardXP(amount) {
   const levels = gainExperience(player, amount);
   rpg.state.level = player.level; rpg.state.xp = player.xp;
-  if (levels) toast('STUFENAUFSTIEG · STUFE ' + player.level + ' · PERK-PUNKT ERHALTEN', 5800);
+  if (levels) toast('STUFENAUFSTIEG · STUFE ' + player.level + ' · EIN GLUTSPLITTER · K: PFADE DER GLUT', 5800);
 }
 
-const PERKS = {
-  schwertmeister: { name: 'Schwertmeister', desc: '+12 Nahkampfschaden', apply() { player.perks.push('schwertmeister'); } },
-  arkaner_fokus: { name: 'Arkaner Fokus', desc: '+15 Magieschaden', apply() { player.perks.push('arkaner_fokus'); } },
-  eisernes_herz: { name: 'Eisernes Herz', desc: '+30 maximale Lebenspunkte', apply() { player.perks.push('eisernes_herz'); player.maxHp += 30; player.hp += 30; } },
-  meisterschuetze: { name: 'Meisterschütze', desc: '+12 Bogenschaden', apply() { player.perks.push('meisterschuetze'); } },
-  ruhige_hand: { name: 'Ruhige Hand', desc: 'Bogen 30 % schneller gespannt, kein Zittern bei Erschöpfung', apply() { player.perks.push('ruhige_hand'); } },
-};
+// Perks are the nodes of the six paths ("Pfade der Glut", K; data/skillTrees.js). Most are placeholders still;
+// those with an `effect` act where the game checks player.perks; a few change the character once, here.
+const PERK_EFFECTS = { eisernes_herz() { player.maxHp += 30; player.hp += 30; } };
+/** Practice in a skill (systems/thievery.js): it rises by use, like archery below. */
+function practice(skill, amount) {
+  if (trainSkill(player, skill, amount)) toast(`${SKILL_NAMES[skill].toUpperCase()} STEIGT AUF ${player.skills[skill]}`, 2600);
+}
 // Archery grows with use, like in Skyrim: every five arrows that strike flesh raise it by one, and
 // each point adds to the bow's damage (systems/archery.js scored()).
 let archeryHits = 0;
@@ -185,26 +192,17 @@ function trainArchery() {
 }
 
 function unlockPerk(id) {
-  if (!PERKS[id] || player.perkPoints <= 0 || player.perks.includes(id)) return;
-  player.perkPoints--;
-  PERKS[id].apply();
-  toast('PERK ERHALTEN · ' + PERKS[id].name, 4000);
-  saveGame(false);
+  if (!canUnlock(id, player.perks, player.perkPoints).ok) return false;
+  player.perkPoints--; player.perks.push(id); PERK_EFFECTS[id]?.();
+  toast(`ENTFACHT · ${findNode(id).node.name.toUpperCase()}`, 3200);
+  updateHUD(); saveGame(false);
+  return true;
 }
 
 function showPerkChoices(panel) {
   if (player.perkPoints <= 0) return;
-  const choices = Object.keys(PERKS).filter(id => !player.perks.includes(id));
-  if (!choices.length) return;
-
-  panel.innerHTML = `<h3>Perk auswählen (${player.perkPoints})</h3>${choices.map(id => `<button data-perk="${id}">${PERKS[id].name}<br><small>${PERKS[id].desc}</small></button>`).join('')}`;
-
-  panel.querySelectorAll('[data-perk]').forEach(btn => {
-    btn.onclick = () => {
-      unlockPerk(btn.dataset.perk);
-      inventoryUI.render(); updateHUD();
-    };
-  });
+  panel.innerHTML = `<h3>${player.perkPoints} ${player.perkPoints === 1 ? 'Glutsplitter' : 'Glutsplitter'} bereit</h3><button data-open-paths>Pfade der Glut öffnen · K</button>`;
+  panel.querySelector('[data-open-paths]').onclick = () => setModal('skills');
 }
 
 function equipLoot(index) {
@@ -220,6 +218,8 @@ resetCharacter(player);
 const keys = new Set();
 // Touch controls (src/ui/touchControls.js), created with the settings at the end; touchMode follows the setting.
 let touch = null, touchMode = false;
+// The paths menu and the thief's windows (ui/skillTree.js, ui/thief.js), created with the settings at the end.
+let skillTree = null, lockpickUI = null, pickpocketUI = null, stealthMeter = null;
 const tip = (desk, finger) => touchMode ? finger : desk;
 const npcs = [
   { id: 'elira', name: 'Elira', role: 'DORFÄLTESTE', x: -7.1, z: 4.4, facing: -.2, trust: 0, mood: 'besorgt', memories: ['die erste Glutnacht', 'verlorene Dorfbewohner'], lines: ['Die Asche fällt wieder. Der letzte Glutstein beginnt zu erwachen.', 'Im Westen haben Plünderer unser Heiligtum entweiht. Ohne die Glut wird die Aschmark verstummen.'] },
@@ -757,6 +757,7 @@ const prey = { targets: (radius = 30) => wildlife.targets(player.position, radiu
 // ── HUMANITY MOTION (systems/motion/, README there): one body rule for the wanderer and every person.
 const motion = createMotion({ world, physics, createRagdoll, hooks: { event: (...args) => motionEvent(...args), wantsFree: (t, h, g) => motionWantsFree(t, h, g) } });
 const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damageEnemy,onHurt:hurt,onHeal:applyHeal,
+  sneakAttack:enemy=>{if(!player.sneaking||!unaware(enemy))return 1;practice('sneak',10);return sneakFactor(player.perks);},
   motion:{impact:(e,info)=>enemyImpact(e,info),playerHit:(e,info)=>playerImpact(e,info),grapple:(e,kind)=>enemyGrapple(e,kind),handles:e=>!!motion.get(e.model)},
   weaponDamage:()=>itemStats().damage+playerDamageBonus(),magicDamage:()=>39+playerMagicBonus(),toast,
   // The hunting bow (systems/archery.js): arrows from the satchel, damage by bow and draw.
@@ -897,7 +898,11 @@ function setModal(id, inventoryContext) {
   if(id!=='dialog')dialogCamReady=false;
   if (game.modal === 'dialog' && id !== 'dialog') stopVoice();
   for (const name of ['dialog', 'inventory', 'journal', 'pause']) show(name, name === id);
+  const leaving = game.modal;
   game.modal = id;
+  if (id === 'skills') skillTree.open(); else if (leaving === 'skills') skillTree.close();
+  if (leaving === 'lockpick' && id !== 'lockpick') lockpickUI.close();
+  if (leaving === 'pickpocket' && id !== 'pickpocket') pickpocketUI.close();
   game.paused = !!id || !game.started || !!game.cinematic;
   if (id) { unlockPointer(); if (id === 'inventory') inventoryUI.open(inventoryContext); if (id === 'journal') updateJournal(); }
   else if (game.started && !game.cinematic) { game.paused = false; }
@@ -1237,7 +1242,7 @@ function updateHUD() {
 function nearestInteraction() {
   if (horses.riding) return horses.mounted ? { type: 'ride', horse: horses.ride.horse } : null;
   let best = null, distance = 3.8;
-  for (const npc of npcs) { if (npc.dead) continue; const d = Math.hypot(player.position.x - npc.x, player.position.z - npc.z); if (d < distance) { best = { type: 'npc', npc }; distance = d; } }
+  for (const npc of npcs) { if (npc.dead) continue; const d = Math.hypot(player.position.x - npc.x, player.position.z - npc.z); if (d < distance) { best = { type: player.sneaking && d < 2.2 ? 'pickpocket' : 'npc', npc }; distance = d; } }
   const rauk = enemies.find(e => e.storyId && e.calm && !e.dead);
   if (rauk) { const d = Math.hypot(player.position.x - rauk.model.position.x, player.position.z - rauk.model.position.z); if (d < Math.min(distance, 3.5)) { best = { type: 'npc', npc: raukSpeaker(rauk) }; distance = d; } }
   for (const pickup of STORY_PICKUPS) { if (!pickup.when()) continue; const at = pickup.at(), d = Math.hypot(player.position.x - at.x, player.position.z - at.z); if (d < Math.min(distance, pickup.radius ?? 2.6)) { best = { type: 'story', pickup }; distance = d; } }
@@ -1303,11 +1308,12 @@ function interact() {
   const target = nearestInteraction();
   if (!target) { toast('HIER GIBT ES NICHTS ZU INTERAGIEREN'); return; }
   if (target.type === 'npc') speakTo(target.npc);
+  else if (target.type === 'pickpocket') startPickpocket(target.npc);
   else if (target.type === 'stash') openInventory('stash');
   else if (target.type === 'drop') openInventory({kind:'take',id:target.bag.id});
   else if (target.type === 'corpse') openInventory({kind:'corpse',enemy:target.enemy});
-  else if (target.type === 'door') target.door.target = target.door.target > .5 ? 0 : 1;
-  else if (target.type === 'furniture' && target.spot.kind === 'loot') openInventory({kind:'chest',spot:target.spot});
+  else if (target.type === 'door') pickLock(target, 'Haustür', () => { target.door.target = target.door.target > .5 ? 0 : 1; });
+  else if (target.type === 'furniture' && target.spot.kind === 'loot') pickLock(target, 'Truhe', () => openInventory({kind:'chest',spot:target.spot}));
   else if (target.type === 'furniture' && target.spot.kind === 'sleep') sleepUntilMorning();
   else if (target.type === 'pickup') {
     if (!inventory.add(target.prop.item)) return;
@@ -1657,7 +1663,7 @@ function perceivablePlayer() {
   const P = aiPlayer, speed = player.velocity ? Math.hypot(player.velocity.x, player.velocity.z) : 0, act = combat.action?.kind, heavy = HEAVY.has(player.equipment.armor) ? 2 : 0;
   P.yaw = player.yaw; P.swinging = act === 'sword'; P.casting = act === 'cast';
   P.stance = player.sneaking ? (speed < .3 ? 'sneakStill' : 'sneak') : act === 'sword' || combat.guarding ? 'attack' : act === 'cast' ? 'cast' : speed > 4.5 ? 'run' : speed > .4 ? 'walk' : 'still';
-  P.noise = player.fly ? 0 : player.sneaking ? (speed > .3 ? AI.sounds.sneak : 0) : speed > 4.5 ? AI.sounds.run + heavy : speed > .4 ? AI.sounds.step + heavy : 0;
+  P.noise = player.fly ? 0 : player.sneaking ? (speed > .3 ? AI.sounds.sneak * (player.perks.includes('leiser_schritt') ? .5 : 1) : 0) : speed > 4.5 ? AI.sounds.run + heavy : speed > .4 ? AI.sounds.step + heavy : 0;
   P.drawn = performance.now() < (player.drawnUntil || 0); P.armor = itemStats().armor;
   P.bow.drawing = !!combat.archery?.drawing; P.bow.draw = bowView.draw; P.bow.eye.copy(camera.position); camera.getWorldDirection(P.bow.dir);
   return P;
@@ -1840,6 +1846,10 @@ function updateInteractions() {
   const horseLabel = h => `${h.name} · Aufsitzen  ${tip('[T]', '')} ${tip(h.mode === 'led' ? 'Zügel loslassen' : h.mode === 'tied' ? 'Losbinden und führen' : 'Am Zügel führen', '')}`.trim();
   if (target?.type === 'horse' || target?.type === 'tie' || target?.type === 'ride') { $('interact-text').textContent = target.type === 'horse' ? horseLabel(target.horse) : target.type === 'tie' ? `${target.horse.name} ${target.point.kind === 'tree' ? 'an den Baum binden' : 'anbinden'}` : 'Absitzen'; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
   if (target) $('interact-text').textContent = target.type === 'npc' ? `Mit ${target.npc.name} sprechen` : target.type === 'stash' ? 'Reisetruhe öffnen' : target.type === 'drop' ? 'Beutel durchsuchen' : target.type === 'corpse' ? (target.enemy.prey ? `${target.enemy.name} ausnehmen` : `${target.enemy.name} durchsuchen · ${tip('[E halten]', '[Nutzen halten]')} Ziehen`) : target.type === 'pickup' ? `${ITEMS[target.prop.item].name} nehmen` : target.type === 'door' ? (target.door.target > .5 ? 'Tür schließen' : 'Tür öffnen') : target.type === 'furniture' ? (target.spot.kind === 'sleep' ? 'Schlafen bis zum Morgen' : 'Truhe öffnen') : target.type === 'story' ? target.pickup.label : target.type === 'lore' ? target.marker.readLabel : target.type === 'arrow' ? 'Pfeil ziehen' : target.type === 'yielded' ? (target.enemy.ai.robbed ? `${target.enemy.name} ziehen lassen` : 'Wertsachen fordern') : target.type === 'toll' ? `Wegzoll zahlen (${AI.toll} Gold)` : '';
+  // The thief's labels: pockets while sneaking, locks on chests and doors.
+  if (target?.type === 'pickpocket') $('interact-text').textContent = `${target.npc.name} · Taschen durchsuchen`;
+  const lock = target && lockOf(target);
+  if (lock) $('interact-text').textContent = `${target.type === 'door' ? 'Tür' : 'Truhe'} knacken · ${LOCKS[lock].name}`;
   touch?.setInteract(target && !game.paused ? $('interact-text').textContent : null);
 }
 function updateParticles(dt) {
@@ -1867,6 +1877,7 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (event.code === 'KeyJ' && game.started) { setModal(game.modal === 'journal' ? null : 'journal'); return; }
+  if (event.code === 'KeyK' && game.started && !event.repeat) { event.stopImmediatePropagation(); setModal(game.modal === 'skills' ? null : 'skills'); return; }
   if (game.paused) return;
   keys.add(event.code);
   if (event.repeat) return;
@@ -1947,6 +1958,7 @@ $('continue').addEventListener('click', () => { if (touchMode) toggleFullscreen(
 $('dialog-close').addEventListener('click', () => setModal(null));
 document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => setModal(null)));
 $('resume').addEventListener('click', () => setModal(null));
+$('pause-skills').addEventListener('click', () => setModal('skills'));
 $('pause-journal').addEventListener('click', () => setModal('journal'));
 $('pause-fullscreen').addEventListener('click', () => { toggleFullscreen(); setModal(null); });
 $('save').addEventListener('click', () => saveGame(true));
@@ -2050,7 +2062,7 @@ function animate(now) {
   animateActors(visualDt,voice); profile.mark('actors');
   updateSoundscape(dt);
   compass.update(player.yaw,player.position,compassMarkers());
-  profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) leaveTracks(visualDt); profile.mark('world');
+  profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) { leaveTracks(visualDt); updateStealth(visualDt); } profile.mark('world');
   wildfire.update(game.paused ? 0 : visualDt, camera); bloodScreen.update(dt);
   if (game.started && !game.paused && (fireTick -= dt) <= 0) { fireTick = .25; fireHazards(); bleedTick(.25); }
   updateParticles(visualDt);
@@ -2063,7 +2075,8 @@ function animate(now) {
   firstPerson.setPack(access.fpPose());
   if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
   aimZoom();
-  profile.mark('effects'); graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
+  // Behind a full-screen menu the world stands still: the last frame stays on screen and the GPU rests.
+  if (!['skills', 'lockpick', 'pickpocket'].includes(game.modal)) graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
   graphics.update(rawDt);
   const total = performance.now() - frameStart;
   if (total > profile.worst.total || now - profile.worst.at > 4000) profile.worst = { total, at: now, ...Object.fromEntries(Object.entries(profile.sections).map(([k, v]) => [k, +v.toFixed(1)])), world: { ...world.profile } };
@@ -2578,6 +2591,90 @@ document.querySelectorAll('.quickbar .slot').forEach((slot, i) => slot.addEventL
   if (!touchMode || !game.started || game.paused) return;
   event.preventDefault(); selectTool(i);
 }));
+// ── The shadow trades (systems/thievery.js, ui/thief.js). Locks: about half the chests in houses, and the
+// doors of homes at night (from outside only); picked locks stay open. Pockets: sneak close and press E.
+function lockId(target) { return target.type === 'door' ? `door:${world.doors.indexOf(target.door)}` : `chest:${chestIndex.get(target.spot)}`; }
+/** The lock level on what you are about to open, or null when it opens freely. */
+function lockOf(target) {
+  if (target.type === 'furniture' && target.spot.kind === 'loot') { const id = lockId(target); return player.picked.includes(id) ? null : lockLevel(id); }
+  if (target.type !== 'door' || target.door.target > .5 || !homeDoors.has(target.door)) return null;
+  const night = worldClock.hour >= 21 || worldClock.hour < 6, d = target.door;
+  const inside = d.inside && d.outside && player.position.distanceToSquared(d.inside) < player.position.distanceToSquared(d.outside);
+  if (!night || inside || player.picked.includes(lockId(target))) return null;
+  return lockLevel(lockId(target), { none: .3, einfach: .42, mittel: .18, schwer: .08 });
+}
+// A picked chest gives up what its owner hid: coins and a little more, the better the lock.
+const LOCKED_GOODS = { einfach: [15, { bernstein: 1 }], mittel: [35, { bernstein: 1, ausdauertrank: 1 }], schwer: [70, { bernstein: 2, heiltrank: 1 }], meister: [150, { glutamulett: 1 }] };
+function pickLock(target, title, then) {
+  const level = lockOf(target);
+  if (!level) { then(); return; }
+  if (!((player.satchel.dietrich || 0) > 0)) { toast(`VERSCHLOSSEN · SCHLOSS ${LOCKS[level].name.toUpperCase()} · DU BRAUCHST EINEN DIETRICH`, 2800); return; }
+  const id = lockId(target);
+  setModal('lockpick');
+  lockpickUI.open({ title, level, seed: id, skill: player.skills.thievery ?? 1, perks: player.perks,
+    picks: () => player.satchel.dietrich || 0,
+    slip: () => { if (pickSurvives(player.perks, Math.random())) return false; inventory.remove('dietrich', 1); inventoryChanged(); return true; },
+    onDone: ok => {
+      if (game.modal === 'lockpick') setModal(null);
+      if (!ok) { toast((player.satchel.dietrich || 0) > 0 ? 'DU LÄSST VOM SCHLOSS AB' : 'DER LETZTE DIETRICH IST GEBROCHEN', 1800); return; }
+      player.picked.push(id); if (player.picked.length > 400) player.picked.splice(0, player.picked.length - 400);
+      practice('thievery', LOCKS[level].xp); awardXP(Math.round(LOCKS[level].xp * .8));
+      if (target.type === 'furniture') {
+        const [gold, goods] = LOCKED_GOODS[level];
+        player.gold += gold; for (const [item, n] of Object.entries(goods)) if (ITEMS[item]) target.spot.items[item] = (target.spot.items[item] || 0) + n;
+        toast(`SCHLOSS GEKNACKT · ${LOCKS[level].name.toUpperCase()} · +${gold} GOLD`, 2200);
+      } else toast(`SCHLOSS GEKNACKT · ${LOCKS[level].name.toUpperCase()}`, 1800);
+      updateHUD(); saveGame(false); then();
+    } });
+}
+const pocketCache = new Map();
+/** What someone carries today (refilled each day; what you took stays gone until then). */
+function pocketsOf(npc) {
+  const day = game.flags.ai_day || 0, key = `${npc.id}:${day}`;
+  if (!pocketCache.has(key)) pocketCache.set(key, pocketsFor(npc, day, id => !!ITEMS[id]));
+  return pocketCache.get(key);
+}
+function startPickpocket(npc) {
+  const pockets = pocketsOf(npc), m = npc.model.position, ry = npc.model.rotation.y;
+  // Does the mark look this way? (models face −Z)
+  const dx = player.position.x - m.x, dz = player.position.z - m.z, d = Math.hypot(dx, dz) || 1;
+  const facing = (-Math.sin(ry) * dx - Math.cos(ry) * dz) / d > .5;
+  setModal('pickpocket');
+  pickpocketUI.open({ name: npc.name, role: npc.role ? npc.role.charAt(0) + npc.role.slice(1).toLowerCase() : 'Fremder', skill: player.skills.thievery ?? 1, perks: player.perks, facing, pockets,
+    item: id => ITEMS[id],
+    give: id => {
+      if (id === 'gold') { player.gold += pockets.gold; toast(`GESTOHLEN · ${pockets.gold} GOLD`, 1600); practice('thievery', 3 + pockets.gold / 8); pockets.gold = 0; }
+      else { inventory.add(id, 1); if (!--pockets.items[id]) delete pockets.items[id]; toast(`GESTOHLEN · ${ITEMS[id].name.toUpperCase()}`, 1600); practice('thievery', 3 + (ITEMS[id].value || 1) / 6); }
+      inventoryChanged(); updateHUD();
+    },
+    onDone: caught => { if (game.modal === 'pickpocket') setModal(null); if (caught) caughtStealing(npc); else saveGame(false); } });
+}
+/** Caught with a hand in someone's pocket: they turn on you, word spreads, the bounty grows. */
+function caughtStealing(npc) {
+  const fine = bountyFor(15); player.bounty = (player.bounty || 0) + fine;
+  npc.model.rotation.y = Math.atan2(npc.model.position.x - player.position.x, npc.model.position.z - player.position.z);
+  affectNPC(npc.id, -25, 'Hat versucht, mich zu bestehlen');
+  showBark(npc, ['Finger weg, Dieb!', 'Was hast du in meiner Tasche verloren?', 'Noch einmal, und ich rufe die Wache.'][Math.floor(Math.random() * 3)]);
+  toast(`ERWISCHT · ${npc.name.toUpperCase()} HAT DICH BEMERKT · KOPFGELD +${fine} GOLD`, 3400);
+  practice('thievery', 1); saveGame(false);
+}
+/** The veil while sneaking, and practice for moving unseen near those who would hunt you. */
+function updateStealth(dt) {
+  const near = enemies.filter(e => !e.dead && e.ai && e.model.visible && e.model.position.distanceToSquared(player.position) < 900).map(e => e.ai);
+  const seen = detection(near), moving = player.velocity && Math.hypot(player.velocity.x, player.velocity.z) > .3;
+  stealthMeter.update(dt, player.sneaking && game.started && !game.paused && !game.cinematic, seen);
+  if (player.sneaking && moving && near.length && seen.state !== 'detected') practice('sneak', dt * (seen.state === 'noticed' ? 1.4 : .8) * Math.min(3, near.length));
+}
+skillTree = createSkillTree($('skills'), {
+  player: () => player, unlock: unlockPerk, close: () => setModal(null),
+  sound: kind => kind === 'ignite' ? combat.effects.sound('cast') : kind === 'deny' ? combat.effects.sound('parry') : kind === 'path' ? combat.effects.sound('swing') : null,
+  skillInfo: skill => ({ name: SKILL_NAMES[skill], level: player.skills[skill] ?? 1, progress: skillProgress(player, skill) }),
+  extras: path => path.id === 'dieb' ? [['Dietriche', player.satchel.dietrich || 0], ['Kopfgeld', `${player.bounty || 0} Gold`]]
+    : path.id === 'assassine' ? [['Bogenschießen', player.skills.archery ?? 1], ['Meuchelangriff', `×${sneakFactor(player.perks)}`]] : [],
+});
+lockpickUI = createLockpick($('lockpick'), { sound: kind => combat.effects.sound(kind === 'set' || kind === 'open' ? 'parry' : kind === 'break' ? 'impact' : 'swing') });
+pickpocketUI = createPickpocket($('pickpocket'), { sound: kind => combat.effects.sound(kind === 'take' ? 'swing' : 'impact') });
+stealthMeter = createStealthMeter($('stealth'));
 createMenu({ values: settings, onSettingsChange: applySettings });
 applySettings(settings);
 
@@ -2604,7 +2701,7 @@ window.__ASHEN_TEST__ = {
     lifeState:()=>npcs.map(n=>({id:n.id,activity:n.life?.activity,x:+n.model.position.x.toFixed(1),z:+n.model.position.z.toFixed(1),inside:n.life?.inside,bark:n.life?.bark})),
     snapshot:async(file='shot')=>{graphics.render(scene,camera,player.mode==='first'&&game.started&&!game.paused?firstPerson.render:null);const blob=await new Promise(r=>renderer.domElement.toBlob(r,'image/png'));return fetch('http://127.0.0.1:5299/save?file=work/screens/'+file+'.png',{method:'POST',body:blob}).then(r=>r.text());},
     rootPosition:()=>playerModel.position.toArray(),
-    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access}),
+    streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),thief:()=>({lockpick:lockpickUI,pickpocket:pickpocketUI,skills:skillTree}),profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access}),
     fire:()=>wildfire.state(),igniteAt:(x,z,power=1,radius=2.2)=>wildfire.ignite(v3(x,0,z),{power,radius}),douse:(x,z,r=6)=>wildfire.extinguish(x,z,r),
     horses:()=>horses.state(),mount:(name='Asche')=>{const h=horses.horses.find(o=>o.name===name);if(h){player.position.copy(h.pos).add(v3(-Math.cos(h.yaw)*1.4,0,Math.sin(h.yaw)*1.4));snapPlayerView();mountHorse(h);}return horses.state().ride;},
     dismount:()=>horses.dismount(player),reins:horseReins,whistle:horseWhistle,

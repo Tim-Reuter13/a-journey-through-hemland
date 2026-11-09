@@ -1,0 +1,251 @@
+/* Pfade der Glut — the skill menu (ui/skillTree.js). Dark slate and glass, the path's colour as the only light:
+   a glowing core at the foot of the tree, veins of molten light, gems that flare when lit, embers drifting up. */
+@property --pc { syntax: '<color>'; inherits: true; initial-value: #e2603f; }
+@property --pg { syntax: '<color>'; inherits: true; initial-value: #ff9b6b; }
+
+#skills.skills-screen {
+  position: fixed; inset: 0; z-index: 24; display: grid; overflow: hidden; isolation: isolate;
+  grid-template-columns: minmax(196px, 244px) minmax(0, 1fr) minmax(290px, 360px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "head head head" "paths stage detail" "foot foot foot";
+  column-gap: 20px; padding: 18px 26px 10px;
+  color: var(--ui-text, #eef0f1); font-family: var(--ui-font, system-ui, sans-serif); text-shadow: none;
+  background:
+    radial-gradient(58% 72% at 50% 108%, color-mix(in srgb, var(--pc) 30%, transparent), transparent 72%),
+    radial-gradient(40% 50% at 50% 46%, color-mix(in srgb, var(--pc) 7%, transparent), transparent 70%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, .012) 0 2px, transparent 2px 9px),
+    radial-gradient(130% 100% at 50% 40%, rgba(9, 11, 15, .74), rgba(4, 5, 8, .96) 78%);
+  backdrop-filter: blur(9px) saturate(.75);
+  transition: --pc .7s ease, --pg .7s ease;
+}
+#skills.hidden { display: none !important; }
+#skills::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  background: radial-gradient(120% 120% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55)); }
+.sk-embers { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; image-rendering: pixelated; opacity: .9; }
+
+/* ── Header: title, level ring, perk points (Glutsplitter), close. */
+.sk-head { grid-area: head; position: relative; display: flex; align-items: center; gap: 26px; padding: 2px 4px 14px; }
+.sk-head::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; opacity: .8;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--pc) 70%, transparent) 30%, var(--pg) 50%, color-mix(in srgb, var(--pc) 70%, transparent) 70%, transparent); }
+.sk-title small { display: block; font: 600 10px/1.5 var(--ui-font); letter-spacing: .32em; text-transform: uppercase; color: var(--pg); opacity: .9; }
+.sk-title h2 { margin: 0; font: 400 clamp(30px, 3.1vw, 48px)/1 'Jacquarda Bastarda 9', serif; color: #f6efe2; letter-spacing: .01em;
+  text-shadow: 0 0 26px color-mix(in srgb, var(--pc) 55%, transparent), 0 2px 0 rgba(0, 0, 0, .8); }
+.sk-level { margin-left: auto; position: relative; display: flex; align-items: center; gap: 10px; }
+.sk-ring { width: 46px; height: 46px; transform: rotate(-90deg); }
+.sk-ring circle { fill: rgba(0, 0, 0, .35); stroke: rgba(255, 255, 255, .1); stroke-width: 3; }
+.sk-ring .sk-ring-fill { fill: none; stroke: var(--pg); stroke-linecap: round; stroke-dasharray: 119.4; filter: drop-shadow(0 0 4px var(--pc)); transition: stroke-dashoffset 1s var(--ui-ease); }
+.sk-level-n { position: absolute; left: 0; top: 0; width: 46px; text-align: center; font: 700 17px/46px var(--ui-font); color: #fff; }
+.sk-level span { display: block; font: 600 9px/1.3 var(--ui-font); letter-spacing: .24em; text-transform: uppercase; color: var(--ui-dim); }
+.sk-xp { font: 500 12px/1.3 var(--ui-font); color: var(--ui-text); }
+.sk-shards { display: flex; align-items: center; gap: 12px; padding: 7px 16px 7px 12px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 999px; background: rgba(255, 255, 255, .035); }
+.sk-shard-row { display: flex; gap: 6px; }
+.sk-shard-row i { width: 11px; height: 11px; transform: rotate(45deg); border-radius: 2px; background: linear-gradient(135deg, #fff6dc, #e8b44c 55%, #7a4510);
+  box-shadow: 0 0 10px rgba(232, 180, 76, .85); animation: sk-shard 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * .22s); }
+.sk-shard-row i.spent { background: rgba(255, 255, 255, .1); box-shadow: none; animation: none; }
+.sk-shards b { display: block; font: 700 19px/1 var(--ui-font); color: #f4c96a; }
+.sk-shards small { display: block; font: 600 9px/1.4 var(--ui-font); letter-spacing: .2em; text-transform: uppercase; color: var(--ui-dim); }
+.sk-shards.pop { animation: sk-pop .55s var(--ui-ease); }
+#skills .sk-close { width: 38px; height: 38px; padding: 0; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .05);
+  color: var(--ui-text); font: 300 24px/1 var(--ui-font); box-shadow: none; cursor: pointer; transition: background .2s, transform .2s; }
+#skills .sk-close:hover { background: rgba(255, 255, 255, .12); transform: rotate(90deg); color: #fff; }
+
+/* ── The six paths: seals in a column. */
+.sk-paths { grid-area: paths; display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 14px 26px 14px 0; margin-right: -26px; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+#skills .sk-seal { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 12px 8px 8px;
+  border: 1px solid rgba(255, 255, 255, .06); border-radius: 18px; background: rgba(255, 255, 255, .022); color: var(--ui-text); text-align: left; box-shadow: none;
+  cursor: pointer; opacity: 0; animation: sk-seal-in .55s var(--ui-ease) forwards; animation-delay: calc(.07s * var(--i) + .12s);
+  transition: background .25s, border-color .25s, transform .25s var(--ui-ease), box-shadow .3s; }
+#skills .sk-seal:hover { background: rgba(255, 255, 255, .055); border-color: rgba(255, 255, 255, .12); transform: translateX(3px); color: #fff; }
+#skills .sk-seal.active { border-color: color-mix(in srgb, var(--seal) 65%, transparent); transform: translateX(6px);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--seal) 24%, transparent), rgba(255, 255, 255, .02) 85%);
+  box-shadow: 0 10px 34px -14px var(--seal), inset 0 1px rgba(255, 255, 255, .07); }
+.sk-seal.active::after { content: ''; position: absolute; right: -21px; top: 50%; width: 16px; height: 2px; border-radius: 2px; background: var(--seal-glow); box-shadow: 0 0 10px var(--seal); }
+.sk-seal-ring { position: relative; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; color: var(--seal-glow);
+  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--seal) 42%, #12151a), #0a0c10 72%);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--seal) 55%, transparent), inset 0 -8px 14px rgba(0, 0, 0, .55), 0 0 0 4px rgba(0, 0, 0, .3); transition: box-shadow .3s; }
+.sk-seal.active .sk-seal-ring { box-shadow: inset 0 0 0 2px var(--seal-glow), inset 0 -8px 14px rgba(0, 0, 0, .4), 0 0 24px color-mix(in srgb, var(--seal) 75%, transparent); }
+.sk-seal.can-grow .sk-seal-ring::after { content: ''; position: absolute; top: -1px; right: -1px; width: 10px; height: 10px; transform: rotate(45deg); border-radius: 2px;
+  background: linear-gradient(135deg, #fff6dc, #e8b44c); box-shadow: 0 0 8px #e8b44c; animation: sk-shard 2s ease-in-out infinite; }
+.sk-seal-emblem { width: 30px; height: 30px; image-rendering: pixelated; filter: drop-shadow(0 0 5px var(--seal)); }
+.sk-seal-text b { display: block; font: 700 14px/1.2 var(--ui-font); letter-spacing: .03em; }
+.sk-seal-skill { display: block; font: 500 11px/1.4 var(--ui-font); color: var(--ui-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-seal-bar { display: block; height: 3px; margin-top: 5px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.sk-seal-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--seal), var(--seal-glow)); transition: width .6s var(--ui-ease); }
+.sk-seal-count { font: 600 11px var(--ui-font); color: var(--ui-dim); font-variant-numeric: tabular-nums; }
+
+/* ── The stage: watermark emblem, the forge round the core, veins and gems. */
+.sk-stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; display: grid; place-items: center; }
+.sk-watermark { position: absolute; width: min(64%, 500px); aspect-ratio: 1; fill: var(--pc); opacity: .05; image-rendering: pixelated;
+  filter: drop-shadow(0 0 40px var(--pc)); transition: fill .7s; pointer-events: none; }
+.sk-tree { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sk-forge .ring { fill: none; stroke: var(--pc); stroke-opacity: .18; stroke-width: 1.5; stroke-dasharray: 2 10; transform-origin: 0 0; }
+.sk-forge .r1 { animation: sk-spin 70s linear infinite; }
+.sk-forge .r2 { stroke-dasharray: 14 6 2 6; stroke-opacity: .12; animation: sk-spin 110s linear infinite reverse; }
+.sk-forge .r3 { stroke-dasharray: 1 16; stroke-opacity: .22; animation: sk-spin 160s linear infinite; }
+.sk-vein path { fill: none; stroke-linecap: round; }
+.sk-vein .groove { stroke: rgba(0, 0, 0, .6); stroke-width: 10; }
+.sk-vein .core { stroke: rgba(255, 255, 255, .09); stroke-width: 3; }
+.sk-vein.open .core { stroke: color-mix(in srgb, var(--pc) 60%, transparent); stroke-width: 3; stroke-dasharray: 2.5 4; animation: sk-dash 2s linear infinite; }
+.sk-vein.on .core { stroke: var(--pc); stroke-width: 4.5; filter: drop-shadow(0 0 7px var(--pc)); }
+.sk-vein .flow { stroke: #fff4dc; stroke-width: 2.4; stroke-dasharray: 1.6 13; animation: sk-flow 2.6s linear infinite; opacity: .85; }
+.sk-vein.ignite .core { stroke-dasharray: 100; animation: sk-draw .8s var(--ui-ease) both; }
+
+.sk-node { cursor: pointer; outline: none; }
+.sk-gemwrap { transform-origin: 0 0; transition: transform .25s var(--ui-ease); }
+.sk-node:hover .sk-gemwrap, .sk-node.selected .sk-gemwrap { transform: scale(1.07); }
+.sk-node .halo { fill: url(#sk-core-glow); opacity: 0; transition: opacity .4s; }
+.sk-node .orbit { fill: none; stroke: var(--pg); stroke-width: 1.6; stroke-dasharray: 3 9; opacity: 0; transform-origin: 0 0; animation: sk-spin 14s linear infinite; transition: opacity .3s; }
+.sk-node .gem { fill: rgba(13, 16, 21, .94); stroke: rgba(255, 255, 255, .17); stroke-width: 2.2; transition: fill .4s, stroke .3s, stroke-width .3s; }
+.sk-node .gem-outer { fill: none; stroke: color-mix(in srgb, var(--pc) 45%, transparent); stroke-width: 1.6; stroke-dasharray: 7 4; }
+.sk-node .sigil { fill: rgba(255, 255, 255, .24); transition: fill .4s; }
+.sk-node .label { font: 600 15px var(--ui-font); fill: rgba(238, 240, 241, .4); text-anchor: middle; letter-spacing: .03em; paint-order: stroke; stroke: rgba(0, 0, 0, .75); stroke-width: 4px; stroke-linejoin: round; transition: fill .3s; }
+.sk-node.ready .gem { stroke: var(--pc); animation: sk-ready 2.6s ease-in-out infinite; }
+.sk-node.ready .sigil { fill: color-mix(in srgb, var(--pg) 70%, #fff); }
+.sk-node.ready .label { fill: rgba(238, 240, 241, .78); }
+.sk-node.lit .gem, .sk-node.core .gem { fill: url(#sk-gem-lit); stroke: var(--pg); filter: drop-shadow(0 0 14px var(--pc)); }
+.sk-node.lit .sigil, .sk-node.core .sigil { fill: #fffaf0; filter: drop-shadow(0 0 3px var(--pg)); }
+.sk-node.lit .halo, .sk-node.core .halo { opacity: .6; }
+.sk-node.lit .label { fill: #fff; }
+.sk-node.core .label { font: 400 23px 'Jacquarda Bastarda 9', serif; fill: var(--pg); letter-spacing: .02em; }
+.sk-node.capstone .label { font-weight: 700; }
+.sk-node.selected .orbit { opacity: .95; }
+.sk-node.selected .gem { stroke-width: 3.4; stroke: #fff; }
+.sk-node:focus-visible .gem { stroke: #fff; }
+.sk-node.ignite .gem { animation: sk-ignite 1s var(--ui-ease); }
+.sk-node.ignite .halo { animation: sk-halo 1.2s ease-out; }
+
+/* Growth: on opening and on a new path the tree grows rank by rank from its core. */
+.grow .sk-gemwrap { animation: sk-node-in .62s var(--ui-ease) both; animation-delay: calc(var(--rank) * .13s + .04s); }
+.grow .sk-vein { animation: sk-fade .6s ease both; animation-delay: calc(var(--rank) * .13s - .06s); }
+.grow .sk-vein.on .core { stroke-dasharray: 100; animation: sk-draw .9s var(--ui-ease) both; animation-delay: calc(var(--rank) * .13s); }
+.grow .sk-watermark { animation: sk-mark .9s var(--ui-ease) both; }
+
+/* ── Detail: the path, its skill, the chosen node. */
+.sk-detail { grid-area: detail; align-self: stretch; min-height: 0; overflow-y: auto; margin: 14px 0; padding: 18px 18px 16px;
+  border: 1px solid rgba(255, 255, 255, .09); border-radius: 20px; scrollbar-width: thin;
+  background: linear-gradient(180deg, rgba(22, 26, 33, .74), rgba(10, 12, 16, .86)); backdrop-filter: blur(18px) saturate(1.2);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, .85), inset 0 1px rgba(255, 255, 255, .06); }
+.sk-path-head { display: flex; align-items: center; gap: 12px; }
+.sk-path-emblem { width: 42px; height: 42px; flex: none; color: var(--pg); image-rendering: pixelated; filter: drop-shadow(0 0 9px var(--pc)); }
+.sk-path-head small { display: block; font: 600 10px/1.4 var(--ui-font); letter-spacing: .24em; text-transform: uppercase; color: var(--pg); }
+.sk-path-head h3, .sk-card h3 { margin: 0; font: 400 30px/1.05 'Jacquarda Bastarda 9', serif; color: #f6efe2; }
+.sk-motto { margin: 14px 0 6px; padding-left: 11px; border-left: 2px solid var(--pc); font: italic 500 13px/1.5 var(--ui-font); color: rgba(238, 240, 241, .86); }
+.sk-about { margin: 0 0 14px; font: 400 12.5px/1.55 var(--ui-font); color: var(--ui-dim); }
+.sk-skill > div { display: flex; justify-content: space-between; align-items: baseline; font: 600 11px/1.4 var(--ui-font); letter-spacing: .12em; text-transform: uppercase; color: var(--ui-dim); }
+.sk-skill b { font: 700 18px/1 var(--ui-font); color: #fff; letter-spacing: 0; }
+.sk-skill-bar { display: block; height: 5px; margin: 6px 0 8px; border-radius: 5px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.sk-skill-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--pc), var(--pg)); box-shadow: 0 0 10px var(--pc); }
+.sk-stat { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, .06); font: 500 12px/1.4 var(--ui-font); color: var(--ui-dim); }
+.sk-stat b { color: var(--ui-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sk-card { position: relative; margin-top: 16px; padding: 16px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 16px; background: rgba(255, 255, 255, .028); overflow: hidden; animation: sk-card-in .35s var(--ui-ease); }
+.sk-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--pc), transparent); opacity: .7; }
+.sk-card.lit { border-color: color-mix(in srgb, var(--pc) 40%, transparent); background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 12%, transparent), rgba(255, 255, 255, .02)); }
+.sk-card.empty p { margin: 0; color: var(--ui-dim); font-size: 13px; }
+.sk-card-top { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+.sk-card-gem { flex: none; width: 50px; height: 50px; margin: 6px; display: grid; place-items: center; transform: rotate(45deg); border-radius: 10px; color: rgba(255, 255, 255, .5);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, .08), rgba(0, 0, 0, .4)); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .14); }
+.sk-card-gem svg { width: 26px; height: 26px; transform: rotate(-45deg); image-rendering: pixelated; }
+.sk-card.ready .sk-card-gem { color: var(--pg); box-shadow: inset 0 0 0 2px var(--pc), 0 0 18px -4px var(--pc); }
+.sk-card.lit .sk-card-gem { color: #fffaf0; background: radial-gradient(circle at 50% 35%, var(--pg), var(--pc) 60%, #1a0d06); box-shadow: inset 0 0 0 2px var(--pg), 0 0 22px var(--pc); }
+.sk-card-top small { display: block; font: 600 10px/1.4 var(--ui-font); letter-spacing: .2em; text-transform: uppercase; color: var(--ui-dim); }
+.sk-card h3 { font-size: 27px; margin: 1px 0 6px; }
+.sk-chip { display: inline-block; padding: 2px 9px; border-radius: 99px; font: 700 9.5px/1.6 var(--ui-font); letter-spacing: .16em; text-transform: uppercase; border: 1px solid rgba(255, 255, 255, .14); color: var(--ui-dim); }
+.sk-chip.ready { color: var(--pg); border-color: color-mix(in srgb, var(--pc) 70%, transparent); background: color-mix(in srgb, var(--pc) 14%, transparent); }
+.sk-chip.lit { color: #10120f; border-color: transparent; background: linear-gradient(90deg, var(--pg), #fff2d6); }
+.sk-desc { margin: 4px 0 8px; font: 500 14px/1.55 var(--ui-font); color: var(--ui-text); }
+.sk-tag { margin: 0; font: italic 500 11.5px/1.45 var(--ui-font); color: var(--ui-dim); }
+.sk-tag.real { font-style: normal; font-weight: 600; letter-spacing: .06em; color: #a6dcae; }
+.sk-tag.real::before { content: '◆ '; color: #6fc283; }
+.sk-need { margin: 8px 0 0; font: 500 12px/1.4 var(--ui-font); color: #eaa48c; }
+#skills .sk-ignite { position: relative; width: 100%; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; overflow: hidden;
+  border-radius: 13px; border: 1px solid color-mix(in srgb, var(--pg) 60%, transparent); color: #fff; cursor: pointer;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 88%, #000), color-mix(in srgb, var(--pc) 42%, #000));
+  box-shadow: 0 12px 30px -12px var(--pc), inset 0 1px rgba(255, 255, 255, .28); transition: transform .15s, filter .2s, box-shadow .2s; }
+#skills .sk-ignite span { font: 800 13px/1 var(--ui-font); letter-spacing: .2em; text-transform: uppercase; }
+#skills .sk-ignite small { font: 600 11px/1 var(--ui-font); opacity: .85; }
+#skills .sk-ignite::after { content: ''; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .28) 50%, transparent 65%); transform: translateX(-100%); animation: sk-shine 3.2s ease-in-out infinite; }
+#skills .sk-ignite:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: 0 16px 36px -12px var(--pc), inset 0 1px rgba(255, 255, 255, .32); color: #fff; border-color: var(--pg); }
+#skills .sk-ignite:disabled { background: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .34); box-shadow: none; cursor: not-allowed; }
+#skills .sk-ignite:disabled::after { display: none; }
+#skills .sk-ignite.shake { animation: sk-shake .4s; }
+.sk-hints { grid-area: foot; padding: 8px 0 2px; text-align: center; font: 500 11px/1.4 var(--ui-font); letter-spacing: .08em; color: rgba(238, 240, 241, .42); }
+
+/* Entrance. */
+#skills.enter .sk-head { animation: sk-drop .6s var(--ui-ease) both; }
+#skills.enter .sk-detail { animation: sk-slide .7s .12s var(--ui-ease) both; }
+#skills.enter .sk-stage { animation: sk-fade .8s .05s ease both; }
+
+@keyframes sk-spin { to { transform: rotate(360deg); } }
+@keyframes sk-dash { to { stroke-dashoffset: -13; } }
+@keyframes sk-flow { to { stroke-dashoffset: -29.2; } }
+@keyframes sk-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes sk-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sk-node-in { from { transform: scale(.4); opacity: 0; } 70% { transform: scale(1.08); opacity: 1; } to { transform: scale(1); } }
+@keyframes sk-mark { from { transform: scale(.86) rotate(-6deg); opacity: 0; } to { transform: none; opacity: .05; } }
+@keyframes sk-ready { 0%, 100% { stroke-opacity: .5; } 50% { stroke-opacity: 1; } }
+@keyframes sk-ignite { 0% { filter: drop-shadow(0 0 0 var(--pg)) brightness(3); } 40% { filter: drop-shadow(0 0 30px var(--pg)) brightness(1.8); } 100% { filter: drop-shadow(0 0 14px var(--pc)); } }
+@keyframes sk-halo { 0% { opacity: 1; transform: scale(.4); } 100% { opacity: .6; transform: scale(1); } }
+@keyframes sk-shard { 0%, 100% { filter: brightness(1); transform: rotate(45deg) scale(1); } 50% { filter: brightness(1.35); transform: rotate(45deg) scale(1.12); } }
+@keyframes sk-pop { 0% { transform: scale(1); } 35% { transform: scale(1.12); box-shadow: 0 0 24px rgba(232, 180, 76, .6); } 100% { transform: scale(1); } }
+@keyframes sk-seal-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; } }
+@keyframes sk-drop { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+@keyframes sk-slide { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes sk-card-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes sk-shine { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
+@keyframes sk-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+
+/* Wide but short screens (ultrawide 2.6:1, phones on their side): a tighter frame. */
+@media (max-height: 640px) {
+  #skills.skills-screen { padding: 10px 20px 6px; column-gap: 16px; }
+  .sk-head { padding-bottom: 8px; gap: 18px; }
+  .sk-title h2 { font-size: 30px; }
+  .sk-paths { gap: 5px; padding: 8px 26px 8px 0; }
+  #skills .sk-seal { grid-template-columns: 40px minmax(0, 1fr) auto; padding: 5px 10px 5px 6px; gap: 10px; border-radius: 14px; }
+  .sk-seal-ring { width: 40px; height: 40px; }
+  .sk-seal-emblem { width: 24px; height: 24px; }
+  .sk-detail { margin: 8px 0; padding: 12px 14px; }
+  .sk-motto { margin-top: 8px; }
+  .sk-about { display: none; }
+  .sk-card { margin-top: 10px; padding: 12px; }
+  .sk-hints { padding-top: 4px; }
+}
+/* Phones: seals become icons, the detail panel narrower. */
+@media (max-width: 960px) {
+  #skills.skills-screen { grid-template-columns: 58px minmax(0, 1fr) minmax(220px, 270px); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); column-gap: 10px; }
+  #skills .sk-seal { grid-template-columns: 44px; padding: 4px; justify-items: center; }
+  .sk-seal-text, .sk-seal-count, .sk-seal.active::after { display: none; }
+  .sk-seal-ring { width: 44px; height: 44px; }
+  .sk-title small { display: none; }
+  .sk-xp { display: none; }
+  .sk-path-head h3, .sk-card h3 { font-size: 22px; }
+  .sk-desc { font-size: 12.5px; }
+  .sk-motto { font-size: 11.5px; }
+  .sk-stat { font-size: 11px; padding: 4px 0; }
+  .sk-node .label { font-size: 18px; }
+}
+@media (max-height: 460px) {
+  .sk-hints { display: none; }
+  .sk-paths { gap: 4px; }
+  #skills .sk-seal { grid-template-columns: 38px; }
+  .sk-seal-ring { width: 38px; height: 38px; }
+  .sk-seal-emblem { width: 22px; height: 22px; }
+  /* The chosen node (and its button) first; the path's facts below it. */
+  .sk-detail { display: flex; flex-direction: column; margin: 6px 0; padding: 10px 12px; }
+  .sk-detail .sk-card { order: -1; margin: 0 0 10px; padding: 10px 12px; flex: none; }
+  .sk-path-head { margin-top: 2px; }
+  .sk-path-emblem { width: 30px; height: 30px; }
+  .sk-motto { display: none; }
+  .sk-card h3 { font-size: 21px; margin-bottom: 4px; }
+  .sk-card-top { gap: 12px; }
+  .sk-desc { margin: 2px 0 4px; font-size: 12.5px; line-height: 1.45; }
+  .sk-title h2 { font-size: 24px; }
+  .sk-ring, .sk-level-n { width: 36px; height: 36px; line-height: 36px; }
+  .sk-shards { padding: 4px 12px 4px 8px; }
+  .sk-card-top { margin-bottom: 4px; }
+  .sk-card-gem { width: 38px; height: 38px; }
+  #skills .sk-ignite { padding: 9px 12px; margin-top: 8px; }
+}
+body.touch-mode .sk-hints { display: none; }
+#skills .sk-tree.compact .sk-node .label { font-size: 16.5px; }
+#skills .sk-tree.compact .sk-node.core .label { font-size: 21px; }
+@media (prefers-reduced-motion: reduce) { #skills *, #skills *::before, #skills *::after { animation: none !important; transition: none !important; } }

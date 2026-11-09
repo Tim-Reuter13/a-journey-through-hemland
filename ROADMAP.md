@@ -413,3 +413,31 @@ the pictures on them are 47 textures made by Codex's image tool (art/textures/co
   are the plants there); plants are their own chunk job and keep a trunk's width from every tree; the heights of a chunk are their own job before its mesh; the reading spots of the places
   lie in front of what stands there (the caravan's and the log's were inside it); heather and peat a little lighter (the moor was pitch black at night); rock-family noise only where there is rock.
   Measured: sprint over 180 units, p50 13 ms, p95 20 ms, p99 35 ms, 5 frames over 40 ms in 22 s (worst 69 ms, a mesh job); scatter job 16 ms on average, plants 1 ms.
+
+## Phase 9 — The shadow trades and the Pfade der Glut (2026-11-09, Claude)
+Request: sneaking, pickpocketing and lockpicking in the spirit of Skyrim (not a copy), and a new skill tree with six paths
+(Krieger, Magier, Assassine, Dieb, Schmied, Hexer), mostly placeholders for now, the menu a visual masterpiece.
+- [x] Rules in one pure module (systems/thievery.js, tests/thievery.test.js): skills that grow with use (Klingenkunst,
+  Glutmagie, Bogenschießen, Schleichen, Diebeskunst, Schmiedekunst, Hexerei; each level costs a little more, cap 100),
+  detection from the AI brains (hidden / noticed / detected), sneak-attack factor, lock levels and rings, pockets by
+  who someone is, the chance to lift something, bounty.
+- [x] Sneaking (C): a veil round the reticle — two brackets that close in as the nearest foe grows aware, blue
+  "Verborgen", amber "Bemerkt", red "Entdeckt"; practice for moving unseen near foes; a blade into an unaware foe
+  counts ×2 (×3 with Meuchelstoß) with "MEUCHELANGRIFF"; Leiser Schritt halves the noise.
+- [x] Pickpocketing: sneak within reach of someone and press E ("Taschen durchsuchen"). A glass card with their purse
+  and a few things by trade (the steward and the king carry amber and gold, rangers arrows, guards picks); a wave of
+  their attention scrolls by — reach in when they look away; each catch raises the suspicion; a mark facing you is
+  hard. Caught: they turn on you, trust −25 and a memory, a bark, bounty +30. Pockets refill each day.
+- [x] Lockpicking: about half the house chests carry a lock (Einfach/Mittel/Schwer/Meister, fixed per chest), home doors
+  are locked from outside at night. A brass pixel lock of 2–5 rings turning at their own pace (a master's lock turns
+  back now and then); set each ring when its glowing notch passes under the dietrich; a slip can break the pick
+  (Unzerbrechlich saves one in three). Skill and Feine Dietriche widen the notches. Picked locks stay open; a picked
+  chest gives coins and a little more by lock level. New item: Dietrich (5 to start, the trader sells them).
+- [x] Pfade der Glut (K, or the pause menu): six seals, each path a tree of eight gems growing out of a glowing core,
+  veins of molten light between lit nodes, a capstone crown, embers drifting in the path's colour; the detail card
+  says what a node does ("Wirkt im Spiel" or "Platzhalter"); Glutsplitter (one per level) light a node whose parent
+  is lit, with a flare and a burst of embers. Pixel sigils for every node and emblem (ui/sigils.js). The old perks
+  live on in the paths. Checked at 1280×720, 1600×610 and on a phone (844×390, the node card and its button first).
+- [ ] Open: most nodes are placeholders (the effects of Sturmlauf, Glutschild, Schmied and Hexer paths and the rest);
+  guards do not yet arrest or fine for the bounty; a lit house at night does not yet notice a picked door; no
+  pickpocketing from horseback or of sleeping people; NPC homes are not yet "owned" (taking from a chest is not theft).

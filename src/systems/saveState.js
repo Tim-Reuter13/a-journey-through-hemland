@@ -5,7 +5,8 @@ import { ITEMS, sanitizeCounts, isEquipment, equipSlot, EQUIPMENT_SLOTS } from '
 export const SAVE_VERSION = 6;
 const number = (value, fallback, min, max) => Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
 const integer = (value, fallback, min, max) => Math.floor(number(value, fallback, min, max));
-const knownPerks = new Set(['schwertmeister', 'arkaner_fokus', 'eisernes_herz', 'meisterschuetze', 'ruhige_hand']);
+import { PERK_IDS } from '../data/skillTrees.js';
+const knownPerks = new Set(PERK_IDS);
 const knownItems = new Set(Object.keys(ITEMS));
 import { QUESTS } from '../data/hemland/story.js';
 import { BOUNDS } from '../world/hemland.js';
@@ -33,6 +34,9 @@ export function normalizeSave(data) {
   player.attributes = Object.fromEntries(Object.entries(player.attributes).map(([key, value]) => [key, integer(data.attributes?.[key], value, 1, 100)]));
   player.skills = Object.fromEntries(Object.entries(player.skills).map(([key, value]) => [key, integer(data.skills?.[key], value, 0, 100)]));
   player.perks = Array.isArray(data.perks) ? [...new Set(data.perks.filter(p => knownPerks.has(p)))] : [];
+  player.skillXp = Object.fromEntries(Object.keys(player.skills).filter(key => data.skillXp?.[key] > 0).map(key => [key, number(data.skillXp[key], 0, 0, 100000)]));
+  player.picked = Array.isArray(data.picked) ? [...new Set(data.picked.filter(id => typeof id === 'string' && /^(chest|door):\d{1,5}$/.test(id)))].slice(-400) : [];
+  player.bounty = integer(data.bounty, 0, 0, 1000000);
   const hpDefault = 100 + (player.level - 1) * 12 + (player.perks.includes('eisernes_herz') ? 30 : 0);
   player.maxHp = integer(data.maxHp, hpDefault, 100, 10000);
   player.maxStamina = integer(data.maxStamina, 100 + (player.level - 1) * 6, 100, 10000);

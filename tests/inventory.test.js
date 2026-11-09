@@ -57,7 +57,7 @@ test('carry limit includes equipment, potions and resources; amulets increase ca
   assert.equal(rpg.state.inventory.wood,2);
   // Starting gear: sword, hunting bow, travel clothes, bracers, boots and cloak, plus potions, satchel
   // (24 arrows among it) and wood.
-  assert.ok(Math.abs(inventory.weight()-(7+4+3+1+1.5+1.5+1.5+.4+.6+.3+24*.05+2))<1e-8);
+  assert.ok(Math.abs(inventory.weight()-(7+4+3+1+1.5+1.5+1.5+.4+.6+.3+24*.05+5*.05+2))<1e-8);
   assert.equal(inventory.capacity(),45);
   inventory.add('wandereramulett');inventory.equip('wandereramulett');
   assert.equal(inventory.capacity(),60);
