@@ -33,6 +33,7 @@ import { createInventory } from './systems/inventory.js';
 import { createInventoryUI } from './ui/inventoryUI.js';
 import { createGraphics } from './systems/graphics.js';
 import { createCombat, ARCHER_DRAW } from './systems/combat.js';
+import { createCombatDebug } from './ui/combatDebug.js';
 import { createWildfire } from './systems/wildfire.js';
 import { loadBackpack } from './characters/backpack.js';
 import { createInventoryAccess } from './systems/inventoryAccess.js';
@@ -777,8 +778,9 @@ const motion = createMotion({ world, physics, createRagdoll, hooks: { event: (..
 // Elements on bodies and their reactions show over heads (ui/auraMarks.js, systems/reactions.js).
 const auraMarks = createAuraMarks(document.body);
 const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damageEnemy,onHurt:hurt,onHeal:applyHeal,weaponStyle:()=>weaponStyle(player.equipment.weapon),
+  weaponItem:()=>player.equipment.weapon,playerModel:()=>playerModel,
   sneakAttack:enemy=>{if(!player.sneaking||!unaware(enemy))return 1;practice('sneak',10);return sneakFactor(player.perks);},
-  motion:{impact:(e,info)=>enemyImpact(e,info),playerHit:(e,info)=>playerImpact(e,info),grapple:(e,kind)=>enemyGrapple(e,kind),handles:e=>!!motion.get(e.model),
+  motion:{impact:(e,info)=>enemyImpact(e,info),playerHit:(e,info)=>playerImpact(e,info),grapple:(e,kind)=>enemyGrapple(e,kind),handles:e=>!!motion.get(e.model),injury:model=>motion.get(model)?.injury||null,
     knock:(e,dir,force,up=0)=>motion.knockDown(e.model,dir,force,up?v3(0,up,0):null)},
   // The Zauberbuch (data/spells.js, systems/spellcraft.js): the spell in hand, its price, what it reaches in the world.
   activeSpell:()=>player.spells.active,spellCost:id=>spellCost(id,{skill:player.skills.magic||0,perks:player.perks}),
@@ -1497,7 +1499,7 @@ function damageEnemy(enemy, amount, magic = false) {
   const yielding = ['surrendered', 'pacified', 'grateful'].includes(enemy.ai?.hostility);
   if (enemy.calm && (enemy.ai?.group === 'camp' || !enemy.ai)) provokeCamp();
   // Striking someone you let go, or who yielded: they turn on you (or run), and it is not forgotten.
-  if (yielding) { enemy.calm = false; enemy.ai.hostility = enemy.ai.traits.aggression > .6 ? 'hostile' : 'fleeing'; enemy.ai.disarmed = false; }
+  if (yielding) { enemy.calm = false; enemy.ai.hostility = enemy.ai.traits.aggression > .6 ? 'hostile' : 'fleeing'; enemy.ai.disarmed = !!enemy.disarmedBy; }
   const stats = itemStats();
   if (enemy.goblin) { amount *= goblins.damageScale(enemy, { magic, from: player.position }); goblins.struck(enemy); }
   amount = Math.round(amount);
@@ -1583,13 +1585,15 @@ function applyHeal(){
   player.potions--;player.hp=Math.min(player.maxHp,player.hp+ITEMS.heiltrank.heal);
   toast('HEILTRANK · +45 LEBEN',2000);updateHUD();saveGame(false);
 }
-function hurt(amount) {
-  bloodScreen.splat(clamp(amount / Math.max(1, player.maxHp), .05, 1) * (player.mode === 'first' ? 1 : .55));
-  if (player.invuln > 0 || player.hp <= 0 || player.fly) return;
+/** info (Combat 2.0 blows): { attackId, from, point, region, blocked } — a blow is counted once by its attack id
+ *  (systems/melee.js), so it needs no invulnerability window; other harm (fire, arrows, bolts) keeps a short one. */
+function hurt(amount, info = null) {
+  bloodScreen.splat(clamp(amount / Math.max(1, player.maxHp), .05, 1) * (player.mode === 'first' ? 1 : .55) * (info?.blocked ? .3 : 1));
+  if ((player.invuln > 0 && !info?.attackId) || player.hp <= 0 || player.fly) return;
   const stats = itemStats();
   amount = Math.max(1, amount - stats.armor);
   if (player.shield > 0) { const took = Math.min(player.shield, amount); player.shield -= took; amount -= took; combat.effects.sound('parry'); updateHUD(); if (amount <= 0) { player.invuln = .3; return; } }
-  player.hp = Math.max(0, player.hp - amount); player.invuln = .65;
+  player.hp = Math.max(0, player.hp - amount); player.invuln = info?.attackId ? 0 : .25; player.hurtT = info?.blocked ? .15 : .4;
   $('damage-flash').style.opacity = '.22'; setTimeout(() => { $('damage-flash').style.opacity = '0'; }, 170);
   if (player.hp <= 0) {
     if (horses.riding) { horses.dismount(player, true); playerModel.rotation.set(0, player.yaw, 0); }
@@ -1600,7 +1604,7 @@ function hurt(amount) {
   }
 }
 function updatePlayer(dt) {
-  player.invuln = Math.max(0, player.invuln - dt);
+  player.invuln = Math.max(0, player.invuln - dt); player.hurtT = Math.max(0, (player.hurtT || 0) - dt);
   if (access.locked()) keys.clear();
   if (horses.riding) { updateRider(dt); updatePlayerGear(); return; }
 
@@ -1808,6 +1812,8 @@ function updateCampDays(dt) {
   if (f.camp_state === 'abandoned' && day >= f.camp_day + 2) { f.camp_state = 'resettled'; f.camp_seed = 1 + day * 7 % 97; f.camp_lost = 0; f.camp_reinf = 0; buryOldCamp(); restoreSettlers(); }
 }
 let aiDebug = false, aiDebugAt = 0;
+// Combat 2.0 debug view (F7, ui/combatDebug.js): intents, commitments, bodies, events, the simulated blades.
+const combatDebug = createCombatDebug({ scene, melee: combat.melee, enemies, player });
 const aiDebugPanel = Object.assign(document.createElement('div'), { id: 'ai-debug', hidden: true }); document.body.append(aiDebugPanel);
 const MOOD = { surrendered: 'ERGIBT SICH · E: WERTSACHEN FORDERN / ZIEHEN LASSEN', fleeing: 'FLIEHT', pacified: 'FRIEDLICH', grateful: 'ERKENNT DICH WIEDER',
   demanding: 'VERLANGT WEGZOLL · E: ZAHLEN', territorial: 'WACHSAM', searching: 'SUCHT DICH', suspicious: 'MISSTRAUISCH' };
@@ -1977,6 +1983,7 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'Space' && goblins.held) { const r = goblins.struggle(); toast(r === 'free' ? 'LOSGERISSEN' : 'WEHR DICH! LEERTASTE', 900); }
   if (event.code === 'CapsLock') { player.walkMode = !player.walkMode; toast(player.walkMode ? 'GEHEN' : 'LAUFEN', 900); }
   if (event.code === 'Space' && motion.heldBy(playerModel) && player.stamina >= 5) { player.stamina -= 5; motion.command(playerModel, 'wrench'); }
+  if (event.code === 'F7') { const on = combatDebug.toggle(); toast(on ? 'KAMPF-ANSICHT AN · F7' : 'KAMPF-ANSICHT AUS', 1400); return; }
   if (event.code === 'F6') { aiDebug = !aiDebug; aiDebugPanel.hidden = !aiDebug; if (!aiDebug) barks.clear('debug'); toast(aiDebug ? 'KI-ANSICHT AN · F6' : 'KI-ANSICHT AUS', 1400); return; }
   if (event.code === 'KeyF') { player.mode = player.mode === 'third' ? 'first' : 'third'; toast(player.mode === 'third' ? 'THIRD-PERSON-ANSICHT' : 'FIRST-PERSON-ANSICHT', 1500); }
   if (event.code === 'Digit1' || event.code === 'Digit2' || event.code === 'Digit3' || event.code === 'Digit4') selectTool(Number(event.code.at(-1)) - 1);
@@ -2083,7 +2090,7 @@ function interpolateSimulation(models, alpha) {
     (u.renderPos ??= new THREE.Vector3()).copy(m.position);
   }
 }
-let prev = performance.now(), elapsed = 0, frame = 0, accumulator = 0, lastSlosh = 0, simAlpha = 1;
+let prev = performance.now(), elapsed = 0, frame = 0, accumulator = 0, lastSlosh = 0, simAlpha = 1, testFrozen = false;
 const simulationStep = 1 / 60;
 const profile = { sections: {}, last: 0, worst: { total: 0 }, mark(name) { const t = performance.now(); this.sections[name] = (this.sections[name] || 0) + t - this.last; this.last = t; } };
 // Dev: ?timerLoop keeps the game running on a timer when the tab is not painted (hidden previews).
@@ -2102,7 +2109,7 @@ function animate(now) {
     // The intro may have ended the cinematic itself just now.
     if (game.cinematic && game.cinematicTime > game.cinematic.duration) endCinematic();
   }
-  if (game.started && !game.paused && !game.cinematic) {
+  if (game.started && !game.paused && !game.cinematic && !testFrozen) {
     accumulator = Math.min(accumulator + dt, .1);
     const tracked = trackedActors();
     restoreSimulation(tracked);
@@ -2150,7 +2157,7 @@ function animate(now) {
   const visualDt = game.modal&&game.modal!=='dialog' ? 0 : dt;
   const voice=voiceStatus();
   profile.mark('camera'); updatePhysics(game.started && !game.paused && !game.cinematic ? dt : 0); profile.mark('physics');
-  animateActors(visualDt,voice); profile.mark('actors');
+  animateActors(visualDt,voice); if (game.started) combat.melee.snapshots(playerModel); combatDebug.update(visualDt, combat.melee.time ?? elapsed); profile.mark('actors');
   updateSoundscape(dt);
   compass.update(player.yaw,player.position,compassMarkers());
   profile.mark('sound'); world.update(visualDt, worldClock.hour, camera, player.position); if (game.started) { leaveTracks(visualDt); updateStealth(visualDt); } profile.mark('world');
@@ -2165,7 +2172,7 @@ function animate(now) {
   renderer.info.autoReset=false;renderer.info.reset();
   const hands=game.started&&!game.paused&&!game.cinematic&&player.mode==='first'&&(!horses.riding||horses.mounted);
   firstPerson.setPack(access.fpPose());
-  if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
+  if(hands){firstPerson.update(dt,player,camera,combat.action,combat.guarding,bowView,handLight(dt),combat.melee.bladeOf('player',simAlpha));const slosh=firstPerson.sloshCue();if(slosh>.25&&elapsed-lastSlosh>.18){lastSlosh=elapsed;combat.effects.sound('slosh');}}
   aimZoom();
   // Behind a full-screen menu the world stands still: the last frame stays on screen and the GPU rests.
   if (!['skills', 'lockpick', 'pickpocket', 'spellbook'].includes(game.modal)) graphics.render(scene,camera,hands?firstPerson.render:null); profile.mark('render');
@@ -2331,15 +2338,15 @@ function registerBodies() {
   for (const model of [...motion.actors.keys()]) if (!model.parent) motion.remove(model);
 }
 /** A blow from the wanderer lands: where it lands follows the swing (high or low with the view, from the side the blade comes). */
-function enemyImpact(e, { kind, from, combo = 0, amount = 0, shield = false, magic = false, force, point: aimed = null, region = null }) {
+function enemyImpact(e, { kind, from, combo = 0, amount = 0, shield = false, magic = false, force, point: aimed = null, region = null, dir: push = null }) {
   if (shield) return motion.impact(e.model, { shield: true, force, from });
   const p = e.model.position, s = e.model.scale.y || 1, fwd = v3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw)), right = v3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
   const centre = p.clone().add(v3(0, 1.4 * s, 0));
   if (kind === 'arrow') { const dir = centre.clone().sub(from).normalize(); return motion.impact(e.model, { from, point: from.clone().addScaledVector(dir, 2), force: .55, damage: amount, dir }); }
   const side = combo === 0 ? 1 : combo === 1 ? -1 : 0;
   const point = aimed ? aimed.clone() : p.clone().add(v3(0, THREE.MathUtils.clamp(1.45 + player.pitch * 1.6, .45, 2.1) * s, 0)).addScaledVector(right, side * .25);
-  const dir = fwd.clone().addScaledVector(right, -side * .7).normalize();
-  const strength = (kind === 'parried' ? 1.7 : magic ? 1.9 : combo === 2 ? 2.3 : 1.15) * (region === 'leg' || region === 'foot' ? 1.5 : region === 'head' ? 1.3 : 1);
+  const dir = push ? push.clone().setY(0).normalize() : fwd.clone().addScaledVector(right, -side * .7).normalize();
+  const strength = (force ?? (kind === 'parried' ? 1.7 : magic ? 1.9 : combo === 2 ? 2.3 : 1.15)) * (region === 'leg' || region === 'foot' ? 1.5 : region === 'head' ? 1.3 : 1);
   return motion.impact(e.model, { from: player.position, point, force: strength, damage: amount, dir });
 }
 function playerImpact(e, { damage = 0, heavy = false, blocked = false }) {
@@ -2556,6 +2563,12 @@ function playerLook() {
   if (off > 2.4) return null;
   return playerLookPoint.copy(player.position).add(v3(0, 2.2, 0)).addScaledVector(cameraForward, 12);
 }
+/** Combat 2.0: a fighter's blow for the animator — the body keys of its phase and the simulated blade the arm follows. */
+function swingInput(who) {
+  const b = combat.melee.bladeOf(who, simAlpha); if (!b) return null;
+  const a = b.attack, [set, k1, k2] = a.def.anim;
+  return { swing: { set, k1, k2, phase: a.phase, u: a.u ?? 0 }, blade: b };
+}
 function animateActors(dt, voice) {
   if (dt <= 0) return;
   // In the saddle the wanderer's hands still swing a blade, draw the bow, drink and cast (horses.animate seats them).
@@ -2570,7 +2583,7 @@ function animateActors(dt, voice) {
   // Tying a horse up and whistling for one are short gestures.
   player.tieT = Math.max(0, (player.tieT || 0) - dt); player.whistleT = Math.max(0, (player.whistleT || 0) - dt);
   const gesture = player.tieT > 0 ? 'operate' : player.whistleT > 0 ? 'salute' : null;
-  if (!motion.isDown(playerModel) && !horses.riding) playerAnimator.update(dt, cine ? { action: cine.action, activity: cine.poses.wanderer ?? null } : { ...motion.animInput(playerModel), lookAt: playerLook(), vy: player.velocityY || 0, action: combat.action, guard: combat.guarding, airborne: !player.grounded, stagger: Math.max(0, player.invuln - .25), activity: player.swimming ? 'swim' : player.sneaking ? 'sneak' : gesture, bow: bowView.raise, bowPitch: player.pitch, pack: access.pose() });
+  if (!motion.isDown(playerModel) && !horses.riding) playerAnimator.update(dt, cine ? { action: cine.action, activity: cine.poses.wanderer ?? null } : { ...motion.animInput(playerModel), lookAt: playerLook(), vy: player.velocityY || 0, action: combat.action, guard: combat.guarding, airborne: !player.grounded, stagger: Math.max(player.hurtT || 0, combat.melee.player.stagger), ...swingInput('player'), activity: player.swimming ? 'swim' : player.sneaking ? 'sneak' : gesture, bow: bowView.raise, bowPitch: player.pitch, pack: access.pose() });
   poseBow(cine);
   // Funken ready (tool 2): a flame burns in the left hand in third person (first person: firstPerson.js).
   const handFire = player.tool === 1 && player.mode === 'third' && !cine && playerModel.visible && !motion.isDown(playerModel) && (!horses.riding || horses.mounted);
@@ -2605,7 +2618,7 @@ function animateActors(dt, voice) {
     const pose = e.ai && !e.dead ? (e.shieldUp && e.ai.intent.pose !== 'surrender' ? 'shieldUp' : e.ai.intent.pose) : e.goblin && !e.dead ? e.goblinPose : null, fighting = near && !e.calm && (!e.ai || e.ai.hostility === 'hostile');
     const spell = e.casting || e.castRelease > 0 ? { kind: 'cast', progress: e.casting ? .3 * (1 - e.windup / (e.windupTotal || 1)) : .3 + .7 * (1 - e.castRelease / .5) } : null;
     if (e.casting && near && Math.random() < .5) combat.effects.spray(e.model.userData.rig?.hand_left?.getWorldPosition(v3(0, 0, 0)) ?? e.model.position.clone().add(v3(0, 1.5, 0)), v3(0, .6, 0), e.casting === 'heal' ? 'heal' : 'ember', 1);
-    if (!e.ragdoll && !motion.isDown(e.model) && !(e.frozen > 0)) e.animator.update(dt, { ...motion.animInput(e.model), pain: painInput(e), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
+    if (!e.ragdoll && !motion.isDown(e.model) && !(e.frozen > 0)) e.animator.update(dt, { ...motion.animInput(e.model), pain: painInput(e), action: spell, style: e.style, stride: e.goblin ? e.stride : undefined, windup: !drawing && !e.casting && e.windup > 0 ? clamp(1 - e.windup / (e.windupTotal || (e.kind === 'wolf' ? .5 : .7)), 0, 1) : 0, strike: e.strikeT || 0, stagger: e.stagger || 0, ...(e.dead ? null : swingInput(e)), dead: e.dead, death: e.deathTime ?? 1, lookAt: near && pose !== 'sleep' ? playerHead : motion.lookFor(e.model), guard: e.blocking > 0, combat: fighting, bow: drawing ? 1 : 0, activity: pose });
     if (e.guardBroken > 0) e.guardBroken = Math.max(0, e.guardBroken - dt);
     if (e.ai && !e.dead) holdWeapons(e);
     if (e.archer) poseEnemyBow(e, drawing);
@@ -2789,7 +2802,16 @@ window.__ASHEN_TEST__ = {
   ...(import.meta.env.DEV ? { save: () => saveGame(false), load: loadGame, reset: resetGame, awardXP,
     hour: value => { worldClock.hour = clamp(value, 0, 23.99); updateHUD(); },
     face: yaw => { player.yaw = yaw; updateCamera(1); },
-    resume: () => setModal(null), equip: equipLoot, give: (id, n = 1) => { for (let k = 0; k < n; k++) inventory.add(id); inventoryChanged(); return inventory.counts()[id] || 0; }, flags: () => game.flags, gold: () => player.gold,
+    resume: () => setModal(null),
+    // Runs the fixed-step simulation for `seconds` of game time without rendering (bodies are still posed every
+    // fourth step, so blades and rig snapshots stay true). call(step) runs before each step (scripted input).
+    sim: (seconds, call = null) => { const n = Math.round(seconds * 60); for (let i = 0; i < n; i++) { call?.(i);
+      updatePlayer(simulationStep); updateEnemies(simulationStep, elapsed); updateNPCSimulation(simulationStep); updateTravelers(simulationStep); updateBarriers(simulationStep); horses.update(simulationStep, player);
+      elapsed += simulationStep; if (i % 4 === 3) { updatePhysics(4 * simulationStep); animateActors(4 * simulationStep, voiceStatus()); combat.melee.snapshots(playerModel); } }
+      player.renderPosition = null; simAlpha = 1; return combat.melee.events.log.length; },
+    // Holds the simulation still while everything is still drawn (first-person hands included): test screenshots.
+    freeze: on => { testFrozen = !!on; },
+    equip: equipLoot, give: (id, n = 1) => { for (let k = 0; k < n; k++) inventory.add(id); inventoryChanged(); return inventory.counts()[id] || 0; }, flags: () => game.flags, gold: () => player.gold,
     tool: value=>{player.tool=value;},look:(yaw,pitch)=>{player.yaw=yaw;player.pitch=pitch;updateCamera(1);},
     injure:amount=>{player.hp=Math.max(1,player.hp-amount);},guard:combat.setGuard,
     navigation:()=>({routes:world.routePoints.map(r=>r.map(p=>[p.x,p.z])),colliders:world.colliders}),
@@ -2803,7 +2825,7 @@ window.__ASHEN_TEST__ = {
     rootPosition:()=>playerModel.position.toArray(),
     streamer:()=>world.streamer.state(),fly:()=>toggleFlight(),thief:()=>({lockpick:lockpickUI,pickpocket:pickpocketUI,skills:skillTree}),
     spells:()=>({...player.spells,magicka:player.magicka,maxMagicka:player.maxMagicka,fx:combat.spellcraft.state(),book:spellbook}),
-    cast:id=>{if(!SPELLS[id])return false;if(!player.spells.loadout.includes(id))player.spells.loadout=equipSpell(player.spells.loadout,id,Math.max(0,player.spells.loadout.indexOf(player.spells.active)));player.spells.active=id;player.tool=1;player.magicka=player.maxMagicka;spellChanged();return combat.attack();},profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access}),
+    cast:id=>{if(!SPELLS[id])return false;if(!player.spells.loadout.includes(id))player.spells.loadout=equipSpell(player.spells.loadout,id,Math.max(0,player.spells.loadout.indexOf(player.spells.active)));player.spells.active=id;player.tool=1;player.magicka=player.maxMagicka;spellChanged();return combat.attack();},profile:()=>profile.worst,dev:()=>({tracks,world,physics,npcs,enemies,life,player,playerModel,combat,game,scene,camera,wildlife,spawnEnemy,motion,graphics,renderer,ai,horses,wildfire,access,firstPerson}),
     fire:()=>wildfire.state(),igniteAt:(x,z,power=1,radius=2.2)=>wildfire.ignite(v3(x,0,z),{power,radius}),douse:(x,z,r=6)=>wildfire.extinguish(x,z,r),
     horses:()=>horses.state(),mount:(name='Asche')=>{const h=horses.horses.find(o=>o.name===name);if(h){player.position.copy(h.pos).add(v3(-Math.cos(h.yaw)*1.4,0,Math.sin(h.yaw)*1.4));snapPlayerView();mountHorse(h);}return horses.state().ride;},
     dismount:()=>horses.dismount(player),reins:horseReins,whistle:horseWhistle,

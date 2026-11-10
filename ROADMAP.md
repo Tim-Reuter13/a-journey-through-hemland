@@ -532,3 +532,24 @@ magic statuses on an NPC giving a reaction like Genshin; lightning magic more li
   A buzzing hum while it pours. Checked in first and third person, day and night.
 - [ ] Open: the spear is not yet a Blockbench export; NPCs do not carry spears or use elements against you; no reaction
   for the wanderer's own body (only foes carry auras); the frozen pose is held rather than stiffened.
+
+## Phase 13 — Combat 2.0: the duel (physical combat and consequence AI)
+
+Brief: one combat rework from two concepts; first one really good duel against one human foe, then scale.
+Plan, audit and status: docs/COMBAT_2.md.
+
+- [x] Phase 0 audit: hits were chosen by crosshair/range/angle (player) and windup timers (NPCs), a 0.65 s
+  invulnerability, guard breaks by combo count, poses only per rendered frame.
+- [x] Phase 1 physical foundation: weapons and attacks as data (phases, blade tracks), blades swept at simulation time
+  against capsules from the animated rigs, shields as boxes, walls and ground stop blades, one strike per attack id,
+  the same contact at 30/60/144 Hz. The wanderer and every human foe go through the same pipeline (melee.js).
+  Third person lays the arm on the simulated blade (IK), first person draws it along the same screen line.
+- [x] Phase 2 reactions: parry / block / bad defence / none (direction, timing, stamina, posture); posture separate from
+  stamina, guard breaks by posture; heavy blows by holding LMB; wounds by region change attacks, guard, movement,
+  lunge, aim; a ruined sword arm drops the blade; player invulnerability replaced by attack ids.
+- [x] Phase 3/4 duel AI: commitments (probe, press, punish, bait, crush, recover) with abort reasons; feints, stepping in
+  to punish recoveries, stepping out of a loaded blow; novice mistakes (slow wind-up, misjudged distance, overcommit);
+  combat memory of the wanderer's habits (fading, with certainty); wounds and morale drive retreat, flight, surrender.
+- [x] Debug view F7 with the simulated blades; tests: tests/combat2.test.js, tests/combatAi.test.js (243 total).
+- [ ] Open (Phase 5–7): group roles on the new tactics and not swinging through comrades; wolves and goblins on blade
+  tracks (bites, lunging thrusts); punch and staff tracks for archers and hedge-witches in melee; tuning by play.

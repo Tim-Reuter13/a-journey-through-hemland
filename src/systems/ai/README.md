@@ -26,6 +26,8 @@ config.js      C  15 traits · 8 archetypes (incl. shield bearer and mage) · tu
 brain.js     C–E  emotions (events + drift) · hostility states · 25 utility actions with hysteresis, minimum
                   durations, cooldowns and an emergency interrupt · reflexes · persist/restore
 spatial.js     E  flank, cover, escape (cornered = none), archer spot, ring points, ally-free lines
+combatMemory.js   what each person saw of the wanderer's fighting (rates, rhythm, habits; fading, with certainty)
+combatTactics.js  duel commitments (probe, press, punish, bait, crush, recover) with abort reasons — Combat 2.0
 group.js       G  soft attack slots (1, 2 when a disciplined leader leads 3+) · leader orders by shout ·
                   obedience · heir after the leader falls · friendships and rivalries · search parties
                   for a lost trail or a missing comrade

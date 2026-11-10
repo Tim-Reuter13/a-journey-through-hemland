@@ -24,6 +24,9 @@ Skyrim-like RPG in Three.js + Vite, German UI. Hemland is a continent that grows
   Magic: 2 holds the spell hand (2 again / X switches the spell, Shift+X back); B opens the Zauberbuch "Buch der Glut" to
   lay spells into the four seals of the Zauberhand; spells cost magicka. Kettenblitz is held (force lightning, drains
   magicka); elements on foes react with each other (systems/elements.js). The Jagdspeer thrusts with a long reach.
+  Melee (Combat 2.0, docs/COMBAT_2.md): LMB tap strikes (forehand → backhand → chop in rhythm), LMB held at the top
+  of the wind-up loads a heavy blow, RMB guards (raised just before the blade arrives = parry). F7 shows the combat
+  debug view (intent, commitment, stamina, posture, wounds, memory, events, the simulated blades).
 - Story tone: serious, Game-of-Thrones-level dialogue, blood, death, tragedy (src/data/hemland/story.js).
 - Record new feedback and finished work in ROADMAP.md.
 
@@ -41,7 +44,8 @@ bridge `window.__ASHEN_TEST__` has `start()`, `skip()`, `resume()`, `move(x, z)`
 `setHour(h)`, `tool(i)`, `keys([...])`, `camera(pos, target)`, `snapshot(name)` (needs `node art/blockbench/receiver.mjs`
 on :5299, writes work/screens/*.png), `dev()` (world, player, enemies, motion, ai, …), `ai()`, `aiDays(n)`, `motion()`,
 `body(i|'player')`, `push(i, force, dx, dz)`, `grabEnemy(i)`, `grip(cmd)`, `knock(i)`, `ambient()`, `killEnemy(i)`, `save()`,
-`load()`, `horses()`, `mount(name)`, `dismount()`, `reins()`, `whistle()`, `spur()`, `cave(id)` (no id: leave),
+`load()`, `sim(seconds, call)` (fixed steps without rendering, bodies posed), `freeze(on)` (hold the simulation, keep
+drawing), `horses()`, `mount(name)`, `dismount()`, `reins()`, `whistle()`, `spur()`, `cave(id)` (no id: leave),
 `caveState()`, `give(id, n)`, `flags()`, `gold()`, `thief()` (lockpick/pickpocket/skills UIs: `state()`, `attempt()`, `calm()`, `take(id)`), `spells()` (hand, magicka, `fx` state
 with game time `t`, `book`), `cast(id)` (lays the spell into the hand if needed and casts it). After `start()` call `skip()`, or the intro cinematic puts the player
 back in the village. Inside a cave do not use `move()` (it drops you onto the land below); set
@@ -62,6 +66,12 @@ Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobi
 - src/systems/ai/ — HUMANITY AI (perception, beliefs, emotions, utility actions, groups, camp life); see its README.
 - src/systems/motion/ — HUMANITY MOTION (rig adapter, IK, foot IK, balance, falls and get-ups, grappling); see its README.
 - src/systems/combat.js, archery.js, spellFx.js, combatEffects.js — fighting, arrows, fire, particles.
+- Combat 2.0 (docs/COMBAT_2.md): combatRules.js (weapons, attacks with phases and blade tracks, defence windows),
+  meleeCollision.js (blades at simulation time, swept against rig capsules/shield boxes/walls), combatState.js
+  (fighter: attack phases, guard timing, posture, attack-id dedupe), damageModel.js (defence outcome, damage by
+  region/armour/speed, injury effects), combatEvents.js, melee.js (the one pipeline for the wanderer and human foes,
+  created by combat.js); ai/combatMemory.js + ai/combatTactics.js (duel commitments); ui/combatDebug.js (F7).
+  A blow only lands where the blade passed: never add hits by range/angle checks or timers.
 - src/data/spells.js — the nine spells, elements, chapters, the Zauberhand rules (equip/cycle), magicka, bolt and chain
   geometry (tests/spells.test.js); src/systems/spellcraft.js — the eight new spells' runtime and world effects (ice floes
   via iceAt() in the player's ground, wisp light for goblins via lightNear(), clouds that explode on fireAt()), created by

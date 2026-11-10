@@ -102,7 +102,7 @@ export function createAIManager({ world, hooks = {} }) {
     if (from && !b.sees) b.memory.hear(from, time, .7, 'schmerz');
     if (!npc.calm && !['surrendered', 'pacified', 'grateful', 'fleeing'].includes(b.hostility)) { b.hostility = 'hostile'; b.since = time; }
     // Struck while yielding: the bold fight back, the rest run.
-    else if (b.hostility === 'surrendered') { b.hostility = b.traits.aggression > .6 ? 'hostile' : 'fleeing'; b.since = time; b.disarmed = false; b.feigning = false; }
+    else if (b.hostility === 'surrendered') { b.hostility = b.traits.aggression > .6 ? 'hostile' : 'fleeing'; b.since = time; b.disarmed = !!b.npc.disarmedBy; b.feigning = false; }
   }
   function nearMiss(npc, point, direction) {
     const b = npc.ai; if (!b || b.npc.dead) return;

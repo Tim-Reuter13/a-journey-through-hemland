@@ -49,6 +49,13 @@ function aimSword(character, input, state, dt) {
     _blade.fromArray((spear ? SHAFT : BLADE)[input.guard ? 'guard' : input.combat ? 'ready' : 'rest']).applyQuaternion(_body).normalize();
     _edge.set(0, 0, -1).applyQuaternion(_body);
   }
+  const track = input.blade?.weight > .01 ? input.blade : null;
+  if (track) {
+    // The simulated blade (systems/melee.js): the weapon lies along it; the edge leads along its motion.
+    _blade.lerp(_bd.copy(track.dir), track.weight).normalize();
+    if (state.tip && dt > 0) _edge.subVectors(track.tip, state.tip); else _edge.set(0, 0, -1).applyQuaternion(_body);
+    (state.tip ??= new THREE.Vector3()).copy(track.tip);
+  } else state.tip = null;
   (state.hand ??= new THREE.Vector3()).copy(_hand);
   _edge.addScaledVector(_blade, -_edge.dot(_blade));
   if (_edge.lengthSq() < 1e-6) { if (!state.edge) return; _edge.copy(state.edge).addScaledVector(_blade, -state.edge.dot(_blade)); }
@@ -61,8 +68,21 @@ function aimSword(character, input, state, dt) {
   _target.setFromRotationMatrix(_basis);
   weapon.parent.getWorldQuaternion(_grip).invert();
   _target.premultiply(_grip);
-  if (state.aimed) weapon.quaternion.slerp(_target, 1 - Math.exp(-(swinging ? 30 : 12) * dt)); else weapon.quaternion.copy(_target);
+  if (track && track.weight > .98) weapon.quaternion.copy(_target);
+  else if (state.aimed) weapon.quaternion.slerp(_target, 1 - Math.exp(-(swinging || track ? 30 : 12) * dt)); else weapon.quaternion.copy(_target);
   state.aimed = true;
+}
+const _bd = new THREE.Vector3(), _gp = new THREE.Vector3(), _pole = new THREE.Vector3(), _bodyQ = new THREE.Quaternion(), _ikTarget = new THREE.Vector3();
+/** Two-bone IK of the sword arm onto the simulated hilt (blade: { hilt, tip, dir, weight } in world space). */
+function bladeArm(character, blade) {
+  const rig = character.userData.rig, grip = rig.grip_right || rig.hand_right; if (!grip || !rig.arm_upper_right) return;
+  character.updateMatrixWorld(true);
+  grip.getWorldPosition(_gp); character.getWorldQuaternion(_bodyQ);
+  _ikTarget.copy(_gp).lerp(blade.hilt, blade.weight);
+  // The elbow bends down and out to the right, a little behind.
+  rig.arm_upper_right.getWorldPosition(_pole);
+  _pole.add(_bd.set(.7, -.8, .35).applyQuaternion(_bodyQ));
+  solveArm(character, 'right', _ikTarget, _pole);
 }
 
 // Two-bone arm IK for holds that must meet a point (the bow grip, the drawn string): turns the upper
@@ -447,7 +467,13 @@ export function createAnimator(character) {
     const upper = new Pose();
     let actionWeight = 0;
     const action = input.action;
-    if (action) {
+    if (input.swing) {
+      // Combat 2.0: the body follows the attack's own phases (systems/combatRules.js anim keys); the arm is laid on
+      // the blade's track afterwards (bladeArm).
+      const sw = input.swing, p = sw.phase === 'prepare' ? sw.k1 * sw.u : sw.phase === 'active' ? sw.k1 + (sw.k2 - sw.k1) * sw.u : sw.k2 + (1 - sw.k2) * sw.u;
+      actionWeight = Math.min(1, p / .06, (1 - p) / .08 + .15);
+      sample(sw.set === 3 ? THRUST : SWORD[sw.set % 3], clamp(p, 0, 1), upper);
+    } else if (action) {
       const p = clamp(action.progress, 0, 1);
       actionWeight = Math.min(1, p / .06, (1 - p) / .08 + .15);
       const track = action.kind === 'sword' ? (action.weapon === 'spear' ? THRUST : SWORD[action.combo % 3]) : action.kind === 'cast' ? CAST : DRINK;
@@ -652,6 +678,8 @@ export function createAnimator(character) {
     if (!quadruped) { pose.add('neck', state.lookPitch * .4, state.look * .4); pose.add('head', state.lookPitch * .6, state.look * .6); }
     else { pose.add('neck', 0, state.look * .5); pose.add('head', state.lookPitch * .5, state.look * .4); }
     apply(pose);
+    // Combat 2.0: during an attack the sword hand goes where the simulated blade is (two-bone IK to the hilt).
+    if (input.blade?.weight > .01 && !quadruped) bladeArm(character, input.blade);
     // A drawn blade hangs tip-down at the side, comes up ready in combat, rises in guard.
     aimSword(character, input, state, dt);
   }

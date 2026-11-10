@@ -197,5 +197,6 @@ body.in-dialog #hud,body.in-dialog #reticle,body.in-dialog #combat-feedback,body
 #barks { position:fixed; inset:0; pointer-events:none; z-index:3; }
 #barks .bark { position:fixed; transform:translate(-50%,-100%); padding:4px 9px; max-width:280px; font-size:13px; line-height:1.25; text-align:center; color:#efe6d2; background:#12171bd9; border-left:3px solid #d9a441; box-shadow:2px 0 #080c10,0 2px #080c10; white-space:normal; }
 #barks .bark.debug { font-size:10px; color:#bfe0c8; border-left-color:#5fa37a; background:#0b1210cc; max-width:420px; text-align:left; }
+#combat-debug { position:fixed; right:12px; top:120px; max-width:min(720px,48vw); max-height:72vh; overflow:hidden; padding:8px 10px; font:11px/1.42 ui-monospace,Consolas,monospace; color:#f1dcc4; background:#140805e6; border-left:3px solid #c0603a; z-index:6; white-space:pre-wrap; pointer-events:none; }
 #ai-debug { position:fixed; left:12px; top:120px; max-width:min(860px,60vw); padding:8px 10px; font:11px/1.45 ui-monospace,Consolas,monospace; color:#cfe8d6; background:#081009e0; border-left:3px solid #5fa37a; z-index:6; white-space:pre-wrap; pointer-events:none; }
 body.in-cinematic #barks, body.in-dialog #barks { display:none; }

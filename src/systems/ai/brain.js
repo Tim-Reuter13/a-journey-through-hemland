@@ -62,6 +62,13 @@ export function onEvent(b, type, data = {}, t = 0) {
     case 'cruelty': e.fear += .3 * (1 - tr.courage * .5); e.anger += .3 * tr.vengeance; b.observed.add('cruel'); break;
     case 'hitPlayer': e.confidence += .07; break;
     case 'blocked': e.confidence -= .05; e.stress += .06; break;
+    // Combat 2.0 (systems/melee.js): what a blow did tells a fighter how the duel goes.
+    case 'parriedBy': e.confidence -= .1; e.stress += .12; e.fear += .04 * (1 - tr.grit); break;   // the wanderer turned my blade
+    case 'missed': e.confidence -= .03; e.stress += .03; break;
+    case 'parried': e.confidence += .08; e.stress = Math.max(0, e.stress - .05); break;            // I turned his
+    case 'blockedPlayer': e.confidence += .03; break;
+    case 'disarmed': e.fear += .35 * (1 - tr.courage * .5); e.confidence -= .3; e.stress += .3; b.memory.remember('disarmed', { t }); break;
+    case 'guardBroken': e.fear += .08 * (1 - tr.grit); e.confidence -= .08; break;
   }
   e.fear = clamp(e.fear, 0, 1); e.anger = clamp(e.anger, 0, 1); e.confidence = clamp(e.confidence, 0, 1); e.stress = clamp(e.stress, 0, 1);
 }
@@ -85,7 +92,9 @@ function situation(b, ctx, dt) {
   // A friend a hedge-witch could heal: hurt, near, not in the thick of it.
   const patient = b.personality.caster && b.mana >= AI.magic.heal ? allies.filter(o => o.npc.hp / o.npc.maxHp < .55 && o.npc.model.position.distanceTo(p) < 16 && o.hostility !== 'surrendered')
     .sort((x, y) => x.npc.hp / x.npc.maxHp - y.npc.hp / y.npc.maxHp)[0] ?? null : null;
-  const s = { t, dt, knows, q, target, dist, trueDist, sees, aimed, aimedAtAlly, aimDraw: P.bow.draw || 0, swinging: sees && P.swinging && trueDist < 4.5,
+  // Wounds (HUMANITY MOTION): a ruined sword arm or a cut leg changes what this person can still do.
+  const inj = npc.injury || {}, armHurt = Math.max(inj.arm_right || 0, b.disarmed && npc.disarmedBy ? 1 : 0), legHurt = Math.max(inj.leg_left || 0, inj.leg_right || 0);
+  const s = { armHurt, legHurt, gutHurt: inj.torso || 0, t, dt, knows, q, target, dist, trueDist, sees, aimed, aimedAtAlly, aimDraw: P.bow.draw || 0, swinging: sees && P.swinging && trueDist < 4.5,
     casting: sees && P.casting, hp, allies, fighting, wounded, threat, ranged, patient, bowSeen: sees && P.bow.drawing,
     nearMiss: t - b.nearMissAt < 3.5, fire: t - b.fireAt < 4, story: b.story,
     // HUMANITY MOTION: a comrade in the wanderer's grip, or the wanderer held by one of us.
@@ -198,7 +207,7 @@ export const ACTIONS = [
     } },
   { id: 'toll', minTime: 2, when: b => b.hostility === 'demanding', score: () => .8,
     plan(b, s, ctx) { go(b, s.trueDist > 5 ? ctx.player.position.clone() : null, 1.8, { face: ctx.player.position, pose: 'warn', tolerance: 4.5 }); if (!b.said.toll) { b.said.toll = s.t; ctx.say(b, 'toll', 0); } } },
-  { id: 'engage', minTime: .6, when: (b, s) => fightingState(b) && s.knows && !s.ranged && b.hostility !== 'demanding',
+  { id: 'engage', minTime: .6, when: (b, s) => fightingState(b) && s.knows && !s.ranged && b.hostility !== 'demanding' && !b.disarmed,
     score: (b, s) => .42 + b.traits.aggression * .3 + b.emotion.confidence * .15 - b.emotion.fear * .55 + (b.token ? .28 : -.32) + b.emotion.anger * .15
       - (b.stamina < 25 ? .3 : 0) + (b.flanked ? .1 : 0) - (b.personality.leads && s.fighting.length >= 2 ? .12 : 0) + (b.vengeful ? .15 : 0)
       - (1 - s.hp) * .45 * (1 - b.traits.grit * .5),
@@ -208,7 +217,7 @@ export const ACTIONS = [
       const cover = b.personality.shield && (s.bowSeen || s.aimed || s.nearMiss || s.dist > reach + 1);
       go(b, s.target.clone(), s.dist > reach + 2 ? (cover ? 2.4 : 3.3) : 1.6, { face: s.target, attack: s.dist <= reach + .1 && s.sees, tolerance: reach - .4, guard: cover, pose: cover ? 'shieldUp' : null });
     } },
-  { id: 'pressure', minTime: 1.2, when: (b, s) => FIGHT.has(b.hostility) && s.knows && !s.ranged,
+  { id: 'pressure', minTime: 1.2, when: (b, s) => FIGHT.has(b.hostility) && s.knows && !s.ranged && !b.disarmed,
     score: (b, s) => .4 + b.traits.discipline * .12 + b.traits.caution * .08 - b.emotion.fear * .1,
     plan(b, s, ctx) {
       b.orbit ??= b.random() < .5 ? -1 : 1;
@@ -220,7 +229,7 @@ export const ACTIONS = [
       const shield = b.personality.shield;
       go(b, goal, b.feintUntil ? 3.2 : 2.1, { face: s.target, guard: s.swinging || shield, pose: shield ? 'shieldUp' : 'guardReady', tolerance: b.feintUntil ? 2.2 : .8 });
     } },
-  { id: 'flank', minTime: 1.5, cooldown: 4, when: (b, s) => FIGHT.has(b.hostility) && s.knows && !s.ranged && !b.token && (b.orders?.kind === 'flank' || (b.traits.cunning > .55 && s.fighting.length >= 1)),
+  { id: 'flank', minTime: 1.5, cooldown: 4, when: (b, s) => FIGHT.has(b.hostility) && s.knows && !s.ranged && !b.token && !b.disarmed && (b.orders?.kind === 'flank' || (b.traits.cunning > .55 && s.fighting.length >= 1)),
     score: (b, s) => .4 + b.traits.cunning * .25 + (b.orders?.kind === 'flank' ? b.traits.obedience * .35 * (1 - b.emotion.fear) : 0) - b.emotion.fear * .25,
     plan(b, s, ctx) {
       const point = cached(b, 'flank', s.t, 1.2, () => S.flankPoint(ctx.world, b.npc.model.position, s.target, ctx.player.yaw, s.fighting.map(o => o.npc.model.position)));
@@ -233,8 +242,9 @@ export const ACTIONS = [
   { id: 'recover', minTime: 1.5, when: (b, s) => FIGHT.has(b.hostility) && s.knows && !s.ranged && b.stamina < 28 && !b.token,
     score: b => .36 + (28 - b.stamina) / 28 * .4,
     plan(b, s, ctx) { go(b, S.ringPoint(ctx.world, b.npc.model.position, s.target, 7.5, b.orbit || 1), 1.6, { face: s.target, guard: true, pose: 'guardReady' }); } },
-  { id: 'retreat', minTime: 2, when: (b, s) => FIGHT.has(b.hostility) && s.knows && (b.emotion.fear > AI.fear.retreat || s.hp < .35),
-    score: (b, s) => b.emotion.fear * .85 + b.emotion.pain * .25 - b.traits.courage * .25 - (s.story ? .15 : 0) - (b.vengeful ? .2 : 0) - (s.aimed ? .25 : 0) + (s.hp < .35 ? .35 : 0),
+  { id: 'retreat', minTime: 2, when: (b, s) => FIGHT.has(b.hostility) && s.knows && (b.emotion.fear > AI.fear.retreat || s.hp < .35 || b.disarmed),
+    score: (b, s) => b.emotion.fear * .85 + b.emotion.pain * .25 - b.traits.courage * .25 - (s.story ? .15 : 0) - (b.vengeful ? .2 : 0) - (s.aimed ? .25 : 0) + (s.hp < .35 ? .35 : 0)
+      + s.armHurt * .3 + s.gutHurt * .15,
     plan(b, s, ctx) {
       // Back off toward the friends, guard up, eyes on the threat; ask for help when it is bad.
       const friends = s.fighting.length ? s.fighting[0].npc.model.position : b.home;
@@ -265,7 +275,9 @@ export const ACTIONS = [
       // A hedge-witch with the ember spent has nothing left to hold the line with.
       + (b.personality.caster && b.mana < AI.magic.bolt ? .3 : 0)
       // Running from a drawn bow across open ground: a back is an easy target.
-      - (s.aimed ? .4 * clamp(1 - s.trueDist / 30, 0, 1) : 0),
+      - (s.aimed ? .4 * clamp(1 - s.trueDist / 30, 0, 1) : 0)
+      // A cut leg does not outrun anyone; a ruined sword arm has nothing left to fight with.
+      - s.legHurt * .35 + s.armHurt * .2,
     plan(b, s, ctx) {
       const goal = cached(b, 'escape', s.t, 2, () => S.escapePoint(ctx.world, b.npc.model.position, s.target, 22));
       if (!goal) { b.cache.cornered = { t: s.t, v: true }; return; }
@@ -276,7 +288,8 @@ export const ACTIONS = [
   // Yielding: hands up, weapon dropped. Sticky — they stay yielded unless the situation changes a lot.
   { id: 'surrender', minTime: Infinity, when: (b, s) => !b.noSurrender && !b.personality.beast && (FIGHT.has(b.hostility) || b.hostility === 'fleeing') && s.knows && s.trueDist < 16,
     score: (b, s, ctx) => b.emotion.fear * .95 + (s.aimed ? (s.fighting.length ? .2 : .38) : 0) + (s.cornered ? .22 : 0) + (s.hp < .3 ? .15 : 0) - b.traits.aggression * .3 - b.traits.vengeance * .15
-      - b.emotion.confidence * .25 - s.fighting.length * .14 - (s.ranged ? .2 : 0) - (b.personality.shield ? .25 : 0) + Math.min(.15, (ctx.faction.spared || 0) * .05) - (ctx.faction.cruel ? .4 : 0) - (b.vengeful ? .3 : 0) - .2,
+      - b.emotion.confidence * .25 - s.fighting.length * .14 - (s.ranged ? .2 : 0) - (b.personality.shield ? .25 : 0) + Math.min(.15, (ctx.faction.spared || 0) * .05) - (ctx.faction.cruel ? .4 : 0) - (b.vengeful ? .3 : 0) - .2
+      + s.armHurt * .3 + s.legHurt * .2,
     plan(b, s, ctx) {
       if (b.hostility !== 'surrendered') {
         b.hostility = 'surrendered'; b.since = s.t; b.disarmed = true; b.token = false;
@@ -295,7 +308,7 @@ export const ACTIONS = [
       if (b.feigning && b.unwatched > 1.2 && b.tellSince < 0) b.tellSince = s.t;
       if (b.tellSince >= 0 && watched) { b.tellSince = -1; b.feigning = b.random() < .5; }
       if (b.tellSince >= 0 && s.t - b.tellSince > 1.3) {
-        b.hostility = 'hostile'; b.disarmed = false; b.feigning = false; b.tellSince = -1; b.strikeBack = true; b.token = true; b.tokenSince = s.t;
+        b.hostility = 'hostile'; b.disarmed = !!b.npc.disarmedBy; b.feigning = false; b.tellSince = -1; b.strikeBack = true; b.token = true; b.tokenSince = s.t;
         b.action.reason = 'Täuschung: Bogen gesenkt, Rücken frei';
       }
       // Left alone long enough, a real yielder slips away.

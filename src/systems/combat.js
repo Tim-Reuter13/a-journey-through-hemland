@@ -9,6 +9,10 @@ import { createNavGrid,PENDING } from './navGrid.js';
 import { createArchery, BOW } from './archery.js';
 import { reflex, onEvent } from './ai/brain.js';
 import { AI } from './ai/config.js';
+import { createMelee } from './melee.js';
+import { injuryEffects } from './damageModel.js';
+import { createCombatMemory, observe, readMemory } from './ai/combatMemory.js';
+import { TACTICS as DUEL, chooseTactic, shouldAbort } from './ai/combatTactics.js';
 
 /** How long an enemy archer takes to draw and aim before the arrow leaves (also the draw animation). */
 export const ARCHER_DRAW=1.1;
@@ -22,7 +26,7 @@ export const ARCHER_DRAW=1.1;
 // Heavy suits (and Rauk) turn blows aside anywhere on the body; plate, mail and leather decide it where a blow lands.
 const HEAVY_ARMOR = new Set(['aschenrüstung', 'hauptmannsplatte', 'wachpanzer']);
 export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onHeal,weaponDamage,magicDamage,toast,onImpact,getCastOrigin,prey,bow,ai=null,motion=null,sneakAttack=null,
-  activeSpell=()=>'funken',spellCost=()=>0,onCast=null,magic={},weaponStyle=()=>'sword'}) {
+  activeSpell=()=>'funken',spellCost=()=>0,onCast=null,magic={},weaponStyle=()=>'sword',weaponItem=()=>null,playerModel=()=>null}) {
   // magic: what the Zauberbuch's spells reach in the world (systems/spellcraft.js): wildfire, shove, hurtPlayer, healPlayer, movePlayer.
   // motion (HUMANITY MOTION): impact(enemy, info) for forces on bodies, playerHit(enemy, info), grapple(enemy, 'grab'|'shove'), handles(enemy).
   let strikeKind=null,aimPoint=null;   // aimPoint: where the blade really crosses the body (resolveSword)
@@ -45,7 +49,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // Thrown by wind or stone: bodies with HUMANITY MOTION fall for real, the rest slide back.
     knock:(e,dir,force=2,up=0)=>{if(e.dead)return;if(motion?.knock&&motion.handles?.(e)&&motion.knock(e,dir,force,up))return;e.knock=vector(dir.x,0,dir.z).normalize().multiplyScalar(2.2+force*1.4);e.stagger=Math.max(e.stagger||0,1);},
     ...magic});
-  let action=null,guard=false,guardStart=0,time=0,combo=0,lastAttack=-10,queued=false,hitPause=0;
+  let action=null,guard=false,guardStart=0,guardLock=0,time=0,combo=0,lastAttack=-10,queued=false,hitPause=0;
   const before=new THREE.Vector3(),next=new THREE.Vector3(),center=new THREE.Vector3(),segment=new THREE.Vector3(),offset=new THREE.Vector3();
   const hand=new THREE.Vector3(),surface={point:new THREE.Vector3(),normal:new THREE.Vector3()},normal=new THREE.Vector3();
   const propRay=new THREE.Raycaster(),propHits=[];
@@ -57,6 +61,63 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   function strike(target,amount,magic,from){
     if(!target.prey){hit(target,amount,magic,from);return;}
     prey.hit(target,amount,magic);effects.hit(target,from,amount,magic,{kind:strikeKind||(magic?'magic':'sword'),combo});hitPause=.04;
+  }
+  // ── Combat 2.0 (systems/melee.js): blades are simulated; a blow lands where the blade met a body.
+  const melee=createMelee({player,enemies,prey,world,effects,ai,toast,motion,time:()=>time,pause:s=>{hitPause=Math.max(hitPause,s);},
+    weaponDamage,weaponItem,weaponStyle,playerModel,guard:()=>({up:guard,at:guardStart}),breakGuard:s=>{guard=false;guardLock=time+s;},
+    onHurt:(amount,info)=>onHurt(amount,info),wound:(e,info)=>wound(e,info),
+    strikePrey:(target,amount,point)=>{strikeKind='sword';strike(target,amount,false,point.clone().add(vector(0,.3,0)));strikeKind=null;},
+    corpseHit:(corpse,point,dir)=>{effects.corpseHit(corpse,eye(),combo,point);effects.sound('impact');hitPause=Math.max(hitPause,.04);
+      for(const part of corpse.ragdoll?.parts||[])part.body?.applyImpulse?.({x:dir.x*.9,y:.3,z:dir.z*.9},true);},
+    moveEnemy:(e,dx,dz)=>moveEnemy(e,dx,dz),turnToward:(e,x,z,dt,rate)=>turnToward(e,x,z,dt,rate),injury:model=>motion?.injury?.(model)||null,
+    onEvent:(b,type,data,t)=>onEvent(b,type,data,t),cancelPlayerAction:()=>{if(action?.kind==='sword'){action=null;player.attack=0;}}});
+  // Phase 4: whoever sees the wanderer fight remembers how (ai/combatMemory.js); commitments count what happened to them.
+  let lastPlayerWhiff=-9;
+  melee.events.on('*',ev=>{
+    if(ev.by==='player'&&ev.type==='miss')lastPlayerWhiff=time;
+    const kind=ev.by==='player'?{attackStart:'attack',charge:'charged',miss:'whiff',parried:'parried',blocked:'blocked'}[ev.type]:ev.type==='hit'&&ev.on==='player'?'tookHit':null;
+    if(kind)for(const e of enemies){if(e.dead||!e.ai?.sees||e.model.position.distanceTo(player.position)>16)continue;observe(e.ai.combat??=createCombatMemory(),kind,time,{key:ev.key});}
+    const who=id=>id&&enemies.find(e=>e.ai?.id===id);
+    if(ev.type==='hit'&&ev.by==='player'){const e=who(ev.on);if(e?.tactic)e.tactic.hits++;}
+    if(ev.type==='guardBroken'&&ev.of==='player'){const e=who(ev.by);if(e?.tactic)e.tactic.broke=true;}
+    if(ev.type==='feint'){const e=who(ev.by);if(e){e.feintAt=time;if(e.tactic)e.tactic.feints++;}}
+  });
+  /** A blade's wound on a person (melee.js decided that it landed and how hard): sneak attacks, ice, armour where it
+   *  struck, blood, pain, the body's own reaction (HUMANITY MOTION) and the AI's. Returns the damage dealt. */
+  function wound(enemy,info){
+    if(enemy.dead)return 0;
+    let amount=info.amount;
+    const sneak=sneakAttack?.(enemy)||1;
+    if(sneak>1){amount*=sneak;hitPause=.12;toast(`MEUCHELANGRIFF · ×${sneak}`,1500);}
+    if(info.riposte){hitPause=Math.max(hitPause,.12);toast('KONTER',700);}
+    if(spellcraft)amount=spellcraft.reactions.physical(enemy,amount);
+    const suited=isSuited(enemy);if(suited)enemy.suited=true;
+    const probe=effects.probe(enemy,info.from,{kind:'sword',combo:info.chain,point:info.point,armored:suited});
+    const suit=enemy.storyId?.45:HEAVY_ARMOR.has(enemy.look?.equipment?.armor)?.55:1;
+    const pass=({cut:{plate:.25,mail:.5,leather:.82},chop:{plate:.45,mail:.62,leather:.88},thrust:{plate:.4,mail:.7,leather:.88},blunt:{plate:.75,mail:.85,leather:.95}}[info.kind]||{})[probe?.cls]??1;
+    amount=Math.round(amount*Math.min(suit*(info.kind==='blunt'?1.4:1),pass));
+    if(amount<1){effects.sound('parry');return 0;}
+    ai?.hurt(enemy,amount,info.from);ai?.noise('fight',enemy.model.position);
+    onHit(enemy,amount,false);
+    effects.hit(enemy,info.from,amount,false,{kind:'sword',combo:info.chain,point:info.point,armored:suited});
+    enemy.stagger=Math.max(enemy.stagger||0,info.blocked?.12:.25+Math.min(.35,info.force*.16));enemy.windup=0;
+    const region=info.region;
+    if(probe&&!probe.armoured){
+      enemy.pain={region,side:info.side||(Math.random()<.5?'left':'right'),at:performance.now()};
+      if(region==='leg'||region==='foot'){enemy.limpUntil=time+5;enemy.stagger=Math.max(enemy.stagger,.55);}
+      else if(region==='head'||region==='neck')enemy.stagger=Math.max(enemy.stagger,.8);
+    }
+    const dir=vector(enemy.model.position.x-player.position.x,0,enemy.model.position.z-player.position.z).normalize();
+    if(motion?.handles?.(enemy))motion.impact(enemy,{kind:'sword',from:player.position.clone(),amount,point:info.point,region,force:info.force*1.25,dir});
+    else enemy.knock=dir.multiplyScalar(info.heavy?3.2:1.8);
+    // A sword arm cut to ruin cannot hold the blade: it falls (main.js holdWeapons drops it at their feet).
+    const inj=motion?.injury?.(enemy.model);
+    if(enemy.ai&&!enemy.ai.disarmed&&!enemy.dead&&inj&&inj.arm_right>.75&&/right$/.test(info.zone||'')&&/arm|hand/.test(info.zone||'')){
+      enemy.ai.disarmed=true;enemy.disarmedBy='arm';enemy.fight&&(enemy.fight.attack=null);toast('ENTWAFFNET',1100);effects.sound('parry');
+      onEvent(enemy.ai,'disarmed',{},time);melee.events.emit('disarmed',{of:enemy.ai.id,by:'player',at:time,why:'Schwertarm verletzt'});}
+    hitPause=Math.max(hitPause,info.heavy?.08:.055);
+    if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}
+    return amount;
   }
   const archery=bow?createArchery({scene,world,player,toast,sound:effects.sound,spray:effects.spray,ammo:bow.ammo,damage:bow.damage,aim:bow.aim,arrowModel:bow.arrowModel,drawTime:bow.drawTime,steady:bow.steady,scored:bow.scored,
     targets:()=>prey?[...enemies,...prey.targets(100)]:enemies,strike:(target,amount,from)=>{strikeKind='arrow';strike(target,amount,false,from);strikeKind=null;},
@@ -94,7 +155,16 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   }
   function begin(kind){
     const spec=ACTIONS[kind];
-    if(action){if(kind==='sword'&&action.kind==='sword'&&action.t>.38)queued=true;return false;}
+    if(kind==='sword'){
+      // Combat 2.0: blows are attacks with phases and a real blade (systems/melee.js); a press during the last part of a
+      // blow is kept for the next one in the rhythm.
+      if(action&&action.kind!=='sword')return false;
+      const at=melee.playerStart();if(!at)return false;
+      guard=false;combo=at.chain;lastAttack=time;
+      action={kind,t:0,duration:at.total,combo,progress:0,weapon:weaponStyle(),attack:at};player.attack=at.total;
+      effects.sound('swing');ai?.noise('swing',player.position,{source:'player'});return true;
+    }
+    if(action){return false;}
     // Spells cost magicka, blows stamina.
     const spell=kind==='cast'?activeSpell():null,cost=spell?spellCost(spell):spec.cost;
     if(spell){if((player.magicka??0)<cost){toast('ZU WENIG MAGICKA',1300);effects.sound('parry');return false;}player.magicka-=cost;player.castAt=performance.now();}
@@ -108,7 +178,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   }
   function attack(){if(player.tool===3)return !action&&!!archery?.draw();if(player.tool===2)return drink();return begin(player.tool===1?'cast':'sword');}
   function drink(){if(player.potions<1){toast('KEINE HEILTRÄNKE');return false;}if(player.hp>=player.maxHp){toast('LEBEN BEREITS VOLLSTÄNDIG');return false;}return begin('drink');}
-  function setGuard(value){if(value&&!guard)guardStart=time;guard=!!value&&!action&&player.tool===0&&player.stamina>2;}
+  function setGuard(value){if(value&&!guard)guardStart=time;guard=!!value&&!action&&player.tool===0&&player.stamina>2&&time>=guardLock&&!(melee.player.stagger>0);melee.setPlayerGuard(guard);}
   function hit(enemy,amount,magic,from=eye()){
     if(enemy.dead)return;
     const riposte=!magic&&enemy.riposteUntil>time;
@@ -126,7 +196,7 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // A raised shield turns blows from the front (about ±70°), paid in stamina. The heavy third blow, or a
     // blow on an exhausted arm, breaks the guard: the shield is flung aside and the body is open.
     if(!magic&&!riposte&&!lowShot&&enemy.ai?.personality.shield&&!enemy.shieldGone&&enemy.shieldUp&&(enemy.shieldRaise??1)>.6&&!(enemy.guardBroken>0)&&!enemy.ai.disarmed&&inAttackArc(player.position.x-enemy.model.position.x,player.position.z-enemy.model.position.z,enemy.model.rotation.y,9,.35)){
-      const heavy=strikeKind!=='arrow'&&combo===2;
+      const heavy=false;   // Combat 2.0: blades break guards by posture (melee.js); arrows never do
       if(heavy||enemy.ai.stamina<10){enemy.guardBroken=1.3;enemy.shieldUp=false;enemy.stagger=.55;enemy.ai.stamina=Math.max(0,enemy.ai.stamina-10);effects.sound('parry');
         effects.spray(enemy.model.position.clone().add(vector(0,1.4,0)),vector(0,1,0),'splinter',5);hitPause=.06;toast('DECKUNG DURCHBROCHEN',1100);
         motion?.impact(enemy,{shield:true,force:2.4,from});motion?.impact(enemy,{kind:'sword',from,combo:1,amount:0});ai?.noise('fight',enemy.model.position);return;}
@@ -152,74 +222,6 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     else enemy.knock=enemy.model.position.clone().sub(player.position).setY(0).normalize().multiplyScalar(combo===2?3.2:1.8);
     hitPause=.055;
     if(enemy.dead){enemy.deathTime=0;enemy.model.visible=true;effects.killed(enemy);}
-  }
-  function resolveSword(){
-    if(weaponStyle()!=='spear')effects.slash(player.position,player.yaw,combo);   // a thrust leaves no arc
-    const E=eye(),fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw);
-    // A spear reaches further and straighter: it thrusts along the aim instead of sweeping an arc.
-    const spear=weaponStyle()==='spear',reach=spear?4.5:3.2;
-    const maxOff=spear?(combo===2?.28:.4):combo===2?.55:1.1,pitch=THREE.MathUtils.clamp(player.pitch,-1.3,1.3);
-    // The blade goes where you aim. The crosshair is a ray through the world: whatever body it meets within reach
-    // (alive or lying on the ground) is struck exactly there — a leg, a head, a corpse on the ground when you look down.
-    // Only when the crosshair is off every body does the swing's own shape (pitch, distance, arc) pick someone.
-    let cross=null;
-    {
-      const from=camera.position,dir=camera.getWorldDirection(vector(0,0,0)),seen=new Set();
-      for(const e of [...targets(),...enemies]){
-        if(seen.has(e)||!e.model?.visible)continue;seen.add(e);
-        const hit=effects.blood.pick(e,from,dir,18);if(!hit)continue;
-        const q=hit.point,dx=q.x-player.position.x,dz=q.z-player.position.z,d=Math.hypot(dx,dz),dot=fx*dx+fz*dz;
-        if(d>reach+.2||(d>.01&&dot<=0))continue;
-        const off=d<.01?0:Math.atan2(fx*dz-fz*dx,dot);
-        if(Math.abs(off)>maxOff*1.3||world.segmentBlocked(E,q))continue;
-        if(!cross||hit.distance<cross.hit.distance)cross={e,hit,off};
-      }
-    }
-    const swing=(p,height)=>{
-      const dx=p.x-player.position.x,dz=p.z-player.position.z,d=Math.hypot(dx,dz),dot=fx*dx+fz*dz;
-      if(d>reach||(d>.01&&dot<=0))return null;
-      const off=d<.01?0:Math.atan2(fx*dz-fz*dx,dot);
-      if(Math.abs(off)>maxOff)return null;
-      let rel=player.position.y+1.4+Math.tan(pitch)*Math.max(.8,d)*.8-p.y;
-      if(combo===2)rel=Math.max(rel,height*.62);
-      if(rel>height*1.1||rel<-height*.1)return null;
-      const y=THREE.MathUtils.clamp(rel,height*.08,height*.98),lateral=-Math.sin(off)*.22;
-      return {off,d,y,lateral,rel,score:d+Math.abs(off)*1.4+Math.abs(y-height*.6)/height*.5};
-    };
-    let target=null,best=null,corpse=null,where=null;
-    if(cross){
-      if(cross.e.dead){corpse=cross.e;where=cross.hit.point;}
-      else{target=cross.e;best={off:cross.off};aimPoint=cross.hit.point.clone();}
-    }else{
-      for(const e of targets()){
-        if(e.dead)continue;const p=e.model.position;
-        if(Math.abs(p.y-player.position.y)>2.4)continue;
-        const height=aimY(e)*1.45,s=swing(p,height);
-        if(!s||(best&&s.score>=best.score))continue;
-        if(world.segmentBlocked(E,p.clone().add(vector(0,s.y,0))))continue;
-        target=e;best=s;
-      }
-      if(target){const p=target.model.position;aimPoint=vector(p.x+rx*best.lateral,p.y+best.y,p.z+rz*best.lateral);}
-    }
-    if(target){
-      const glance=1-.4*(Math.abs(best.off)/maxOff)**2;
-      strike(target,weaponDamage()*(combo===2?1.18:1)*glance,false,E);
-      aimPoint=null;
-    }else{
-      if(!corpse){
-        // No one alive in reach and the crosshair is off every body: a corpse in the swing's path.
-        let bestScore=Infinity;
-        for(const e of enemies){
-          if(!e.dead||!e.model.visible)continue;
-          const p=e.ragdoll?.position?e.ragdoll.position():e.model.position,s=swing(p,.9);
-          if(s&&s.d<2.7&&s.score<bestScore){corpse=e;where=vector(p.x,p.y+.1,p.z);bestScore=s.score;}
-        }
-      }
-      if(corpse){
-        effects.corpseHit(corpse,E,combo,where);effects.sound('impact');hitPause=.04;
-        for(const part of corpse.ragdoll?.parts||[])part.body?.applyImpulse?.({x:fx*.9,y:.3,z:fz*.9},true);
-      }
-    }
   }
   /** Where the hand points: straight along the view, or at a foe close to the line of sight (aim help). */
   function aimFrom(origin,range=21){
@@ -447,8 +449,17 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
   }
   function driveAI(e,dt,distance,dx,dz,attackers){
     const b=e.ai,it=b.intent,prof=b.personality,p=e.model.position;
+    e.injury=motion?.injury?.(e.model)||null;   // the brain reasons about its own wounds (brain.js situation)
     // Hands on the wanderer: a grip or a shove (HUMANITY MOTION executes it, or refuses it).
     if((it.grab||it.shove)&&motion?.grapple){motion.grapple(e,it.grab?'grab':'shove');it.grab=it.shove=false;}
+    // Combat 2.0: a blow once begun runs its course in melee.js (wind-up turning after the wanderer, the committed
+    // strike with a real blade, the recovery); the brain waits for it.
+    const blow=melee.npcStep(e,dt);
+    if(blow==='done')afterBlow(e);
+    if(b.sees&&distance<16)observe(b.combat??=createCombatMemory(),'watch',time,{dt,guard});
+    if(e.fight?.attack||blow==='done')return;
+    const inj=injuryEffects(motion?.injury?.(e.model)||{});
+    applyTactic(e,b,it,distance,dt);
     if(e.windup>0){
       e.windup-=dt;turnToward(e,dx,dz,dt,4);
       if(e.windup<=0){
@@ -462,13 +473,15 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     // Wolves that can see their prey hunt as a pack (circle, dart in); everything else follows the brain.
     if(e.kind==='wolf'&&b.hostility==='hostile'&&b.sees&&['engage','pressure','desperate'].includes(it.id)){think(e,dt,distance,dx,dz,attackers);return;}
     // Reflex against the wanderer's swing, after a reaction time (too late for the slow).
-    if(action?.kind==='sword'&&action.t<.1&&e.reflexFor!==action&&distance<prof.reach+1.4&&b.sees){e.reflexFor=action;const r=reflex(b,distance);if(r)e.pendingReflex={...r,at:time+r.delay};}
+    if(action?.kind==='sword'&&action.t<.1&&e.reflexFor!==action&&distance<prof.reach+1.4&&b.sees){e.reflexFor=action;const r=reflex(b,distance);if(r)e.pendingReflex={...r,at:time+r.delay+inj.reaction};}
     if(e.pendingReflex&&time>=e.pendingReflex.at){const r=e.pendingReflex;e.pendingReflex=null;
       if(r.kind==='block'){e.blocking=r.hold;b.stamina-=6;}else{e.dodge={until:time+r.hold,dir:Math.random()<.5?-1:1};b.stamina-=12;}}
     e.blocking=Math.max(0,(e.blocking||0)-dt);
     if(it.guard&&b.stamina>8&&distance<4.6&&!b.disarmed){e.blocking=Math.max(e.blocking,.12);b.stamina-=dt*3;}
+    if(e.guardBroken>0||e.fight?.broken>0)e.blocking=0;
+    melee.setNpcGuard(e,e.blocking>0);
     b.meleeMode=!!e.archer&&(b.arrows<=0||distance<2.6&&b.sees||!['shoot','kite','reposition'].includes(it.id)&&b.hostility==='hostile');
-    let mx=0,mz=0,speed=it.speed;
+    let mx=0,mz=0,speed=it.speed*inj.move;
     if(e.dodge){
       if(time<e.dodge.until){const nx=dx/(distance||1),nz=dz/(distance||1);mx=-nz*e.dodge.dir-nx*.5;mz=nx*e.dodge.dir-nz*.5;speed=4.8;}else e.dodge=null;
     }else if(it.goal){
@@ -505,10 +518,55 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     }
     if(e.archer&&!b.meleeMode&&b.arrows>0){
       if(!world.segmentBlocked(p.clone().add(vector(0,1.6,0)),eye()))e.windup=ARCHER_DRAW*(1.25-prof.skill*.35);
-    }else if(distance<=prof.reach&&b.stamina>10&&!b.disarmed&&!world.segmentBlocked(p.clone().add(vector(0,1.5,0)),eye())){
-      // Novices wind up slowly (easy to read); the desperate strike in a hurry.
-      e.windup=prof.windup*(1.15-prof.skill*.25)*(it.id==='desperate'?.85:1);b.stamina-=10;ai?.noise('fight',p);
+    }else if(prof.beast){
+      if(distance<=prof.reach&&b.stamina>10&&!world.segmentBlocked(p.clone().add(vector(0,1.5,0)),eye())){e.windup=prof.windup*(1.15-prof.skill*.25);b.stamina-=10;ai?.noise('fight',p);}
+    }else{
+      // Combat 2.0: a real blow (melee.js). Novices wind up slowly and misjudge the distance; the desperate hurry. Waiting for an
+      // opening (punish), they step in with the wind-up from further out.
+      const T=e.tactic?DUEL[e.tactic.id]:null,stepIn=T?.attack==='opening';
+      if(b.stamina>(prof.skill<.5?6:14)&&!b.disarmed&&!(e.guardBroken>0)&&!(e.fight?.broken>0)&&distance<=melee.reachFor(e)+.3+misjudge(b)+(stepIn?.9:0)&&!world.segmentBlocked(p.clone().add(vector(0,1.5,0)),eye()))
+        melee.npcStart(e,{heavy:b.random()<(T?T.heavy:({berserker:.32,veteran:.18,leader:.22}[prof.archetype]??.08)),feint:b.random()<(T?.feint||0),stepIn,prepareScale:it.id==='desperate'?.85:1});
     }
+  }
+  /** How far off a fighter's sense of distance is: novices step in too late or swing from too far. */
+  function misjudge(b){return (1-b.personality.skill)*.55*(b.random()-.3);}
+  /** A blow has run its course: follow up at once (by the commitment, or by skill), or step back and wait. A novice
+   *  follows up even into a raised guard (overcommitting); after a feint the real blow comes at once. */
+  function afterBlow(e){
+    const b=e.ai,prof=b.personality,last=e.fight?.lastAttack,T=e.tactic?DUEL[e.tactic.id]:null;
+    if(last?.stopped==='feint'){e.cooldown=.12;return;}
+    const into=!last?.stopped||prof.skill<.5&&last.stopped==='blocked';
+    if(!e.combo&&b.stamina>22&&into&&!(e.stagger>0)&&b.random()<(T?T.chain:prof.skill*.42)&&b.intent.attack){e.combo=true;if(melee.npcStart(e))return;}
+    e.combo=false;e.cooldown=Math.max(e.cooldown||0,(last?.stopped==='parried'?1.9:1.2)+b.random()*1.1-prof.skill*.45);
+  }
+  // Phase 3: the duel commitment (ai/combatTactics.js) shapes the brain's intent each step — where to stand against
+  // their own real reach, whether a blow is worth it now, guard up or not.
+  const FIGHTING=new Set(['engage','desperate','rescue']),tacticGoal=new THREE.Vector3();
+  function applyTactic(e,b,it,distance,dt){
+    const prof=b.personality;
+    if(!FIGHTING.has(it.id)||b.hostility!=='hostile'||prof.beast||prof.caster||prof.ranged&&!b.meleeMode||b.disarmed){if(e.tactic){e.tactic.aborted=`Handlung ${it.id}`;e.tactic=null;}return;}
+    const f=melee.fighter(e),inj=injuryEffects(motion?.injury?.(e.model)||{}),mem=b.combat?readMemory(b.combat,time):null;
+    const v={skill:prof.skill,traits:b.traits,archetype:prof.archetype,stamina:b.stamina,posture:f.posture,hp:e.hp/e.maxHp,fear:b.emotion.fear,inj,mem,random:b.random};
+    let c=e.tactic;const why=!c?'Kampf beginnt':time>c.until?'Zeit um':shouldAbort(c,v,time);
+    if(why){
+      const pick=chooseTactic(v);if(c&&why!=='Zeit um')c.aborted=why;
+      e.tactic={id:pick.id,reason:pick.reason,since:time,until:time+DUEL[pick.id].min*(1+b.random()*.5),hits:0,feints:0,bitten:false,broke:false,aborted:null,prev:c?.id??null,why};
+      if(!c||c.id!==pick.id||why!=='Zeit um'){b.log.push(`${time.toFixed(1)} Taktik ${pick.id}: ${pick.reason}${c?` (${c.id}: ${why})`:''}`);if(b.log.length>12)b.log.shift();melee.events.emit('tactic',{by:b.id,at:time,key:pick.id,why:`${pick.reason}${c?` · ${c.id}: ${why}`:''}`});}
+      c=e.tactic;
+    }
+    const T=DUEL[c.id],reach=melee.reachFor(e),pf=melee.player,pa=pf.attack;
+    // The wanderer holds a heavy blow back: the skilled step out of its reach, the rest raise the guard.
+    const charging=!!(pa&&pa.charge>.12&&distance<reach+.9);
+    let want=reach+T.spacing;
+    if(charging&&prof.skill>.55)want=Math.max(want,reach+1.15);
+    if(Math.abs(distance-want)>.22){const nx=(e.model.position.x-player.position.x)/(distance||1),nz=(e.model.position.z-player.position.z)/(distance||1);
+      it.goal=tacticGoal.set(player.position.x+nx*want,e.model.position.y,player.position.z+nz*want);it.tolerance=.18;it.speed=distance>want+1.6?3.3:distance<want?2.2:1.7;}
+    else it.goal=null;
+    if(T.guard||charging&&prof.skill<=.55)it.guard=true;
+    const opening=pa?.phase==='recover'||pf.stagger>0||pf.broken>0||time-lastPlayerWhiff<.5;
+    it.attack=T.attack==='never'||charging?false:T.attack==='opening'?opening&&b.sees:it.attack;
+    // A feint that drew the guard or a blow is a feint that worked.
+    if(e.feintAt&&time-e.feintAt<.7&&((guard&&guardStart>e.feintAt)||(pa&&pa.start>e.feintAt))){c.bitten=true;e.feintAt=0;}
   }
   function updateEnemies(dt){navUntil=performance.now()+1.5;
     let winding=enemies.filter(e=>e.windup>0).length;
@@ -561,7 +619,16 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
       }
     }
     spellFx.update(dt);spellcraft.update(dt);
-    if(action){const previous=action.t;action.t+=actionDt;action.progress=Math.min(1,action.t/action.duration);player.attack=Math.max(0,action.duration-action.t);
+    // Combat 2.0: the wanderer's blow runs its phases and sweeps its blade in this fixed step (systems/melee.js).
+    const swordAt=melee.playerStep(actionDt);
+    if(action?.kind==='sword'){
+      if(!swordAt){action=null;player.attack=0;}
+      else{
+        if(swordAt!==action.attack){action={kind:'sword',t:0,duration:swordAt.total,combo:swordAt.chain,progress:0,weapon:weaponStyle(),attack:swordAt};combo=swordAt.chain;lastAttack=time;effects.sound('swing');ai?.noise('swing',player.position,{source:'player'});}
+        const charge=swordAt.charge||0;action.t=swordAt.t+charge;action.duration=swordAt.total+charge;action.progress=Math.min(1,action.t/action.duration);player.attack=Math.max(0,action.duration-action.t);
+      }
+    }
+    else if(action){const previous=action.t;action.t+=actionDt;action.progress=Math.min(1,action.t/action.duration);player.attack=Math.max(0,action.duration-action.t);
       // A held stream (Kettenblitz): the arm stays out at the moment of release while the cast is held and magicka lasts.
       if(action.channel){
         const hold=ACTIONS.cast.impact+.06;
@@ -574,8 +641,8 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
         }
         if(action.held===false&&spellcraft.channeling){spellcraft.endChannel();onCast?.(action.spell,true);}
       }
-      else if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='sword')resolveSword();else if(action.kind==='cast'){if(action.spell==='funken'||!action.spell)launchSpell();else castSpell(action.spell);}else onHeal();}
-      if(action.t>=action.duration){const chain=queued;action=null;queued=false;player.attack=0;if(chain)begin('sword');}}
+      else if(crossedImpact(previous,action.t,action.kind)){if(action.kind==='cast'){if(action.spell==='funken'||!action.spell)launchSpell();else castSpell(action.spell);}else onHeal();}
+      if(action.t>=action.duration){action=null;queued=false;player.attack=0;}}
     const gathering=action?.kind==='cast'&&action.t<ACTIONS.cast.impact?action.t/ACTIONS.cast.impact:null,palm=castOrigin(hand);
     spellFx.setCharge(palm,action?.spell==='funken'?gathering:null,dt);
     spellcraft.charge(palm,action?.spell&&action.spell!=='funken'?gathering:null,dt,action?.spell);
@@ -585,15 +652,15 @@ export function createCombat({scene,camera,player,enemies,world,onHit,onHurt,onH
     archery?.update(dt);updateProjectiles(dt);updateBolts(dt);updateEnemies(dt);
   }
   /** The cast button let go: a held stream stops (the arm comes back). */
-  function release(){if(action?.channel&&action.held!==false){action.held=false;if(action.t<ACTIONS.cast.impact)action.t=ACTIONS.cast.impact;}}
-  function reset(){action=null;queued=false;guard=false;hitPause=0;spellcraft.endChannel();effects.reset();archery?.reset();for(const bolt of bolts)spellFx.releaseBall(bolt.ball);bolts.length=0;
+  function release(){melee.playerRelease();if(action?.channel&&action.held!==false){action.held=false;if(action.t<ACTIONS.cast.impact)action.t=ACTIONS.cast.impact;}}
+  function reset(){action=null;queued=false;guard=false;hitPause=0;melee.reset();spellcraft.endChannel();effects.reset();archery?.reset();for(const bolt of bolts)spellFx.releaseBall(bolt.ball);bolts.length=0;
     spellFx.reset();spellcraft.reset();projectiles.length=0;
     enemies.forEach(e=>{e.stagger=0;e.windup=0;e.strikeT=0;e.deathTime=0;e.knock=null;});}
   function restore(){enemies.forEach(e=>{e.model.visible=true;
     if(e.hp<e.maxHp)effects.wound(e,e.model.position.clone().add(vector(0,1.7,-3)));
     if(e.dead){e.deathTime=1;effects.killed(e,true);}
   });}
-  return {attack,drink,setGuard,update,reset,restore,release,effects,spellFx,spellcraft,archery,
+  return {attack,drink,setGuard,update,reset,restore,release,effects,spellFx,spellcraft,archery,melee,
     get action(){return action;},get guarding(){return guard;},
     get speedFactor(){return action?.kind==='drink'?.45:guard||archery?.drawing?.55:action?.kind==='sword'?.76:1;},
     state:()=>({action:action?{...action}:null,guard,projectiles:projectiles.length,bow:archery?.state()??null,...effects.state(),...spellFx.state(),enemies:enemies.map(e=>({hp:e.hp,dead:e.dead,windup:e.windup||0,stagger:e.stagger||0,corpseVisible:e.dead&&e.model.visible}))}),

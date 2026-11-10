@@ -70,6 +70,10 @@ function makeSword(parent) {
       // The hand closes just below the guard.
       item.scale.setScalar(.64); item.rotation.set(0, 0, 0); item.position.set(0, -.05, 0);
       sword.add(item);
+      // Grip → point of the drawn model, for laying it on the simulated blade (poseSword).
+      const box = new THREE.Box3(); item.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(item.matrixWorld).invert(), rel = new THREE.Matrix4();
+      item.traverse(o => { if (!o.geometry) return; o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(rel.multiplyMatrices(inv, o.matrixWorld))); });
+      this.length = Math.max(.2, box.max.y * .64 - .05);
     },
   };
 }
@@ -408,15 +412,48 @@ export function createFirstPerson() {
   // the strike keys laid over that. Screen terms like the bow, so it keeps its place on ultrawide screens.
   const swordPose = { at: new THREE.Vector3(), blade: new THREE.Vector3() };
   const bladeLocal = new THREE.Vector3(), armInverse = new THREE.Quaternion(), forearm = new THREE.Vector3();
-  function poseSword(action, lift) {
+  // Combat 2.0: during a blow the sword is the simulated blade (systems/melee.js) seen through the eye. Every point may
+  // slide along its own line of sight without moving on screen, so the hilt sits at a hand's depth (HILT_DEPTH) on the
+  // ray through the real hilt and the point on the ray through the real point, one sword length away: the drawn blade
+  // covers exactly the screen line of the real one, and fist and arm keep their size. Out of view (wind-up behind the
+  // shoulder) the drawn strike keys stand in, blended by how far in front of the eye the real hilt is.
+  const HILT_DEPTH = .82, _ch = new THREE.Vector3(), _ct = new THREE.Vector3(), _rt = new THREE.Vector3(), _sw = { at: new THREE.Vector3(), blade: new THREE.Vector3() };
+  let swordLength = 1, lastW = 0;
+  function projectBlade(blade, worldCamera) {
+    worldCamera.updateMatrixWorld();
+    _ch.copy(blade.hilt).applyMatrix4(worldCamera.matrixWorldInverse); _ct.copy(blade.tip).applyMatrix4(worldCamera.matrixWorldInverse);
+    const w = THREE.MathUtils.smoothstep(-_ch.z, .06, .26) * blade.weight;
+    if (w <= .001 || _ct.z > -.05) return 0;
+    const k = HALF / Math.tan(THREE.MathUtils.degToRad(worldCamera.fov / 2));
+    // Rays at unit depth (this pass's narrower field of view folded in), then the hilt at hand depth.
+    _ch.set(_ch.x * k / -_ch.z, _ch.y * k / -_ch.z, -1).multiplyScalar(HILT_DEPTH);
+    _rt.set(_ct.x * k / -_ct.z, _ct.y * k / -_ct.z, -1);
+    // The point: on its ray, one sword length from the hilt (the far solution); none → nearest point on the ray.
+    const a = _rt.lengthSq(), b = _rt.dot(_ch), c = _ch.lengthSq() - swordLength * swordLength, disc = b * b - a * c;
+    const depth = disc >= 0 ? (b + Math.sqrt(disc)) / a : b / a;
+    _ct.copy(_rt).multiplyScalar(Math.max(HILT_DEPTH * .5, depth));
+    return w;
+  }
+  function poseSword(action, lift, blade = null, worldCamera = null) {
     const spear = weapon.style === 'spear';
     blendPose(swordPose, spear ? SPEAR_REST : SWORD_REST, spear ? SPEAR_GUARD : SWORD_GUARD, guarding);
     if (action?.kind === 'sword') strikePose(swordPose, swordPose, clamp(action.progress, 0, 1), clamp(Math.floor(action.combo || 0), 0, 2), spear ? SPEAR_STRIKES : STRIKES);
     const wide = Math.min(1.35, Math.max(1, camera.aspect / (16 / 9))), z = swordPose.at.z;
     right.position.set(swordPose.at.x * wide * HALF * z + lift.x, swordPose.at.y * HALF * z + lift.y, -z);
+    _sw.blade.copy(swordPose.blade);
+    let scale = 1;
+    const w = blade && worldCamera ? projectBlade(blade, worldCamera) : 0;
+    lastW = w;
+    if (w > .001) {
+      right.position.lerp(_ch, w);
+      _sw.at.subVectors(_ct, _ch); const len = _sw.at.length();
+      _sw.blade.lerp(_sw.at.divideScalar(len || 1), w).normalize();
+      scale = THREE.MathUtils.lerp(1, len / swordLength, w);
+    }
+    weapon.sword.scale.setScalar(scale);
     aimArm(right, forearm.subVectors(right.position, SHOULDER).normalize());
     armInverse.copy(right.quaternion).invert();
-    weapon.hilt.quaternion.setFromUnitVectors(UP, bladeLocal.copy(swordPose.blade).applyQuaternion(armInverse));
+    weapon.hilt.quaternion.setFromUnitVectors(UP, bladeLocal.copy(_sw.blade).applyQuaternion(armInverse));
   }
   function hideBow() { bowRig.visible = leftFist.visible = false; if (held) { held.setVisible(false); held.bow.visible = true; } }
   function light(world, camera) {
@@ -483,7 +520,7 @@ export function createFirstPerson() {
       left.visible = true; left.position.lerp(new THREE.Vector3(-.18, -.16, -.72), k); left.rotation.x += -.5 * k; left.rotation.z += .3 * k;
     }
   }
-  function update(dt, player, worldCamera, action, guard, bow = { raise: 0, draw: 0, release: 0, nocked: false, equipped: false }, worldLight = null) {
+  function update(dt, player, worldCamera, action, guard, bow = { raise: 0, draw: 0, release: 0, nocked: false, equipped: false }, worldLight = null, blade = null) {
     light(worldLight, worldCamera);
     skin.color.set(APPEARANCE_OPTIONS.skins[player.appearance?.skin ?? 2] || APPEARANCE_OPTIONS.skins[2]).lerp(_bloodHand, handBlood * .6);   // a bloody fist darkens the hand
     sleeve.color.set(player.sleeveColor || '#3a4a5a').multiplyScalar(.85);
@@ -511,7 +548,8 @@ export function createFirstPerson() {
     left.rotation.set(.1, .18, .15 - sway * .6);
     right.visible = tool !== 1; left.visible = tool === 1;
     sword.visible = tool === 0; flask.bottle.visible = tool === 2; spell.visible = tool === 1;
-    if (tool === 0) poseSword(action, { x: sway, y: breathe + bob - dip });
+    swordLength = weapon.length || 1.02;
+    if (tool === 0) poseSword(action, { x: sway, y: breathe + bob - dip }, blade, worldCamera);
     if (action) {
       const p = clamp(action.progress, 0, 1);
       if (action.kind === 'cast') {
@@ -564,6 +602,8 @@ export function createFirstPerson() {
   }
   reset();
   return {
+    /** Test hook: the sword arm's end and blade in view space, and the projected world blade (poseSword). */
+    debugBlade: () => ({ at: right.position.clone(), blade: _sw.blade.clone(), hilt: _ch.clone(), tip: _ct.clone(), w: lastW, rig: rig.position.clone() }),
     update, reset, setElement,
     /** The backpack of the inventory animation lives in the hand scene (systems/inventoryAccess.js). */
     attachPack(object) { packRoot = object; scene.add(object); }, setPack(pose) { packPose = pose; },
