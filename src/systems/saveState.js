@@ -2,7 +2,9 @@ import { INITIAL_CHARACTER } from './progression.js';
 import { normalizeAppearance } from '../characters/appearance.js';
 import { ITEMS, sanitizeCounts, isEquipment, equipSlot, EQUIPMENT_SLOTS } from './items.js';
 
-export const SAVE_VERSION = 6;
+import { WATCH } from '../data/hemland/bruchwacht.js';
+export const SAVE_VERSION = 7;
+const residentCount = 5 + WATCH.length;
 const number = (value, fallback, min, max) => Number.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
 const integer = (value, fallback, min, max) => Math.floor(number(value, fallback, min, max));
 import { PERK_IDS } from '../data/skillTrees.js';
@@ -27,7 +29,7 @@ function aiFrom(v) {
     m: Array.isArray(v.m) ? v.m.filter(k => typeof k === 'string' && /^[a-zA-Z]{1,24}$/.test(k)).slice(0, 8) : undefined };
 }
 export function normalizeSave(data) {
-  if (!data || ![1, 2, 3, 4, 5, 6].includes(data.version) || !Array.isArray(data.position) ||
+  if (!data || ![1, 2, 3, 4, 5, 6, 7].includes(data.version) || !Array.isArray(data.position) ||
       data.position.length !== 3 || !data.position.every(Number.isFinite)) return null;
   const player = structuredClone(INITIAL_CHARACTER);
   player.level = integer(data.level, 1, 1, 100);
@@ -82,7 +84,7 @@ export function normalizeSave(data) {
       return [id, { trust: number(state?.trust, 0, -100, 100), met: state?.met === true,
         gifts: integer(state?.gifts, 0, 0, 10000), memories: Array.isArray(state?.memories) ? state.memories.filter(m => typeof m === 'string').map(m => m.slice(0, 240)).slice(-30) : [] }];
     })),
-    enemies: Array.isArray(data.enemies) ? data.enemies.slice(0,5).map(e => ({ hp: number(e?.hp, 80, 0, 1000), dead: e?.dead === true, loot: e?.loot ? sanitizeCounts(e.loot) : undefined, ai: aiFrom(e?.ai) })) : [],
+    enemies: Array.isArray(data.enemies) ? data.enemies.slice(0,data.version >= 7 ? residentCount : 5).map(e => ({ hp: number(e?.hp, 80, 0, 1000), dead: e?.dead === true, loot: e?.loot ? sanitizeCounts(e.loot) : undefined, ai: aiFrom(e?.ai) })) : [],
     rpg: data.rpg,
   };
 }
@@ -91,5 +93,5 @@ export function encodeSave(player, game, enemies, relationships, hour, rpg) {
   const character = Object.fromEntries(Object.keys(INITIAL_CHARACTER).map(key => [key, player[key]]));
   return JSON.stringify({ ...character, version: SAVE_VERSION, position: player.position.toArray(),
     yaw: player.yaw, pitch: player.pitch, perspective: player.mode, quest: game.quest, flags: game.flags, hour,
-    relationships, rpg, enemies: enemies.map(e => ({ hp: e.hp, dead: e.dead, loot: e.loot || undefined, ai: e.ai ? persistBrain(e.ai) : undefined })) });
+    relationships, rpg, enemies: enemies.slice(0,residentCount).map(e => ({ hp: e.hp, dead: e.dead, loot: e.loot || undefined, ai: e.ai ? persistBrain(e.ai) : undefined })) });
 }

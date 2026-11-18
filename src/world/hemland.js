@@ -17,7 +17,11 @@ export const TREELINE = 74, SNOWLINE = 92;
  *  plus `offset`), 'level' (to an absolute `height`). Rectangles use halfX/halfZ, circles radius; blend is the falloff. */
 export const SITES = {
   village: { name: 'Dämmerwald', x: 0, z: 6, radius: 75, blend: 120, mode: 'soften' },
-  camp: { name: 'Westlager', x: -330, z: 150, radius: 24, blend: 34, mode: 'flatten' },
+  camp: { name: 'Bruchwacht', x: -330, z: 150, radius: 22, blend: 38, mode: 'level', height: 19 },
+  westmagazin: { name: 'Zollgewölbe der Bruchwacht', x: -374, z: 150, halfX: 27, halfZ: 23, blend: 16, mode: 'level', height: 19 },
+  westrast: { name: 'Der Bänderstein', x: -101, z: 41, radius: 5, blend: 7, mode: 'flatten' },
+  westwagen: { name: 'Am gebrochenen Rad', x: -153, z: 88, radius: 5, blend: 8, mode: 'flatten' },
+  westwache: { name: 'Krähenkanzel', x: -273, z: 133, radius: 5, blend: 9, mode: 'flatten' },
   shrine: { name: 'Glutschrein', x: 230, z: -60, radius: 15, blend: 14, mode: 'flatten' },
   tower: { name: 'Alter Wachturm', x: -120, z: 245, radius: 11, blend: 16, mode: 'flatten', offset: 2 },
   inn: { name: 'Zum Grauen Krug', x: 452, z: -372, radius: 22, blend: 22, mode: 'flatten' },
@@ -63,7 +67,8 @@ export const ROADS = [
     [446, -360], [520, -418], [610, -500], [700, -600], [790, -688], [872, -730], [940, -722], [986, -726], [1000, -736], [1000, -745]] },
   { id: 'shrine', type: 'dirt', width: 3.6, points: [[60, -20], [140, -34], [205, -52], [222, -58]] },
   { id: 'village_west', type: 'dirt', width: 4.2, points: [[-4, 12], [-11, 15], [-24, 15]] },
-  { id: 'camp', type: 'dirt', width: 3.6, points: [[-24, 15], [-55, 30], [-120, 55], [-200, 100], [-270, 135], [-312, 150]] },
+  { id: 'camp', type: 'dirt', width: 4.4, points: [[-24, 15], [-43, 19], [-61, 30], [-82, 32], [-102, 46], [-119, 59], [-126, 71], [-143, 82], [-160, 83], [-189, 83], [-205, 91], [-215, 107], [-230, 118], [-252, 119], [-270, 128], [-281, 140], [-279, 150], [-291, 156], [-302, 152], [-311, 150], [-320, 150]] },
+  { id: 'westsattel', type: 'lane', width: 2.8, points: [[-252, 119], [-262, 146], [-270, 166], [-292, 176], [-310, 177], [-331, 180], [-353, 179], [-373, 177], [-379, 174]] },
   { id: 'tower', type: 'dirt', width: 3.2, points: [[-24, 15], [-32, 42], [-60, 110], [-95, 182], [-112, 234]] },
   { id: 'lane_bridge_farm', type: 'lane', width: 3.2, points: [[520, -418], [524, -360], [530, -318]] },
   { id: 'lane_mill', type: 'lane', width: 3, points: [[610, -500], [632, -526], [645, -540]] },
