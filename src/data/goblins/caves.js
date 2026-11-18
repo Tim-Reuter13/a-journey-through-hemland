@@ -1,3 +1,4 @@
+import { ZOLLKELLER } from '../hemland/zollkeller.js';
 // Static dungeon plans. Coordinates are cells; group records explicitly declare reference namespaces.
 // Encounter groups are finite reserves: a drummer rallies their living members, never spawns an infinite army.
 export const CAVE_CELL = 2;
@@ -2693,3 +2694,5 @@ export const CAVES = [
     ]
   }
 ];
+// The Bruchwacht's customs cellar (data/hemland/zollkeller.js): built masonry, not a goblin hole, but walked the same way.
+CAVES.push(ZOLLKELLER);

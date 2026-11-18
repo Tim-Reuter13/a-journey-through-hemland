@@ -133,7 +133,7 @@ export function createWorld(scene) {
   for (const [x, z] of [[-8, 3], [9, 10], [-8.8, 17.9], [15, -2]]) makeLantern(village, heightAt, x, z);
   const forge = makeForge(village, heightAt, 4.6, 9.8, 2.43);
   const anvil = makeAnvil(village, heightAt, 6, 8.3, .5);
-  makeChest(village, heightAt, -1, 13, -2.68);
+  const stash = makeChest(village, heightAt, -1, 13, -2.68); if (stash?.userData) stash.userData.interact ??= { kind: 'stash' };
   makeCart(village, heightAt, 6, 20, .4);
   makeFence(village, heightAt, Array.from({ length: 12 }, (_, i) => [-29 + i * 2.4, -19 + Math.sin(i * .5) * 2]));
   // A hitching rail by the east road, where the grey waits for whoever takes its reins.
@@ -240,7 +240,8 @@ export function createWorld(scene) {
   for (const door of doors) door.hinge.traverse(o => o.isMesh && keep.add(o));
   for (const item of loose) item.traverse(o => o.isMesh && keep.add(o));
   // Road barrier poles swing (main.js updateBarriers), so they stay separate meshes.
-  scene.traverse(o => { if (o.userData.barrier || o.userData.siteMoving) o.traverse(m => m.isMesh && keep.add(m)); });
+  // Chests and beds you can use stay their own meshes too, so the interaction outline can draw round them.
+  scene.traverse(o => { if (o.userData.barrier || o.userData.siteMoving || o.userData.interact) o.traverse(m => m.isMesh && keep.add(m)); });
   // The dense city merges into bigger cells: far fewer draw calls, still culled by district.
   const batching = [village, ...siteGroups].map(g => batchScenery(g, keep, /kronwacht/.test(g.name) ? 176 : 64));
   scene.updateMatrixWorld(true);
@@ -306,7 +307,7 @@ export function createWorld(scene) {
   const routePoints = ROADS.filter(r => ['village_east', 'village_west', 'king', 'camp', 'tower', 'shrine'].includes(r.id))
     .map(r => r.points.filter(([x, z]) => Math.hypot(x, z) < 140).map(([x, z]) => at(x, z))).filter(r => r.length > 1);
   return {
-    siteActions, syncSites: (flags,animate=false) => siteStateViews.forEach(apply => apply(flags,animate)),
+    stashChest: stash, siteActions, syncSites: (flags,animate=false) => siteStateViews.forEach(apply => apply(flags,animate)),
     lights, fires, profile, navBlocked, water: waters, supportAt: (x, z, radius, y) => collision.supportAt(x, z, radius, y), heightAt: walkHeightAt, terrainHeightAt: heightAt, groundAt, field, routePoints, colliders: collision.colliders, segmentBlocked: collision.segmentBlocked,
     // What a struck point is made of: 'stone', 'wood', 'soft', or 'earth' for open ground.
     surfaceAt: point => collision.colliderAt(point.x, point.z, point.y)?.surface ?? 'earth',

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GOBLIN_KINDS, UKHAI_CALLS, TRIBES } from '../data/goblins/lore.js';
+import { GOBLIN_KINDS, UKHAI_CALLS, BAND_CALLS, TRIBES } from '../data/goblins/lore.js';
 
 // GOBLINS — the Ukhai of the caves (data/goblins/lore.js). They fight nothing like the bandits on the road:
 // nearly blind, they find you by sound (creep and they walk past you; run and the whole hall turns), call to each
@@ -24,15 +24,22 @@ export const GOBLIN_STATS = {
   wuerger: { speed: 4.2, reach: 1.8, damage: 6, windup: .8, ring: 8, model: 'goblin_wuerger', weapon: ['gob_hook'], style: 'stab' },
   brecher: { speed: 3.6, reach: 3.3, damage: 28, windup: .95, ring: 2.8, model: 'goblin_brecher', weapon: [], style: 'smash' },
   trommler: { speed: 3.8, reach: 1.8, damage: 6, windup: .5, ring: 12, model: 'goblin_trommler', weapon: [], style: 'stab' },
+  // The band in the Bruchwacht's cellar: people, dressed like the road's bandits (main.js builds 'look:' models). They fight
+  // as the plain goblins do, but they also see: in the light and in front of them you are found far sooner than in the dark.
+  raeuber: { speed: 4.3, reach: 2.2, damage: 12, windup: .5, ring: 2, model: 'look:raeuber', weapon: ['sword_rusty'], style: 'stab', human: true },
+  waechter: { speed: 4, reach: 2.9, damage: 13, windup: .6, ring: 2.6, model: 'look:waechter', weapon: ['spear_hunt'], style: 'thrust', human: true },
+  hauptmann: { speed: 4.2, reach: 2.5, damage: 21, windup: .7, ring: 2.2, model: 'look:hauptmann', weapon: ['sword_ash'], style: 'stab', human: true },
 };
 const TRIBE_MODEL = { schaedelsaenger: 'goblin_schaedel', pilzmuetter: 'goblin_pilz', kettenbrecher: 'goblin_ketten' };
 const CHIEF = {
   schaedelsaenger: { model: 'goblin_vosh', name: 'Vosh der Knochenrufer', hp: 420, kind: 'speer', weapon: 'gob_staff', calls: true },
   pilzmuetter: { model: 'goblin_ghast', name: 'Mutter Ghast', hp: 450, kind: 'speier', weapon: 'gob_dagger_obsidian', heals: true },
   kettenbrecher: { model: 'goblin_ulgrak', name: 'Ulgrak Kettenfaust', hp: 650, kind: 'brecher', weapon: 'gob_flail' },
+  bruchwacht: { model: 'look:hauptmann', name: 'Brom Siegelbrecher', hp: 340, kind: 'hauptmann', weapon: 'sword_ash' },
 };
 const NAMES = ['Krak', 'Vrish', 'Ghul', 'Skra', 'Tok', 'Ishka', 'Muurg', 'Zhet', 'Drok', 'Rasht', 'Ulk', 'Vesh', 'Graa', 'Nikh', 'Shev', 'Kroth'];
-const SCALE = { speer: 1, dolch: .94, schleicher: 1, speier: 1, wuerger: 1, brecher: 1, trommler: 1 };
+const SCALE = { speer: 1, dolch: .94, schleicher: 1, speier: 1, wuerger: 1, brecher: 1, trommler: 1, raeuber: 1, waechter: 1, hauptmann: 1.04 };
+const HUMAN_NAMES = ['Gerd', 'Hanko', 'Lutz', 'Mads', 'Ortwin', 'Piet', 'Rolf', 'Sepp', 'Tilo', 'Ulf', 'Wim', 'Jost', 'Grete', 'Hilde', 'Marte', 'Wiebke'];
 
 /**
  * enemies: the shared list (combat and damage treat goblins like any foe); createCharacter/createAnimator/equipItem
@@ -43,6 +50,7 @@ const SCALE = { speer: 1, dolch: .94, schleicher: 1, speier: 1, wuerger: 1, brec
 export function createGoblins({ scene, enemies, createCharacter, createAnimator, equipItem, player, hurt, guard = () => false, noise = () => ({ noise: 0, stance: 'still' }),
   sound = () => {}, bark = () => {}, effects = {}, knockDown = () => {}, fireNear = () => false }) {
   const list = [], projectiles = [], clouds = [];
+  let humanCount = 0;   // the band's names go round in order, so no two in one cellar share one
   const projectileRoot = new THREE.Group(); projectileRoot.name = 'goblin projectiles'; scene.add(projectileRoot);
   const chainLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([v3(), v3()]), new THREE.LineBasicMaterial({ color: 0x3a3a3c })); chainLine.visible = false; chainLine.frustumCulled = false; scene.add(chainLine);
   // What has hold of the wanderer: a Lauerer pinning, a Würger's hook dragging. Space breaks free.
@@ -58,15 +66,17 @@ export function createGoblins({ scene, enemies, createCharacter, createAnimator,
     if (weapon) equipItem(model, weapon);
     model.position.copy(def.at); model.rotation.y = def.facing ?? Math.random() * Math.PI * 2;
     scene.add(model);
-    const name = chief ? chief.name : `${NAMES[Math.floor(Math.random() * NAMES.length)]}, ${GOBLIN_KINDS[kind].name}`;
+    const human = !!stats.human, names = human ? HUMAN_NAMES : NAMES;
+    const name = chief ? chief.name : `${human ? names[humanCount++ % names.length] : names[Math.floor(Math.random() * names.length)]}, ${GOBLIN_KINDS[kind].name}`;
     const hp = chief ? chief.hp : GOBLIN_KINDS[kind].hp;
     const e = { kind: 'goblin', goblin: true, gkind: kind, tribe: def.tribe, chief: !!chief, name, hp, maxHp: hp, model, animator: createAnimator(model), calm: false, dead: false,
       home: def.at.clone(), group: def.group || 'g', state: def.state === 'patrol' ? 'patrol' : 'idle', rest: def.state || 'guard', patrol: def.patrol || null, patrolIndex: 0,
       suspicion: 0, alert: 0, cooldown: 1 + Math.random(), windup: 0, windupTotal: 0, strikeT: 0, stagger: 0, nav, cave, path: null, pathAt: 0, slot: Math.random() * Math.PI * 2,
-      ranged: kind === 'speer' && Math.random() < .45, special: { t: 0, phase: null }, said: {}, stride: 1.5 * SCALE[kind] * (kind === 'brecher' ? 1.6 : kind === 'schleicher' ? 1.15 : 1),
+      ranged: (kind === 'speer' || kind === 'waechter') && Math.random() < .45, human, special: { t: 0, phase: null }, said: {}, stride: 1.5 * SCALE[kind] * (kind === 'brecher' ? 1.6 : kind === 'schleicher' ? 1.15 : 1),
       drive: null, goblinPose: def.state === 'sleep' ? 'sleep' : def.state === 'sit' ? 'sit' : def.state === 'pray' ? 'pray' : def.state === 'work' ? 'work_farm' : def.state === 'ambush' ? 'sneak' : null };
     e.drive = (self, dt, distance, dx, dz) => think(self, dt, distance, dx, dz);
     if (chief) Object.assign(e, { calls: !!chief.calls, heals: !!chief.heals });
+    if (human) model.userData.speaksPlain = true;   // their calls are shown in plain German (main.js bark)
     enemies.push(e); list.push(e);
     return e;
   }
@@ -84,9 +94,9 @@ export function createGoblins({ scene, enemies, createCharacter, createAnimator,
     const now = performance.now() / 1000;
     if (Math.random() > chance || (e.said[kind] || 0) > now) return;
     e.said[kind] = now + every + Math.random() * every;
-    const [ukhai, gloss] = pick(UKHAI_CALLS[kind]);
+    const [ukhai, gloss] = pick((e.human ? BAND_CALLS : UKHAI_CALLS)[kind]);
     bark(e.model, ukhai, gloss);
-    sound(kind === 'death' ? 'death' : kind === 'spot' || kind === 'rally' ? 'shriek' : 'chatter', e.model.position, 1);
+    if (!e.human || kind === 'death') sound(kind === 'death' ? 'death' : kind === 'spot' || kind === 'rally' ? 'shriek' : 'chatter', e.model.position, 1);
   }
   /** Every goblin of a group within earshot comes, after a moment for the call to travel. */
   function alertGroup(e, delay = .5) {
@@ -138,7 +148,7 @@ export function createGoblins({ scene, enemies, createCharacter, createAnimator,
   }
 
   // ── The mind of one goblin, each simulation step (called by combat for every living foe).
-  const _to = v3(), _slot = v3();
+  const _to = v3(), _slot = v3(), _eye = v3(), _seen = v3();
   function think(e, dt, distance) {
     const p = e.model.position, stats = GOBLIN_STATS[e.gkind], pp = player.position, sameLevel = Math.abs(pp.y - p.y) < 3.5;
     e.special.t += dt;
@@ -149,6 +159,9 @@ export function createGoblins({ scene, enemies, createCharacter, createAnimator,
       const heard = noise(), loud = heard.noise || 0, asleep = e.goblinPose === 'sleep' ? .35 : 1;
       const near = distance < 2.4 && sameLevel, lit = fireNear(p, 16);
       if (sameLevel && distance < 26) e.suspicion += dt * asleep * (loud * 2.2 / Math.max(2, distance) + (near ? 1.4 : 0) + (lit ? 1.6 : 0) + (distance < 6 && facing(e, pp) < 1 ? .5 : 0));
+      // People see as well: you in front of them, in clear line, found sooner the nearer you are; crouched you are half as plain.
+      if (e.human && sameLevel && distance < 20 && asleep === 1 && facing(e, pp) < 1.05 && e.nav.los(_eye.copy(p).setY(p.y + 1.6), _seen.copy(pp).setY(pp.y + 1.3)))
+        e.suspicion += dt * (1 - distance / 20) * (heard.stance === 'sneak' ? .7 : 1.8);
       e.suspicion = Math.max(0, e.suspicion - dt * .08);
       if (e.suspicion > .45 && !e.listening) { e.listening = true; e.goblinPose = null; call(e, 'spot', .35, 8); }
       if (e.listening) turn(e, pp, dt, 2.5);

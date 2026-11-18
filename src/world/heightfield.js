@@ -143,7 +143,7 @@ export function createHeightfield() {
       else if (s.mode === 'burrow') {
         // Eased towards the level of the hole, then a lumpy rise of earth a little uphill of it.
         const b = burrowById.get(s.id);
-        if (!siteCentres.has(s.id)) siteCentres.set(s.id, natural(s.x, s.z));
+        if (!siteCentres.has(s.id)) siteCentres.set(s.id, s.level ?? natural(s.x, s.z));
         h = lerp(h, siteCentres.get(s.id), w * .6);
         const ma = Math.atan2(x - b.mx, z - b.mz), mr = Math.hypot(x - b.mx, z - b.mz) / (b.moundR * (1 + .16 * Math.sin(2 * ma + b.seed) + .1 * Math.sin(5 * ma - b.seed)));
         if (mr < 1) h += b.mound * (1 - mr * mr) ** 2 * (.82 + .18 * fbm(x * .3, z * .3, 1, 7));
@@ -175,12 +175,14 @@ export function createHeightfield() {
       const a = k / 16 * Math.PI * 2, drop = natural(s.x, s.z) - natural(s.x + Math.sin(a) * 22, s.z + Math.cos(a) * 22);
       if (drop > best) { best = drop; facing = a; }
     }
-    const R = s.hole || 2, walkIn = !!s.walkIn, length = walkIn ? 10 : 0, seed = hash(Math.round(s.x), Math.round(s.z), 5) * 6.28;
+    // A built stair (the Bruchwacht's cellar) faces where it was built to face, not down the slope.
+    if (s.facing !== undefined) facing = s.facing;
+    const R = s.hole || 2, walkIn = !!s.walkIn, length = walkIn ? s.length ?? 10 : 0, seed = hash(Math.round(s.x), Math.round(s.z), 5) * 6.28;
     const fx = Math.sin(facing), fz = Math.cos(facing), back = walkIn ? 3.2 : 1.8;
     // Everything the hole touches lies in this box (the shaft's ragged ring, or the way from its end to its mouth).
     const ext = walkIn ? [[-2.2, 0], [length + .8, 0]].flatMap(([u]) => [-1, 1].map(sv => [u * fx + sv * (R + 1.6) * fz, u * fz - sv * (R + 1.6) * fx])) : [[-R * 1.65, -R * 1.65], [R * 1.65, R * 1.65]];
     const xs = ext.map(p => s.x + p[0]), zs = ext.map(p => s.z + p[1]), reach = walkIn ? length + R + 2.4 : R * 1.65;
-    return { id: s.id, x: s.x, z: s.z, facing, R, reach, seed, depth: walkIn ? 4.6 : 5, mound: s.mound ?? 1.4, walkIn, length, moundR: walkIn ? 8 : 6.2,
+    return { id: s.id, x: s.x, z: s.z, facing, R, reach, seed, depth: s.depth ?? (walkIn ? 4.6 : 5), mound: s.mound ?? 1.4, walkIn, length, moundR: walkIn ? 8 : 6.2, stairs: !!s.stairs,
       mx: s.x - fx * back, mz: s.z - fz * back,
       i0: Math.floor((Math.min(...xs) - 1) / STEP), i1: Math.ceil((Math.max(...xs) + 1) / STEP), j0: Math.floor((Math.min(...zs) - 1) / STEP), j1: Math.ceil((Math.max(...zs) + 1) / STEP) };
   });
@@ -197,6 +199,12 @@ export function createHeightfield() {
         // Along the way (u, 0 at its black end, length at its mouth) and across it (v): a floor sloping up to the
         // land, steep earthen sides with a lip, a ragged edge; the end closes in a steep wall under the rise.
         const u = dx * Math.sin(b.facing) + dz * Math.cos(b.facing), v = dx * Math.cos(b.facing) - dz * Math.sin(b.facing);
+        if (b.stairs) {
+          // Masonry stairs: straight walls, square steps, a flat landing at the foot before the door (the stones are the site's model).
+          if (Math.abs(v) > b.R + .35 || u < -.9 || u > b.length + .35) return null;
+          const steps = 14, t = Math.min(1, Math.max(0, (u - 1.4) / (b.length - 1.4))), dh = -b.depth * (1 - Math.ceil(t * steps - 1e-6) / steps);
+          return { dh: u > b.length ? 0 : dh, shade: Math.min(.6, -dh / b.depth * .6), r: Math.abs(v) / b.R, rock: 1 };
+        }
         const half = b.R * (1 + .1 * Math.sin(u * 1.3 + b.seed) + .06 * Math.sin(u * 3.1 - b.seed)) * (1 + .12 * u / b.length);
         const end = u < 0 ? 1 + -u / 1.4 : u > b.length ? 1 + (u - b.length) / 1.2 : 0, r = Math.max(Math.abs(v) / half, end);
         if (r > 1.45) return null;

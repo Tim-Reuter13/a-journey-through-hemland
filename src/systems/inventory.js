@@ -31,7 +31,8 @@ export function createInventory(player,rpg,game){
     return Object.entries(source).filter(([id,n])=>ITEMS[id]&&n>0).map(([id,quantity])=>({id,...ITEMS[id],quantity,equipped:equipped(id),favorite:player.favorites.includes(id),junk:player.junk.includes(id)}));
   }
   const weight=()=>rows().reduce((sum,item)=>sum+item.weight*item.quantity,0);
-  const capacity=()=>40+player.attributes.strength*2+player.attributes.endurance*3+(ITEMS[player.equipment.accessory]?.carry||0);
+  // A real pack: room for a second set of armour and the spoils of a day (it was 45 at the start, far too tight).
+  const capacity=()=>110+player.attributes.strength*5+player.attributes.endurance*6+(ITEMS[player.equipment.accessory]?.carry||0);
   function equip(id){
     const item=ITEMS[id];if(!isEquipment(item)||equipped(id)||!remove(id))return false;
     const slot=equipSlot(item),previous=player.equipment[slot];player.equipment[slot]=id;if(previous)add(previous);

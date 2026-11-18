@@ -11,7 +11,7 @@ import { propClone } from '../props.js';
 // royal mine's shaft for the chain breakers.
 const PI = Math.PI;
 const IRON_DARK = pixelMaterial('iron', { tint: 0x5a5e62 });
-export const CAVE_MOUTHS = { klagende_grube: 'cave_klagende', moderhoehle: 'cave_moder', eisengrube: 'cave_eisen' };
+export const CAVE_MOUTHS = { klagende_grube: 'cave_klagende', moderhoehle: 'cave_moder', eisengrube: 'cave_eisen', zollkeller: 'cave_zoll' };
 
 /** Where a cave's hole is and which way the land falls from it; door is where you go in, exit where you come out. */
 export function caveMouth(site, heightAt) {
@@ -20,6 +20,7 @@ export function caveMouth(site, heightAt) {
     const a = k / 16 * PI * 2, drop = heightAt(site.x, site.z) - heightAt(site.x + Math.sin(a) * 22, site.z + Math.cos(a) * 22);
     if (drop > best) { best = drop; facing = a; }
   }
+  if (site.facing !== undefined) facing = site.facing;   // a built stair faces where it was built to face
   const hole = site.hole || 2, walkIn = !!site.walkIn, rim = walkIn ? 10.5 : hole + .4, fx = Math.sin(facing), fz = Math.cos(facing);
   const along = u => ({ x: site.x + fx * u, z: site.z + fz * u });
   return { x: site.x, z: site.z, y: heightAt(site.x + fx * rim, site.z + fz * rim), facing, hole, walkIn, door: walkIn ? along(1.3) : along(0), exit: along(walkIn ? 5.5 : hole + 1.1) };
@@ -28,6 +29,8 @@ export function caveMouth(site, heightAt) {
 export function buildCaveMouths(ctx) {
   const r = ctx.random;
   for (const [caveId, siteId] of Object.entries(CAVE_MOUTHS)) {
+    // The cellar's stair and door are part of the Bruchwacht ruin (sites/bruchwacht.js).
+    if (caveId === 'zollkeller') continue;
     const site = ctx.site(siteId), m = caveMouth(site, ctx.heightAt);
     // Local frame: +z points down the slope out of the hole, +x across it.
     const at = (lx, lz) => { const x = m.x + lx * Math.cos(m.facing) + lz * Math.sin(m.facing), z = m.z - lx * Math.sin(m.facing) + lz * Math.cos(m.facing); return [x, ctx.heightAt(x, z), z]; };

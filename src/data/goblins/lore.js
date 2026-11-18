@@ -44,6 +44,9 @@ export const GOBLIN_KINDS = {
   wuerger: { name: 'Kettenwürger', hp: 105, role: 'Dürr, mit Hakenkette. Reißt dich aus der Entfernung zu sich und hält dich fest.' },
   brecher: { name: 'Brecher', hp: 400, role: 'Ein verwachsener Hüne mit einem Riesenarm. Stürmt, wirft Felsen, fällt dich um. Verwundbar im Rücken und durch Feuer.' },
   trommler: { name: 'Trommler', hp: 90, role: 'Schamane mit Trommel. Solange er schlägt, kommen mehr. Zuerst töten.' },
+  raeuber: { name: 'Räuber', hp: 90, role: 'Ein Mann der Bande mit Schwert. Sieht und hört dich.' },
+  waechter: { name: 'Speerknecht', hp: 85, role: 'Hält dich mit dem Speer auf Abstand, wirft ihn manchmal.' },
+  hauptmann: { name: 'Bandenführer', hp: 340, role: 'Schlägt hart und langsam. Weich seinem Ausholen aus.' },
 };
 
 // Ukhai: short guttural words, clipped calls. Glosses are what the Grubenwacht teaches its hunters.
@@ -62,6 +65,18 @@ export const UKHAI_CALLS = {
   rally: [['Ulu! Mor-Ghaal ulu!', 'Alle her! Die Mutter ruft!'], ['Krah-dun ulu!', 'Der Häuptling ruft!']],
   death: [['Mor-Ghaal…', 'Mutter…'], ['Ghu…', 'Heim…']],
   idle: [['Mor-Ghaal ishk.', 'Die Mutter schweigt.'], ['Khar-vosh, khar-vosh…', '(ein leiser Gesang)'], ['Muur ree-ma.', 'Der Pilz ist reif.'], ['Drak… drak-ul.', 'Kette… zerbrochen.']],
+};
+
+// The band in the Bruchwacht's cellar calls in plain words (same situations as the goblins; the first entry stays empty).
+export const BAND_CALLS = {
+  spot: [['', 'Da ist wer!'], ['', 'Wer da? Zeig dich!'], ['', 'Eindringling! Zu den Waffen!'], ['', 'Hörst du das? Da unten…']],
+  flank: [['', 'Geh links rum!'], ['', 'Ich nehm ihn von hinten!']],
+  attack: [['', 'Hab dich!'], ['', 'Für Brom!'], ['', 'Das war dein letzter Keller.']],
+  fire: [['', 'Pass auf, er hat Feuer!'], ['', 'Weg von der Flamme!']],
+  retreat: [['', 'Ich bin getroffen… zurück!'], ['', 'Holt Brom!']],
+  rally: [['', 'Alle her!'], ['', 'Brom! Hier unten!']],
+  death: [['', 'Verdammt…'], ['', 'Sagt Brom…']],
+  idle: [['', 'Wer ist mit Holz dran?'], ['', 'Das Wasser steigt wieder.'], ['', 'Wenn die Krone wüsste, was hier unten liegt…'], ['', 'Noch drei Karren, dann ist Schluss.']],
 };
 
 /** The Grubenwacht: goblin hunters in Kronwacht, paying for ears and posting contracts on the tribes. */

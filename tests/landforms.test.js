@@ -100,7 +100,8 @@ test('no water by accident in the open, but the lake is a lake', () => {
 
 test('sites stay level and roads stay walkable', () => {
   for (const [id, s] of Object.entries(SITES)) {
-    if (s.mode === 'burrow' || id === 'jetty' || id === 'wayshrine') continue;
+    // The old guardroom over the cellar stairs has the stairs cut through its middle.
+    if (s.mode === 'burrow' || id === 'jetty' || id === 'wayshrine' || id === 'westmagazin') continue;
     const c = field.heightAt(s.x, s.z);
     for (const [dx, dz] of [[6, 0], [-6, 0], [0, 6], [0, -6]]) assert.ok(Math.abs(field.heightAt(s.x + dx, s.z + dz) - c) < 1.2, `${id} is not level`);
   }

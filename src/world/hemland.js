@@ -18,7 +18,10 @@ export const TREELINE = 74, SNOWLINE = 92;
 export const SITES = {
   village: { name: 'Dämmerwald', x: 0, z: 6, radius: 75, blend: 120, mode: 'soften' },
   camp: { name: 'Bruchwacht', x: -330, z: 150, radius: 22, blend: 38, mode: 'level', height: 19 },
-  westmagazin: { name: 'Zollgewölbe der Bruchwacht', x: -374, z: 150, halfX: 27, halfZ: 23, blend: 16, mode: 'level', height: 19 },
+  // The old guardroom behind the ward: a roofless ruin over the cellar stairs. The customs vault itself lies underground
+  // (data/hemland/zollkeller.js, entered like the goblin caves); nothing of it stands above the hill.
+  westmagazin: { name: 'Alte Wachstube', x: -357, z: 150, halfX: 9, halfZ: 9, blend: 14, mode: 'level', height: 19 },
+  cave_zoll: { name: 'Der Zollkeller', x: -363.5, z: 150, radius: 2, blend: 4, mode: 'burrow', hole: 1.5, mound: 0, walkIn: true, stairs: true, facing: Math.PI / 2, length: 10, depth: 5, level: 19 },
   westrast: { name: 'Der Bänderstein', x: -101, z: 41, radius: 5, blend: 7, mode: 'flatten' },
   westwagen: { name: 'Am gebrochenen Rad', x: -153, z: 88, radius: 5, blend: 8, mode: 'flatten' },
   westwache: { name: 'Krähenkanzel', x: -273, z: 133, radius: 5, blend: 9, mode: 'flatten' },

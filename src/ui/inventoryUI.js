@@ -55,7 +55,7 @@ export function createInventoryUI({root,player,inventory,onChange,onClose,onHeal
         <div class="inv-slot-filter" id="inv-slot-filter" hidden></div>
         <div class="inv-grid-scroll" id="inv-grid-scroll"><div class="inv-grid" id="inventory-grid" role="listbox" aria-label="Gegenstände"></div>
           <div id="inventory-empty" class="inv-empty hidden"><span>Hier liegt nichts.</span><button id="inventory-clear">Filter zurücksetzen</button></div></div>
-        <div class="inv-pack-foot"><span id="inventory-count"></span><button id="sell-junk" class="hidden">Plunder verkaufen</button></div>
+        <div class="inv-pack-foot"><span id="inventory-count"></span><button id="sell-junk" class="hidden">Plunder verkaufen</button><button id="take-all" class="hidden">Alles nehmen <kbd>A</kbd></button></div>
       </section>
       <aside class="inv-detail" aria-label="Gegenstandsdetails">
         <div class="inv-preview"><div id="item-preview"></div><span class="inv-preview-hint">Ziehen zum Drehen</span></div>
@@ -104,6 +104,18 @@ export function createInventoryUI({root,player,inventory,onChange,onClose,onHeal
     else if(item.type==='book'){$('reader-title').textContent=item.name;$('reader-text').textContent=item.body;$('item-reader').showModal();return;}
     if(result&&!result.ok)status(result.message||'Das geht gerade nicht.',true);
   }
+  // Looting: take a piece of gear and put it on at once (a dead bandit's helmet straight onto your head), or take everything.
+  function takeAndWear(id){
+    const item=ITEMS[id];if(side!=='take'||!isEquipment(item))return;
+    if(!inventory.transfer(id,1,context.items,true)){status('Nicht genug Platz im Rucksack.',true);return;}
+    const ok=inventory.equip(id);selected=id;changed(ok?`${item.name} genommen und angelegt.`:`${item.name} genommen.`);
+    if(ok){root.querySelector(`.inv-slot[data-slot="${equipSlot(item)}"]`)?.classList.add('stamp');figure?.refresh(true);}
+  }
+  function takeAll(){
+    if(side!=='take')return;let taken=0,left=0;
+    for(const [id,n] of Object.entries(context.items||{})){if(!(n>0))continue;let k=0;while(k<n&&inventory.transfer(id,1,context.items,true))k++;taken+=k;left+=n-k;}
+    if(taken)changed(left?`${taken} Gegenstände genommen. Für den Rest fehlt der Platz.`:`Alles genommen (${taken}).`);else status(left?'Nicht genug Platz im Rucksack.':'Hier liegt nichts mehr.',true);
+  }
   function mark(kind){if(own()&&selected&&inventory.mark(selected,kind))changed(kind==='favorites'?'Favoriten aktualisiert.':'Plunder aktualisiert.');}
   function drop(){if(!own()||!selected)return;const result=inventory.drop(selected,quantity());if(result.ok)changed('In einem Beutel zu deinen Füßen abgelegt. Mit E wieder aufnehmen.');else status(result.message,true);}
 
@@ -128,9 +140,11 @@ export function createInventoryUI({root,player,inventory,onChange,onClose,onHeal
       <div class="inv-actions">
         <div class="inv-primary-row"><button id="item-primary" class="inv-primary" ${disabled?'disabled':''}><span>${verb}</span>${side==='buy'||side==='sell'?`<small id="item-total">${number(price)} G</small>`:'<kbd>E</kbd>'}</button>
           <div class="inv-qty" ${max<=1?'hidden':''}><button data-q="-1" aria-label="Weniger">−</button><input id="item-quantity" aria-label="Menge" type="number" min="1" max="${max}" value="1"><button data-q="1" aria-label="Mehr">+</button></div></div>
+        ${side==='take'&&isEquipment(item)?`<div class="inv-secondary"><button id="item-wear" class="inv-wear"><span>Nehmen und anlegen</span><kbd>Q</kbd></button></div>`:''}
         ${own()?`<div class="inv-secondary"><button id="item-favorite" aria-pressed="${!!item.favorite}" ${item.locked?'disabled':''}>${item.favorite?'★':'☆'} Favorit</button><button id="item-junk" aria-pressed="${!!item.junk}" ${item.locked||equipped?'disabled':''}>Plunder</button><button id="item-drop" ${item.locked||!inventory.available(item.id)?'disabled':''}>Ablegen</button></div>`:''}
       </div>`;
     $('item-primary').onclick=action;
+    if($('item-wear'))$('item-wear').onclick=()=>takeAndWear(item.id);
     const total=()=>{if($('item-total'))$('item-total').textContent=number(price*quantity())+' G';};
     $('item-quantity')?.addEventListener('input',total);
     body.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const q=$('item-quantity');q.value=Math.max(1,Math.min(max,(+q.value||1)+(+b.dataset.q)));total();});
@@ -176,6 +190,7 @@ export function createInventoryUI({root,player,inventory,onChange,onClose,onHeal
     $('inventory-empty').classList.toggle('hidden',visible.length>0);
     $('inventory-count').textContent=merchant?`Bryn hat ${number(player.merchant.gold)} Gold`:`${visible.length} von ${all.length} Sorten${view.query?' · Suche':''}`;
     $('sell-junk').classList.toggle('hidden',side!=='sell');
+    $('take-all').classList.toggle('hidden',side!=='take'||!Object.values(context.items||{}).some(n=>n>0));
     gear();
     const weight=inventory.weight(),limit=inventory.capacity();$('inventory-weight').textContent=`${number(weight)} / ${number(limit)}`;
     $('inventory-weight-fill').style.width=Math.min(100,weight/limit*100)+'%';root.classList.toggle('overburdened',weight>limit);
@@ -246,6 +261,7 @@ export function createInventoryUI({root,player,inventory,onChange,onClose,onHeal
     }
   });
   root.addEventListener('dblclick',event=>{if(event.target.closest('[data-item]'))action();else{const s=event.target.closest('.inv-slot.filled');if(s&&own())equipToggle(s.dataset.equipment);}});
+  $('take-all').onclick=takeAll;
   $('sell-junk').onclick=()=>{const sold=inventory.sellJunk();if(sold)changed(`${sold} Gegenstände als Plunder verkauft.`);else status('Kein verkaufbarer Plunder oder nicht genug Händlergold.',true);};
   function handleKey(event){
     event.stopPropagation();
@@ -265,6 +281,8 @@ export function createInventoryUI({root,player,inventory,onChange,onClose,onHeal
     if(!event.repeat&&{KeyB:'spellbook',KeyK:'skills',KeyJ:'journal'}[event.code]){event.preventDefault();onNavigate?.({KeyB:'spellbook',KeyK:'skills',KeyJ:'journal'}[event.code]);return;}
     if(event.key==='/'){event.preventDefault();$('inventory-search').focus();return;}
     if(event.code==='PageUp'||event.code==='PageDown'||event.shiftKey&&['ArrowLeft','ArrowRight'].includes(event.code)){event.preventDefault();category(event.code==='PageDown'||event.code==='ArrowRight'?1:-1);return;}
+    if(side==='take'&&!event.repeat&&event.code==='KeyA'){event.preventDefault();takeAll();return;}
+    if(side==='take'&&!event.repeat&&event.code==='KeyQ'){event.preventDefault();if(selected)takeAndWear(selected);return;}
     if(['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','KeyE','Enter','KeyF','KeyX','KeyR'].includes(event.code)){event.preventDefault();if(event.repeat&&!event.code.startsWith('Arrow'))return;
       if(event.code==='KeyE'||event.code==='Enter')action();else if(event.code==='KeyF')mark('favorites');else if(event.code==='KeyX')mark('junk');else if(event.code==='KeyR')drop();
       else{const i=Math.max(0,visible.findIndex(r=>r.id===selected)),c=columns(),step={ArrowRight:1,ArrowLeft:-1,ArrowDown:c,ArrowUp:-c}[event.code];select(visible[Math.max(0,Math.min(visible.length-1,i+step))]?.id,true);}

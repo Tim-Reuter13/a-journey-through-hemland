@@ -11,6 +11,9 @@ import { burnUniforms, BURN_GLSL } from './burnMap.js';
 export const PROPS = ['handcart', 'wheelbarrow', 'barrels', 'crates', 'sacks', 'produce', 'trough', 'woodpile', 'bench', 'hay', 'pottery', 'sign', 'ladder', 'cartwheel'];
 export const CAVE_PROPS = ['torch_wall', 'fire_pit', 'mushrooms', 'bone_pile', 'totem', 'altar', 'drums', 'banner', 'bed', 'junk', 'cart', 'rails', 'scrap', 'carving', 'chest', 'key', 'cage',
   'gate_wood', 'gate_iron', 'lever_base', 'lever_handle', 'chain_pull', 'pillar', 'brazier', 'plate', 'idol', 'socket', 'skull_stake', 'mushroom_giant', 'filth', 'spikes', 'meat_rack', 'stew_pot'];
+// The Bruchwacht ruin and its cellar (› keller → public/models/keller.gltf): doors, the band's crates, barrels, bedrolls and
+// banner, the loot store, rubble, the tarp over the stores, plank repairs, the seal chest, the lantern at the cellar door.
+export const KELLER_PROPS = ['door_postern', 'door_cellar', 'barricade', 'loot_pile', 'crate_stack', 'barrel_group', 'bedroll_band', 'banner_band', 'rubble_pile', 'tarp_stores', 'plank_patch', 'seal_chest', 'stair_lantern', 'bridge_stub'];
 // Plants of the landform regions (› plants → plants.gltf) and the points of interest of the wild regions (› pois → pois.gltf).
 export const PLANTS = ['heather_1', 'heather_2', 'pampas_1', 'pampas_2', 'dry_shrub_1', 'dry_shrub_2', 'agave_1', 'agave_2',
   'fern_big_1', 'fern_big_2', 'mushroom_red_1', 'mushroom_red_2', 'mushroom_brown_1', 'mushroom_brown_2', 'mushroom_glow_1'];
@@ -77,7 +80,7 @@ export async function loadPropModels(base = `${import.meta.env.BASE_URL}models/`
       templates.set(name, { geometry, material, bounds: geometry.boundingBox });
     }
   }
-  await Promise.all([load('props.gltf', PROPS), load('cave_props.gltf', CAVE_PROPS).catch(error => console.warn('Cave props not loaded', error)),
+  await Promise.all([load('props.gltf', PROPS), load('cave_props.gltf', CAVE_PROPS).catch(error => console.warn('Cave props not loaded', error)), load('keller.gltf', KELLER_PROPS).catch(error => console.warn('Keller props not loaded', error)),
     load('plants.gltf', PLANTS, { plants: true }).catch(error => console.warn('Plants not loaded', error)), load('pois.gltf', POIS).catch(error => console.warn('Points of interest not loaded', error))]);
   return templates.size;
 }

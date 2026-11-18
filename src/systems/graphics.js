@@ -13,7 +13,7 @@ const profiles = {
 // The pixel filter can be switched off (settings): full resolution, no 15-bit quantising, no dither.
 const postShader = {
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`,
-  fragmentShader: `uniform sampler2D tScene; uniform vec2 uSize; uniform float uDither, uQuant; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tScene, tMask; uniform vec2 uSize; uniform float uDither, uQuant, uOutline, uOutlineW; varying vec2 vUv;
     uniform vec2 uSun; uniform float uSunOn, uAspect, uGrade, uTime; uniform vec3 uSunColor;
     float lum(vec3 c){ return dot(c, vec3(.3, .59, .11)); }
     float bayer2(vec2 a){ a = floor(a); return fract(dot(a, vec2(.5, a.y * .75))); }
@@ -92,6 +92,15 @@ const postShader = {
       gl_FragColor.rgb = clamp(c, 0., 1.);
       float threshold = (bayer4(pixel) - .5) / 31. * uDither;
       gl_FragColor.rgb = mix(gl_FragColor.rgb, floor(clamp(gl_FragColor.rgb + threshold, 0., 1.) * 31. + .5) / 31., uQuant);
+      // What you can pick up or use: a plain white line round its silhouette (the mask holds the object, drawn flat).
+      if (uOutline > .5 && texture2D(tMask, uv).r < .5) {
+        vec2 o = uOutlineW / uSize; float edge = 0.;
+        for (int k = 0; k < 8; k++) {
+          vec2 d = vec2(k == 0 ? 1. : k == 1 ? -1. : k > 3 ? (k == 4 || k == 6 ? 1. : -1.) : 0., k == 2 ? 1. : k == 3 ? -1. : k > 3 ? (k < 6 ? 1. : -1.) : 0.);
+          edge = max(edge, texture2D(tMask, uv + d * o).r);
+        }
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(.96, .95, .92), edge * .92);
+      }
     }`,
 };
 
@@ -103,7 +112,13 @@ export function createGraphics(renderer, world) {
   const hint = document.getElementById('graphics-hint');
   const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
   target.texture.name = 'Low resolution scene';
-  const uniforms = { tScene: { value: target.texture }, uSize: { value: new THREE.Vector2(4, 4) }, uDither: { value: 1 }, uQuant: { value: 1 },
+  // The outline mask: the objects to outline, flat white on black, at the scene's resolution.
+  const mask = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
+  let outlined = [];
+  const flat = new WeakMap(), white = new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false });
+  const flatOf = m => { if (!m?.map || !(m.alphaTest > 0 || m.transparent)) return white; let f = flat.get(m); if (!f) { f = new THREE.MeshBasicMaterial({ color: 0xffffff, map: m.map, alphaTest: Math.max(.5, m.alphaTest || 0), fog: false }); flat.set(m, f); } return f; };
+  const clear = new THREE.Color();
+  const uniforms = { tMask: { value: mask.texture }, uOutline: { value: 0 }, uOutlineW: { value: 1 }, tScene: { value: target.texture }, uSize: { value: new THREE.Vector2(4, 4) }, uDither: { value: 1 }, uQuant: { value: 1 },
     uSun: { value: new THREE.Vector2(.5, .5) }, uSunOn: { value: 0 }, uGrade: { value: 0 }, uTime: { value: 0 }, uAspect: { value: 1 }, uSunColor: { value: new THREE.Color(1, .85, .6) } };
   const sunDir = new THREE.Vector3(), sunAt = new THREE.Vector3(), view = new THREE.Vector3();
   /** Where the sun stands on screen and how strongly its light should show. */
@@ -131,7 +146,7 @@ export function createGraphics(renderer, world) {
     const { width, height } = renderer.domElement;
     const scale = pixelFilter ? Math.max(1, Math.round(height / profiles[quality].lines)) : 1;
     const w = Math.max(1, Math.floor(width / scale)), h = Math.max(1, Math.floor(height / scale));
-    target.setSize(w, h); uniforms.uSize.value.set(w, h);
+    target.setSize(w, h); mask.setSize(w, h); uniforms.uSize.value.set(w, h); uniforms.uOutlineW.value = Math.max(1, Math.round(h / 420));
   }
   function apply(value) {
     if (!profiles[value]) return;
@@ -153,9 +168,26 @@ export function createGraphics(renderer, world) {
     renderer.setRenderTarget(target);
     renderer.render(scene, camera);
     overlay?.(renderer);
+    drawMask(camera);
     renderer.setRenderTarget(null);
     renderer.render(postScene, postCamera);
   }
+  function drawMask(camera) {
+    const live = outlined.filter(o => o && o.parent && visibleUp(o));
+    uniforms.uOutline.value = live.length ? 1 : 0;
+    if (!live.length) return;
+    renderer.getClearColor(clear); const alpha = renderer.getClearAlpha(), shadows = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(mask); renderer.setClearColor(0x000000, 1); renderer.clear(true, true, false);
+    const swapped = [];
+    for (const root of live) root.traverseVisible(o => { if (o.isMesh || o.isSkinnedMesh) { swapped.push([o, o.material]); o.material = Array.isArray(o.material) ? o.material.map(flatOf) : flatOf(o.material); } });
+    const autoClear = renderer.autoClear; renderer.autoClear = false;
+    for (const root of live) renderer.render(root, camera);
+    renderer.autoClear = autoClear;
+    for (const [o, m] of swapped) o.material = m;
+    renderer.setClearColor(clear, alpha); renderer.shadowMap.autoUpdate = shadows;
+  }
+  const visibleUp = o => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
   /** Compiles every visible material for the low-resolution target (its programs differ from screen ones). */
   function compile(scene, camera) {
     renderer.setRenderTarget(target);
@@ -166,6 +198,8 @@ export function createGraphics(renderer, world) {
   apply(quality);
   return {
     resize, apply, render, compile,
+    /** Objects to draw a white outline round (what the wanderer can use right now); [] for none. */
+    setOutline(objects) { outlined = (objects || []).filter(Boolean); },
     setGrade(mode) { uniforms.uGrade.value = { vivid: 0, dark: 1, standard: 2, natural: 2, nordic: 3, golden: 4, filmic: 5 }[mode] ?? 2; },
     setPixelFilter(on) { pixelFilter = !!on; uniforms.uQuant.value = uniforms.uDither.value = on ? 1 : 0; target.texture.minFilter = target.texture.magFilter = on ? THREE.NearestFilter : THREE.LinearFilter; target.texture.needsUpdate = true; resize(); },
     state: () => ({ quality, pixelFilter, fps, hitch, pixelRatio: renderer.getPixelRatio(), resolution: uniforms.uSize.value.toArray() }),

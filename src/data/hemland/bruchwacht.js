@@ -20,9 +20,12 @@ export const BRIDGE = { x: -174, z: 83, halfSpan: 11 };
 export const WATCH = [
   { personName: 'Alva', name: 'Alva vom Hohlweg', archer: true, hp: 65, day: [-271, 129], night: [-271, 130], duty: 'beobachtet den Hohlweg' },
   { personName: 'Kuno', name: 'Kuno Torwacht', shield: true, hp: 85, day: [-307, 151.5], night: [-318, 152.2], duty: 'hält Torwache' },
-  { personName: 'Meret', name: 'Meret Kesselflick', hp: 70, day: [-355, 149], night: [-355, 153], duty: 'wartet am Herd' },
-  { personName: 'Enno', name: 'Enno Kerbholz', archer: true, hp: 75, day: [-374, 136], night: [-374, 138], duty: 'zählt die Lieferungen' },
-  { personName: 'Rike', name: 'Rike Eisenhand', shield: true, hp: 90, day: [-380, 164], night: [-383, 165], duty: 'bewacht das Windwerk' },
+  // The old toll house is a cellar now (data/hemland/zollkeller.js): its people keep the ward above it. Meret at the fire under
+  // the north wall, Enno by the stores and the guardroom door, Rike walking between the fire and the inside of the gate
+  // (her round has a gap: while she is at the fire the gate side is open).
+  { personName: 'Meret', name: 'Meret Kesselflick', hp: 70, day: [-325, 137.4], night: [-327, 138], duty: 'wartet am Herd' },
+  { personName: 'Enno', name: 'Enno Kerbholz', archer: true, hp: 75, day: [-343.5, 160.5], night: [-344, 158.5], duty: 'zählt die Lieferungen' },
+  { personName: 'Rike', name: 'Rike Eisenhand', shield: true, hp: 90, day: [-318, 146], night: [-320, 150], duty: 'macht die Runde', round: [[-318, 146], [-326, 139], [-318, 154]] },
 ];
 
 // State lives in ordinary save flags. A failed weighing leaves both settings intact.

@@ -4,6 +4,7 @@ import { CAVES, CAVE_CELL, CAVE_STOREY } from '../data/goblins/caves.js';
 import { boxGeometry } from '../art/blocks.js';
 import { pixelMaterial, pixelTexture } from '../art/pixelTextures.js';
 import { buildCaveRock, caveRockMaterial, vnoise } from './caveRock.js';
+import { buildCaveMasonry } from './caveMasonry.js';
 import { propClone, propBounds } from '../world/props.js';
 
 // CAVES — the goblin dungeons. Each cave is built from its multi-storey floor plan (data/goblins/caves.js, drawn by
@@ -27,10 +28,15 @@ const FLAT = new Set(['.', ',', ':', '~', 'E']);
 export const CAVE_STYLE = {
   klagende_grube: { wall: ['caveChalk', 0xb2a796], wall2: ['caveChalk', 0x968b7b], floor: ['caveChalkFloor', 0xa69a86], ceil: ['caveChalk', 0x7d7366], grime: 0x2c2218, ambient: [.1, .09, .08], fog: 0x15120e, torch: 0xffa860, glow: null, walkIn: true },
   moderhoehle: { wall: ['caveMoss', 0xa8b4a0], wall2: ['caveMoss', 0x8e9a86], floor: ['caveMossFloor', 0xa09a88], ceil: ['caveMoss', 0x76826e], grime: 0x1c2416, ambient: [.05, .1, .09], fog: 0x0a1714, torch: 0x9cf0d8, glow: 0x6fd2c0, walkIn: true },
+  // The Bruchwacht's cellar: built of cut stone, damp, sooted; a little more light than a goblin hole (people live here).
+  zollkeller: { masonry: true, wall: ['bricks', 0x9a9284], wall2: ['ashlar', 0x948c80], floor: ['flagstone', 0x9a948a], ceil: ['ashlar', 0x7c756c], trim: ['ashlarMossy', 0x9a9486],
+    props: { junk: 'crate_stack', bed: 'bedroll_band', banner: 'banner_band', filth: 'rubble_pile', bone_pile: 'barrel_group', scrap: 'scrap', meat_rack: 'barrel_group' },
+    floorWet: ['cobbleMossy', 0x7e8478], grime: 0x241e16, ambient: [.17, .155, .13], fog: 0x14120e, torch: 0xffae66, glow: null, walkIn: true, gate: 'gate_iron' },
   eisengrube: { wall: ['caveIron', 0xa89688], wall2: ['caveIron', 0x8e7c6e], floor: ['caveIronFloor', 0xa09284], ceil: ['caveIron', 0x766658], grime: 0x24180f, ambient: [.1, .075, .055], fog: 0x150e09, torch: 0xffa050, glow: null, walkIn: false },
 };
 const IRON_DARK = pixelMaterial('iron', { tint: 0x5a5e62 });
-const SYMBOL = { ohr: 0xb88a86, auge: 0xe8ecec, kette: 0x6a6e72, pilz: 0x5cc4ae, knochen: 0xdcd2bc, mond: 0xe8d48a };
+const SYMBOL = { ohr: 0xb88a86, auge: 0xe8ecec, kette: 0x6a6e72, pilz: 0x5cc4ae, knochen: 0xdcd2bc, mond: 0xe8d48a, k1: 0xd8c8a0, k2: 0xc89a5a, k3: 0x9a5a3a };
+const SYMBOL_NAME = { ohr: 'Ohr', auge: 'Auge', kette: 'Kette', pilz: 'Pilz', knochen: 'Knochen', mond: 'Mond', k1: 'eine Kerbe', k2: 'zwei Kerben', k3: 'drei Kerben' };
 
 /** Small deterministic random per cave. */
 function rng(seed) { let s = seed >>> 0; return () => { s += 0x6D2B79F5; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -150,6 +156,7 @@ export function createCaves({ scene, world, physics, mouths }) {
     const at = (e, lift = 0) => v3(cx(e.x), surface(e.level, e.x, e.y, cx(e.x), cz(e.y)) ?? levelY(e.level), cz(e.y)).add(v3(0, lift, 0));
     const byId = new Map(plan.entities.map(e => [e.id, e]));
     const things = [], interact = [], animated = [];
+    let posternAt = null;
     const solid = (m, w, h, d, x, y, z, ry = 0, name = 'cave prop') => { const mesh = new THREE.Mesh(boxGeometry(w, h, d), typeof m === 'string' ? pixelMaterial(m) : m); mesh.position.set(x, y, z); mesh.rotation.y = ry; mesh.name = name; group.add(mesh); return mesh; };
     const pm = (name, tint, emissive = 0) => pixelMaterial(name, { tint, emissive });
     // The wall next to a cell (for torches and levers): direction toward the nearest rock.
@@ -158,12 +165,14 @@ export function createCaves({ scene, world, physics, mouths }) {
     // puzzle code moves it about its middle as it did the old blocks.
     const place = (name, x, y, z, ry = 0, lift = 0) => {
       const g = new THREE.Group(); g.position.set(x, y + lift, z); g.rotation.y = ry; g.name = `cave ${name}`; group.add(g);
-      const prop = propClone(name, { solid: false }); if (prop) { prop.position.y = -lift; g.add(prop); }
+      // A built cellar swaps the goblins' things for the band's (style.props: junk heaps become crates, bones barrels, no filth).
+      const swap = style.props && name in style.props ? style.props[name] : name;
+      const prop = swap && propClone(swap, { solid: false }); if (prop) { prop.position.y = -lift; g.add(prop); }
       return g;
     };
     /** A collider round a prop's footprint (turned to the nearest quarter, the colliders here are axis-aligned). */
     const solidProp = (name, x, z, y, ry = 0, shrink = .8) => {
-      const b = propBounds(name, Math.round(ry / (Math.PI / 2)) * Math.PI / 2); if (!b) return;
+      const named = style.props && name in style.props ? style.props[name] : name, b = named && propBounds(named, Math.round(ry / (Math.PI / 2)) * Math.PI / 2); if (!b) return;
       collide(x + (b.minX + b.maxX) / 2, z + (b.minZ + b.maxZ) / 2, (b.maxX - b.minX) / 2 * shrink, (b.maxZ - b.minZ) / 2 * shrink, y, y + b.height, { surface: 'wood' });
     };
     const flameAt = (x, y, z, size) => { const flame = solid(pm('ember', 0xffb060, 1.8), size, size * 1.15, size, x, y, z, .4); animated.push({ kind: 'flame', mesh: flame, t: random() * 9 }); return flame; };
@@ -202,14 +211,21 @@ export function createCaves({ scene, world, physics, mouths }) {
         case 'note': place('scrap', p.x, p.y, p.z, random() * 6); interact.push({ e, at: p, label: `${e.title} lesen`, act: () => ({ toast: `${e.title} — ${e.text}`, lore: true }) }); break;
         case 'clue': { const [di, dj] = wallSide(e); place('carving', p.x + di * .55, p.y, p.z + dj * .55, Math.atan2(di, dj)); interact.push({ e, at: p, label: 'Zeichen betrachten', act: () => ({ toast: e.text, lore: true }) }); break; }
         case 'chest': { const ry = (random() - .5) * .8; place('chest', p.x, p.y, p.z, ry); collide(p.x, p.z, .55, .4, p.y, p.y + .75, { surface: 'wood' });
-          interact.push({ e, at: p, label: e.locked ? 'Verschlossene Truhe' : 'Truhe öffnen', needsKey: e.locked ? e.key : null, act: () => ({ loot: e.tier || 1, open: e.id }) }); break; }
+          interact.push({ e, at: p, label: e.locked ? 'Verschlossene Truhe' : 'Truhe öffnen', needsKey: e.locked ? e.key : null, act: () => ({ loot: e.tier || 1, item: e.item || null, open: e.id }) }); break; }
+        case 'postern': {
+          // A barred door out (the cellar's old postern): from inside the bar lifts and you step out where it opens on the land.
+          const [di, dj] = wallSide(e), x = p.x + di * .92, z = p.z + dj * .92;
+          place('door_postern', x, p.y, z, Math.atan2(di, dj));
+          lightAt(v3(p.x - di * .3, p.y + 2.4, p.z - dj * .3), 0xd6e2ea, 1.2, 6, .8);
+          const it = { e, at: p, label: () => opened.has(e.id) ? 'Durch die Pforte in den Hof' : 'Den Riegel der Pforte heben', act: () => { const first = !opened.has(e.id); opened.add(e.id); return { exit: 'postern', first }; } };
+          interact.push(it); posternAt = { at: p.clone(), yaw: Math.atan2(di, dj) + Math.PI }; break; }
         case 'key': { const mesh = place('key', p.x, p.y, p.z, random() * 6); interact.push({ e, at: p, label: 'Schlüssel nehmen', mesh, act: () => ({ take: e.id }) }); break; }
         case 'cage': { place('cage', p.x, p.y, p.z, random() * 6);
           for (const [ox, oz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) collide(p.x + ox * .9, p.z + oz * .9, ox ? .1 : .9, oz ? .1 : .9, p.y, p.y + 2.5, { surface: 'wood' });
           interact.push({ e, at: p, label: 'Käfig öffnen', act: () => ({ free: e.id, prisoner: e.prisoner }) }); things.push({ kind: 'cage', e, at: p }); break; }
         case 'gate': {
           const bars = new THREE.Group(); bars.position.set(p.x, levelY(e.level), p.z); group.add(bars);
-          const along = e.orientation === 'ew', model = propClone(id === 'eisengrube' ? 'gate_iron' : 'gate_wood', { solid: false });
+          const along = e.orientation === 'ew', model = propClone(style.gate || (id === 'eisengrube' ? 'gate_iron' : 'gate_wood'), { solid: false });
           if (model) { model.rotation.y = along ? 0 : Math.PI / 2; bars.add(model); }
           const col = collide(p.x, p.z, along ? CELL / 2 : .3, along ? .3 : CELL / 2, levelY(e.level), levelY(e.level) + 5, { surface: 'wood', moving: true });
           const gate = { e, bars, col, closed: true, lift: 0 };
@@ -225,8 +241,8 @@ export function createCaves({ scene, world, physics, mouths }) {
           collide(p.x, p.z, .5, .5, p.y, p.y + 2.4, { surface: 'stone' });
           const faces = []; for (const [fx, fz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) faces.push(solid(pm('clothLinen', SYMBOL[e.symbols[e.start]], .35), fx ? .04 : .5, .5, fz ? .04 : .5, p.x + fx * .47, p.y + 1.6, p.z + fz * .47));
           const pillar = { e, col, faces, index: e.start, turn: 0 }; things.push({ kind: 'pillar', pillar });
-          interact.push({ e, at: p, label: () => `Säule drehen (${pillar.symbolName()})`, act: () => ({ turn: pillar }) });
-          pillar.symbolName = () => ({ ohr: 'Ohr', auge: 'Auge', kette: 'Kette', pilz: 'Pilz', knochen: 'Knochen', mond: 'Mond' })[e.symbols[pillar.index]];
+          interact.push({ e, at: p, label: () => `${e.label || 'Säule'} drehen (${pillar.symbolName()})`, act: () => ({ turn: pillar }) });
+          pillar.symbolName = () => SYMBOL_NAME[e.symbols[pillar.index]];
           animated.push({ kind: 'pillar', pillar }); break; }
         case 'brazier': { place('brazier', p.x, p.y, p.z, random() * 6); collide(p.x, p.z, .45, .45, p.y, p.y + 1.3, { surface: 'metal' });
           const flame = flameAt(p.x, p.y + 1.6, p.z, .55); flame.visible = false;
@@ -250,7 +266,8 @@ export function createCaves({ scene, world, physics, mouths }) {
       }
     }
     // Filth in every room: dung and slime, gnawed bones, junk heaps, against the walls where nobody walks through.
-    for (const room of rooms) {
+    // (Not in a built cellar: there the band's crates stand where the plan puts them, out of the way.)
+    if (!style.masonry) for (const room of rooms) {
       const spots = [];
       for (let j = room.y0; j <= room.y1; j++) for (let i = room.x0; i <= room.x1; i++) if (FLAT.has(raw(room.level, i, j)) && !taken.has(`${room.level},${i},${j}`)) {
         const wall = [[0, -1], [1, 0], [0, 1], [-1, 0]].find(([di, dj]) => raw(room.level, i + di, j + dj) === '#');
@@ -310,7 +327,13 @@ export function createCaves({ scene, world, physics, mouths }) {
       if (ny < -.45) return 'ceil';
       return vnoise(x * .13, y * .11, z * .13) > .15 ? 'wall2' : 'wall';
     };
-    group.add(buildCaveRock({
+    if (style.masonry) {
+      // Cut stone (systems/caveMasonry.js) instead of rock: the same plan, the same baked light.
+      const ms = Object.fromEntries(['floor', 'floorWet', 'wall', 'wall2', 'ceil', 'trim'].map(k => [k, rockMaterial(style[k] || style.wall)]));
+      group.add(buildCaveMasonry({ cells: { W, H, CELL, x0: base.x - W * CELL / 2, z0: base.z - H * CELL / 2 }, storey: STOREY, lights: bakeLights, ambient: new THREE.Color(...style.ambient), materials: ms,
+        levels: levels.map(L => ({ L, y: levelY(L), char: (i, j) => raw(L, i, j), ceiling: (i, j) => ceilingAt(L, i, j), stairStep: (i, j) => stairStep(L, i, j) })),
+        tunnel: walkIn ? { at: exitAt, out: [out.x, out.z], rise: 5.5, length: 13 } : null }));
+    } else group.add(buildCaveRock({
       cells: { W, H, CELL, x0: base.x - W * CELL / 2, z0: base.z - H * CELL / 2 }, tubes, lights: bakeLights, ambient: new THREE.Color(...style.ambient), classify, materials,
       levels: levels.map(L => ({ L, y: levelY(L), open: (i, j) => isOpen(L, i, j), floor: (i, j, x, z) => floorFor(L, i, j, x, z),
         top: (i, j) => levelY(L) + ceilingAt(L, i, j) + (!walkIn && shaft(L, i, j) ? 9 : 0) })),
@@ -491,7 +514,7 @@ export function createCaves({ scene, world, physics, mouths }) {
       else setOpen(e.id); }
       for (const [gid] of groups) check(gid);
     }
-    const cave = { id, index, plan, base, group, nav, levels, levelY, spawnAt, spawnYaw, exitAt, walkOut, nearest, use, update, restore, opened, state, colliders,
+    const cave = { id, index, plan, base, group, nav, levels, levelY, spawnAt, spawnYaw, exitAt, walkOut, nearest, use, update, restore, opened, state, colliders, posternAt,
       fires: () => things.filter(t => t.kind === 'fire').map(t => t.at), goblins: plan.entities.filter(e => e.type === 'goblin' || e.type === 'chief').map(e => ({ ...e, at: at(e), patrol: e.patrol?.map(([px, py]) => v3(cx(px), levelY(e.level), cz(py))) })),
       cages: () => things.filter(t => t.kind === 'cage'),
       softAt: (x, z, y) => { const [i, j] = cellOf(x, z); const L = levelOf(y); return char(L, i, j) === ',' ? 'mud' : char(L, i, j) === '~' ? null : null; },

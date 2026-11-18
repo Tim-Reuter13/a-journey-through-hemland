@@ -12,10 +12,12 @@ import { buildCaveRock } from '../src/systems/caveRock.js';
 
 // GOBLINS: the holes their caves open from, the cave plans, the tribes and the Grubenwacht that pays for their ears.
 const field = createHeightfield();
+// The Bruchwacht's cellar shares the cave machinery but is built masonry with people in it; it has its own test (zollkeller.test.js).
+const holes = field.burrows.filter(b => !b.stairs), goblinCaves = CAVES.filter(c => c.tribe !== 'bruchwacht');
 
 test('each goblin hole is cut into the land itself, on the flank of a low rise', () => {
-  assert.equal(field.burrows.length, 3);
-  for (const b of field.burrows) {
+  assert.equal(holes.length, 3);
+  for (const b of holes) {
     assert.equal(SITES[b.id].mode, 'burrow');
     const ground = field.gridHeightAt(b.x, b.z);
     // A shaft dropping well below the ground round it, black at the bottom and not darkened at the rim.
@@ -39,9 +41,9 @@ test('each goblin hole is cut into the land itself, on the flank of a low rise',
 });
 
 test('the cave plans pass the structure, reference and path checks', () => {
-  const { problems } = validateCaves(CAVES);
+  const { problems } = validateCaves(goblinCaves);
   assert.deepEqual(problems, []);
-  for (const cave of CAVES) {
+  for (const cave of goblinCaves) {
     assert.ok(TRIBES[cave.tribe], `${cave.id} has no tribe`);
     assert.equal(TRIBES[cave.tribe].cave, cave.id);
     // Each cave has its way out and a chief.
@@ -53,7 +55,7 @@ test('the cave plans pass the structure, reference and path checks', () => {
 test('every goblin kind fights with real stats and every call has its gloss', () => {
   for (const [kind, s] of Object.entries(GOBLIN_STATS)) {
     assert.ok(s.speed > 0 && s.reach > 0 && s.damage > 0 && s.windup > 0, kind);
-    for (const weapon of s.weapon || []) assert.match(weapon, /^gob_/);
+    for (const weapon of s.weapon || []) assert.match(weapon, s.human ? /^(sword|spear)_/ : /^gob_/);
   }
   for (const [situation, calls] of Object.entries(UKHAI_CALLS)) for (const call of [calls].flat()) assert.ok(call, situation);
 });
@@ -67,7 +69,7 @@ test('the Grubenwacht pays for real things', () => {
 });
 
 test('two holes are sunken ways you can walk down; the old mine stays a shaft', () => {
-  for (const b of field.burrows) {
+  for (const b of holes) {
     const fx = Math.sin(b.facing), fz = Math.cos(b.facing), down = u => field.heightAt(b.x + fx * u, b.z + fz * u);
     assert.equal(b.walkIn, b.id !== 'cave_eisen', b.id);
     if (!b.walkIn) continue;

@@ -1779,6 +1779,114 @@ function AshenModels() {
     return { name: 'cave_props', bones, cubes, materials: M, atlasWidth: 256 };
   }
 
+  // ── The Bruchwacht ruin and its cellar (world/props.js KELLER_PROPS › public/models/keller.gltf). Old cut stone, dark oak
+  // under iron, the band's newer, paler wood and cloth beside it. Footprint centre is the pivot; fronts face −Z, wall props
+  // stand against +Z.
+  function kellerProps() {
+    const bones = [], cubes = [], add = (...c) => cubes.push(...c.flat());
+    const M = { ...MATERIALS,
+      oak: { style: 'wood', ramp: ['#2a1e14', '#33251a', '#3c2c1f', '#463424'] }, newWood: { style: 'wood', ramp: ['#6e5638', '#7c6240', '#8a6e49', '#987a52'] },
+      ashlar: { style: 'flat', ramp: ['#5a564e', '#66625a', '#726e65', '#7e7a70'] }, ashlarDark: { style: 'flat', ramp: ['#3e3b36', '#48443e', '#524e47'] },
+      mossStone: { style: 'flat', ramp: ['#4c5040', '#575b49', '#626652', '#6c705b'] },
+      tarp: { style: 'cloth', ramp: ['#6a6450', '#78715b', '#867e66', '#938b72'] }, banner: { style: 'cloth', ramp: ['#4a1e18', '#58251d', '#662c22', '#743327'] },
+      bannerGrey: { style: 'cloth', ramp: ['#3a3a36', '#45453f', '#505048'] }, coin: { style: 'metal', ramp: ['#6a5222', '#86682c', '#a28238', '#bc9a48'] },
+      glow: { style: 'glow', ramp: ['#c87a2a', '#e0983c', '#f4b85a'], unshaded: true },
+      rock: { style: 'flat', ramp: ['#4a4740', '#56524a', '#625e55', '#6e6a60'] }, rope: { style: 'hair', ramp: ['#4e4028', '#5c4c30', '#6a5838'] },
+      soot: { style: 'flat', ramp: ['#141210', '#1c1915', '#24201b'] } };
+    let slot = 0;
+    const prop = name => { const x = slot; slot += 64; bones.push([name, null, [x, 0, 0]]); return (n, from, to, mat, extra = {}) => add(box(`${name}_${n}`, name, [from[0] + x, from[1], from[2]], [to[0] + x, to[1], to[2]], mat,
+      { ...extra, origin: extra.origin ? [extra.origin[0] + x, extra.origin[1], extra.origin[2]] : undefined })); };
+    const R = (rx, ry, rz, o) => ({ rotation: [rx, ry, rz], origin: o });
+    const crate = (p, n, x, y, z, s = 1, ry = 0, mat = 'newWood') => {
+      p(`${n}`, [x - 6 * s, y, z - 6 * s], [x + 6 * s, y + 11 * s, z + 6 * s], mat, R(0, ry, 0, [x, y, z]));
+      for (const e of [-1, 1]) p(`${n}_band${e}`, [x - 6.3 * s, y + (e < 0 ? 1.5 : 8) * s, z - 6.3 * s], [x + 6.3 * s, y + (e < 0 ? 2.8 : 9.3) * s, z + 6.3 * s], 'oak', R(0, ry, 0, [x, y, z]));
+    };
+    const barrel = (p, n, x, z, s = 1, tilt = 0) => {
+      for (const ry of [0, 45]) p(`${n}_${ry}`, [x - 4.6 * s, 0, z - 4.6 * s], [x + 4.6 * s, 14 * s, z + 4.6 * s], 'barrelWood', R(tilt, ry, 0, [x, 0, z]));
+      for (const h of [2.5, 11]) p(`${n}_hoop${h}`, [x - 5 * s, h * s, z - 5 * s], [x + 5 * s, (h + 1.1) * s, z + 5 * s], 'ironDark', R(tilt, 22, 0, [x, 0, z]));
+    };
+    const sack = (p, n, x, z, s = 1, ry = 0) => { p(n, [x - 4 * s, 0, z - 3 * s], [x + 4 * s, 7 * s, z + 3 * s], 'sack', R(0, ry, 0, [x, 0, z])); p(`${n}_neck`, [x - 1.5 * s, 7 * s, z - 1.2 * s], [x + 1.5 * s, 9 * s, z + 1.2 * s], 'sackDark', R(0, ry, 0, [x, 0, z])); };
+
+    // 1 The postern: a low door of old oak under three iron bands, in a frame of cut stone, a ring to pull.
+    { const p = prop('door_postern');
+      for (const e of [-1, 1]) p(`jamb${e}`, [e * 12 - 3, 0, -1], [e * 12 + 3, 34, 4], e < 0 ? 'ashlar' : 'mossStone');
+      p('lintel', [-15, 34, -1.5], [15, 39, 4.5], 'ashlar'); p('sill', [-11, 0, -2], [11, 1.2, 3], 'ashlarDark');
+      for (let k = 0; k < 5; k++) p(`plank${k}`, [-10 + k * 4, 1, 0], [-6 + k * 4, 33.5, 2], k % 2 ? 'oak' : 'woodDark');
+      for (const h of [5, 16, 27]) p(`band${h}`, [-10.4, h, -.5], [10.4, h + 2, 0], 'ironDark');
+      p('ring', [3.5, 15, -1.6], [6.5, 18, -.4], 'rust'); p('plate', [4, 17, -.6], [6, 20, -.2], 'ironDark'); }
+    // 2 The cellar door: two heavy oak leaves, iron-studded, braced; the band nailed a pale new plank over a split.
+    { const p = prop('door_cellar');
+      for (const e of [-1, 1]) {
+        for (let k = 0; k < 3; k++) p(`leaf${e}_${k}`, [e < 0 ? -21 + k * 7 : k * 7, 0, -1.5], [e < 0 ? -14 + k * 7 : 7 + k * 7, 36, 1.5], k === 1 ? 'oak' : 'woodDark');
+        p(`brace${e}`, [e < 0 ? -20 : 1, 15, -2.2], [e < 0 ? -1 : 20, 18, -1.5], 'oak', R(0, 0, e * 22, [e * 10, 16.5, -2]));
+        for (const h of [6, 28]) for (const s of [4, 10, 16]) p(`stud${e}_${h}_${s}`, [e * s - 1, h, -2.2], [e * s + 1, h + 2, -1.5], 'ironDark');
+      }
+      p('newPlank', [-8, 22, -2.6], [-2, 34, -1.5], 'newWood', R(0, 0, 4, [-5, 28, -2])); p('split', [-6.5, 8, -1.7], [-5.5, 30, -1.5], 'soot');
+      p('bar', [-23, 17, -3.4], [23, 20, -2.2], 'oak'); for (const e of [-1, 1]) p(`hook${e}`, [e * 21 - 1.2, 16, -3.6], [e * 21 + 1.2, 21, -1.5], 'rust'); }
+    // 3 The old barricade, dragged aside: a log trestle and a hurdle of boards leaning on it.
+    { const p = prop('barricade');
+      for (const e of [-1, 1]) for (const s of [-1, 1]) p(`leg${e}${s}`, [e * 16 - 1.2, 0, -1.2], [e * 16 + 1.2, 20, 1.2], 'logs', R(s * 24, 0, 0, [e * 16, 0, 0]));
+      p('rail', [-22, 15, -1.5], [22, 18, 1.5], 'logs');
+      for (let k = 0; k < 6; k++) p(`board${k}`, [-19 + k * 6.6, 0, 5], [-14 + k * 6.6, 22 - (k % 2) * 4, 6.4], k === 2 ? 'newWood' : 'woodDark', R(-24, 0, (k - 2.5) * 2, [0, 0, 6]));
+      p('nail', [-12, 14, 3.2], [-11, 15, 4], 'rust'); }
+    // 4 The loot store: sacks, a strongbox, a bolt of cloth, two barrels of oil, spilt coin.
+    { const p = prop('loot_pile');
+      sack(p, 'sack1', -14, -4, 1.1, 20); sack(p, 'sack2', -8, 4, 1, -15); sack(p, 'sack3', -16, 6, .9, 40);
+      p('box', [0, 0, -6], [14, 9, 4], 'oak'); p('lid', [-.5, 9, -6.5], [14.5, 11, 4.5], 'woodDark'); for (const x of [2, 12]) p(`boxband${x}`, [x - .8, 0, -6.6], [x + .8, 11.4, 4.6], 'brass');
+      p('cloth', [-4, 0, -16], [12, 4.5, -10], 'banner', R(0, 12, 0, [4, 0, -13])); p('clothEnd', [-5, 0, -16.5], [-3, 4.8, -9.5], 'bannerGrey', R(0, 12, 0, [4, 0, -13]));
+      barrel(p, 'oil1', 20, 6, .9); barrel(p, 'oil2', 22, -6, .8, 0);
+      for (let k = 0; k < 6; k++) p(`coin${k}`, [-2 + k * 2.3, 0, -9 + (k % 3)], [-.6 + k * 2.3, .5, -7.6 + (k % 3)], 'coin'); }
+    // 5 A stack of the band's crates, roped.
+    { const p = prop('crate_stack');
+      crate(p, 'c1', -6, 0, 0, 1, 5); crate(p, 'c2', 7, 0, 2, .9, -12); crate(p, 'c3', -2, 11, 1, .8, 30);
+      p('rope', [-13, 5, -6.8], [14, 6, -6], 'rope'); }
+    // 6 Three barrels, one on its side.
+    { const p = prop('barrel_group');
+      barrel(p, 'b1', -6, -3); barrel(p, 'b2', 5, 2, .95);
+      for (const ry of [0, 45]) p(`lying${ry}`, [-4.5, 0, 6], [4.5, 9, 20], 'barrelWood', R(0, 0, ry, [0, 4.5, 13]));
+      p('spill', [-6, 0, 18], [6, .3, 26], 'soot'); }
+    // 7 A bedroll with a grey blanket, a pack for a pillow.
+    { const p = prop('bedroll_band');
+      p('mat', [-8, 0, -16], [8, 2, 16], 'canvas'); p('blanket', [-8.5, 1.5, -8], [8.5, 3.5, 14], 'bannerGrey', R(0, 4, 0, [0, 0, 0]));
+      p('pack', [-6, 1, -16], [6, 7, -10], 'leather'); p('strap', [-6.4, 4, -13.5], [6.4, 5, -12.5], 'leatherDark'); }
+    // 8 The band's banner: a crimson cloth on a cross-rod against the wall, a grey stripe, ragged foot.
+    { const p = prop('banner_band');
+      p('rod', [-12, 44, 3], [12, 45.5, 4.5], 'oak'); p('cord', [-.5, 45.5, 3.5], [.5, 50, 4], 'rope');
+      p('cloth', [-10, 14, 4.5], [10, 44, 5.3], 'banner'); p('stripe', [-10.1, 26, 4.4], [10.1, 30, 5.4], 'bannerGrey');
+      for (let k = 0; k < 4; k++) p(`tail${k}`, [-10 + k * 5, 10 - (k % 2) * 2, 4.5], [-6 + k * 5, 14, 5.3], 'banner'); }
+    // 9 A heap of fallen ashlar: whole blocks, broken ones, grit.
+    { const p = prop('rubble_pile');
+      const blocks = [[-10, -6, 9, 6, 7, 18], [4, -8, 8, 5, 6, -10], [-2, 6, 10, 6, 8, 40], [12, 4, 7, 4, 6, 70], [-14, 8, 6, 4, 5, -30], [2, -1, 7, 5, 6, 5]];
+      blocks.forEach(([x, z, w, h, d, ry], k) => p(`block${k}`, [x - w / 2, 0, z - d / 2], [x + w / 2, h, z + d / 2], k % 3 ? 'ashlar' : 'mossStone', R(k * 6 - 10, ry, k % 2 ? 9 : -7, [x, 0, z])));
+      p('top', [-3, 5, -3], [5, 10, 3], 'ashlarDark', R(14, 30, 12, [1, 5, 0]));
+      p('grit', [-18, 0, -12], [18, .8, 14], 'rock'); }
+    // 10 Stores under a tarp: four posts, a slanted canvas tied down, sacks and a crate beneath.
+    { const p = prop('tarp_stores');
+      for (const [x, z, h] of [[-22, -14, 28], [22, -14, 26], [-22, 14, 20], [22, 14, 19]]) p(`post${x}${z}`, [x - 1, 0, z - 1], [x + 1, h, z + 1], 'newWood');
+      p('tarp', [-24, 23, -16], [24, 24, 16], 'tarp', R(-14, 0, 0, [0, 24, -14])); p('tarpEdge', [-24, 14, 15], [24, 21, 16], 'tarp', R(-6, 0, 0, [0, 21, 15]));
+      for (const e of [-1, 1]) p(`tie${e}`, [e * 22 - .4, 0, 16], [e * 22 + .4, 16, 16.8], 'rope', R(18, 0, 0, [e * 22, 0, 16]));
+      sack(p, 's1', -12, -4, 1.1, 10); sack(p, 's2', -4, 2, 1, -20); crate(p, 'cr', 10, 0, -2, .95, 8); }
+    // 11 New boards nailed over a breach in a wall.
+    { const p = prop('plank_patch');
+      for (let k = 0; k < 6; k++) p(`board${k}`, [-15 + k * 5, 0, -1], [-10.5 + k * 5, 30 - (k % 3) * 3, .4], k % 2 ? 'newWood' : 'woodLight', R(0, 0, (k - 2.5) * 1.5, [-12.5 + k * 5, 0, 0]));
+      for (const h of [6, 22]) p(`batten${h}`, [-16, h, -2], [16, h + 3, -1], 'newWood'); }
+    // 12 A sealed strongbox: iron corners and the customs seal in brass.
+    { const p = prop('seal_chest');
+      p('body', [-10, 0, -7], [10, 11, 7], 'oak'); p('lid', [-10.5, 11, -7.5], [10.5, 15, 7.5], 'woodDark');
+      for (const x of [-10.6, 9]) for (const z of [-7.6, 6]) p(`corner${x}${z}`, [x, 0, z], [x + 1.6, 15, z + 1.6], 'ironDark');
+      p('seal', [-3, 6, -8.2], [3, 12, -7.4], 'brass'); p('sealMark', [-1.5, 7.5, -8.5], [1.5, 10.5, -8.2], 'coin'); }
+    // 13 The lantern at the top of the stairs: a post with an arm and an iron lantern that glows.
+    { const p = prop('stair_lantern');
+      p('post', [-1.5, 0, -1.5], [1.5, 40, 1.5], 'oak'); p('arm', [-1, 37, -12], [1, 39, 0], 'oak'); p('foot', [-4, 0, -4], [4, 2, 4], 'ashlar');
+      p('hook', [-.4, 32, -11.4], [.4, 37, -10.6], 'ironDark'); p('cage', [-3, 25, -14], [3, 32, -8], 'ironDark'); p('flame', [-1.8, 26, -12.8], [1.8, 31, -9.2], 'glow');
+      p('cap', [-3.6, 32, -14.6], [3.6, 33.4, -7.4], 'ironDark'); }
+    // 14 What fell from the gate bridge: a broken joist and splintered boards.
+    { const p = prop('bridge_stub');
+      p('joist', [-2, 0, -18], [2, 4, 18], 'oak', R(0, 20, 8, [0, 2, 0])); p('splinter', [-1.2, 1, 17], [1.2, 3.5, 23], 'woodDark', R(0, 26, 25, [0, 2, 18]));
+      for (let k = 0; k < 4; k++) p(`board${k}`, [-12 + k * 5, 0, -6], [-8 + k * 5, 1.4, 8 - k * 2], k === 1 ? 'woodLight' : 'woodDark', R(k * 4, k * 30 - 20, 0, [-10 + k * 5, 0, 0])); }
+    return { name: 'keller', bones, cubes, materials: M, atlasWidth: 256 };
+  }
+
   return {
     wanderer: () => humanoid({ name: 'wanderer', hair: 'hairAuburn', hairColor: '#53301f', browColor: '#3e2418', beardColor: '#53301f', beard: 'short',
       top: 'clothBlue', vest: 'leather', bracers: 'leather', tunicSkirt: 'clothBlue', cape: 'clothBlue', collar: 'clothLinen', brooch: true, scabbard: true, shoulderStrap: true }),
@@ -1791,7 +1899,7 @@ function AshenModels() {
     bandit: () => humanoid({ name: 'bandit', skin: 'skinTan', hair: 'hairDark', hairColor: '#251e19', scar: true,
       top: 'clothGrey', leatherArmor: 'leatherDark', headband: 'clothCrimson', mask: 'clothGrey', bracers: 'leatherDark', tunicSkirt: 'clothGrey', scabbard: true }),
     captain: () => humanoid({ name: 'captain', build: 'strong', hair: 'hairDark', top: 'clothCrimson', plate: 'darkSteel', helmet: 'darkSteel', tabard: 'clothCrimson', cape: 'clothCrimson', noPouch: true, boots: 'boot' }),
-    wolf, weapons, deer, fox, hare, crow, props, trees, plants, pois, cave_props: caveProps, backpack,
+    wolf, weapons, deer, fox, hare, crow, props, trees, plants, pois, cave_props: caveProps, keller: kellerProps, backpack,
     ...Object.fromEntries(Object.keys(HORSES).map(v => [`horse_${v}`, () => horse(v)])),
     ...Object.fromEntries(Object.entries(GOBLIN_MODELS).map(([name, o]) => [name, () => goblin({ name, ...o })])),
   };

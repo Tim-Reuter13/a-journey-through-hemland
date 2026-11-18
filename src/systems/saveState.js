@@ -72,7 +72,7 @@ export function normalizeSave(data) {
   if(data.merchant&&typeof data.merchant==='object')player.merchant={gold:integer(data.merchant.gold,350,0,1000000),stock:sanitizeCounts(data.merchant.stock)};
   return {
     player,
-    position: [within(data.position[0], BOUNDS.minX, BOUNDS.maxX, 3), number(data.position[1], 0, -20, 400), within(data.position[2], BOUNDS.minZ, BOUNDS.maxZ, 0)],
+    position: [within(data.position[0], BOUNDS.minX, BOUNDS.maxX, 3), number(data.position[1], 0, -20, 720), within(data.position[2], BOUNDS.minZ, BOUNDS.maxZ, 0)],
     yaw: number(data.yaw, 2.55, -100000, 100000), pitch: number(data.pitch, -.09, -1.15, 1.18),
     perspective: data.perspective === 'first' ? 'first' : 'third',
     // Saves from the old story start over at the first stage; null means the region is complete.

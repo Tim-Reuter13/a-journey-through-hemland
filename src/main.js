@@ -66,6 +66,7 @@ import { sigilSvg } from './ui/sigils.js';
 import { createAIManager } from './systems/ai/manager.js';
 import { campSchedule } from './systems/ai/camp.js';
 import { WATCH, dial, useBruchSpot } from './data/hemland/bruchwacht.js';
+import { ZOLL_POSTERN } from './data/hemland/zollkeller.js';
 import { AI } from './systems/ai/config.js';
 import { createBarks } from './ui/barks.js';
 import './ui/characterCreator.css';
@@ -466,9 +467,22 @@ for (const e of enemies) {
 // built the first time you go in; its goblins live while you are inside; what you opened and whom you killed is kept.
 const caveMouthAt = Object.fromEntries(Object.entries(CAVE_MOUTHS).map(([id, site]) => [id, caveMouth(SITES[site], world.terrainHeightAt)]));
 const caves = createCaves({ scene, world, physics, mouths: caveMouthAt });
-const goblins = createGoblins({ scene, enemies, createCharacter, createAnimator, equipItem, player, hurt: amount => hurt(amount), guard: () => combat.guarding,
+// The band in the Bruchwacht's cellar fights in the cave system but wears the road's clothes: 'look:' models are dressed people.
+let caveBandit = 0;
+const CELLAR_LOOKS = {
+  raeuber: i => banditLook(40 + i),
+  waechter: i => { const l = banditLook(60 + i); return { ...l, equipment: { ...l.equipment, head: 'eisenhelm' } }; },
+  hauptmann: () => { const l = banditLook(99, true); return { ...l, equipment: { ...l.equipment, armor: 'hauptmannsplatte', head: 'topfhelm', cloak: 'roter_umhang' } }; },
+};
+function cellarCharacter(name, options) {
+  if (!name.startsWith('look:')) return createCharacter(name, options);
+  const look = CELLAR_LOOKS[name.slice(5)](caveBandit++), model = dressed(look, options?.scale || 1);
+  model.userData.look = look;
+  return model;
+}
+const goblins = createGoblins({ scene, enemies, createCharacter: cellarCharacter, createAnimator, equipItem, player, hurt: amount => hurt(amount), guard: () => combat.guarding,
   noise: () => perceivablePlayer(), sound: (...args) => goblinSound(...args), effects: { spray: (...args) => combat.effects.spray(...args) },
-  bark: (model, ukhai, gloss) => { if (model.position.distanceTo(player.position) < 30) barks.say(model, game.flags.guild_joined ? `${ukhai} (${gloss})` : ukhai); },
+  bark: (model, ukhai, gloss) => { if (model.position.distanceTo(player.position) < 30) barks.say(model, model.userData.speaksPlain ? gloss : game.flags.guild_joined ? `${ukhai} (${gloss})` : ukhai); },
   knockDown: (dir, force) => motion.knockDown(playerModel, dir, force), fireNear: (p, r) => p.distanceTo(player.position) < r && (player.tool === 1 || combat.action?.kind === 'cast') || !!combat?.spellcraft?.lightNear(p, r + 4) });
 goblins.setSummon((drummer, n) => {
   // The drum wakes whoever still sleeps or works in this cave; if none are left, more come out of the dark.
@@ -497,7 +511,7 @@ function saveCaveState(cave) {
   const lit = [...cave.opened].filter(id => id.startsWith('lit:')).map(id => id.slice(4)).join(',');
   if (lit) game.flags[`cavel_${cave.index}`] = lit.slice(0, 60);
 }
-function enterCave(id, { fromSave = false } = {}) {
+function enterCave(id, { fromSave = false, at = null, resume = null } = {}) {
   if (horses.riding) { horses.dismount(player, true); playerModel.rotation.set(0, player.yaw, 0); }
   if (horses.led) horses.dropReins(horses.led);
   fade.style.opacity = '1';
@@ -507,7 +521,11 @@ function enterCave(id, { fromSave = false } = {}) {
   cave.restore([...opened, ...lit]);
   const killed = new Set(fromBits(game.flags[killFlag(cave)]));
   cave.goblins.forEach((def, i) => { if (killed.has(i)) return; const g = goblins.spawn({ ...def, at: def.at.clone(), tribe: cave.plan.tribe, chief: def.type === 'chief' }, cave.nav, { cave: id }); g.caveIndex = i; });
-  player.position.copy(cave.spawnAt); player.yaw = cave.spawnYaw; player.pitch = -.08; player.velocityY = 0; snapPlayerView();
+  player.position.copy(cave.spawnAt); player.yaw = cave.spawnYaw; player.pitch = -.08; player.velocityY = 0;
+  // In by the cellar's postern, or a save made inside: stand where that is (if the plan has ground there).
+  if (at === 'postern' && cave.posternAt) { player.position.copy(cave.posternAt.at); player.yaw = cave.posternAt.yaw; }
+  else if (resume && cave.contains(resume)) { const g = cave.nav.ground(resume.x, resume.z, resume.y + .5); if (g !== null) player.position.set(resume.x, g, resume.z); }
+  snapPlayerView();
   world.setUnderground(1, CAVE_STYLE[id].fog);
   // Your own eyes get used to the dark: a faint warm light around you that only the caves need.
   caveLamp?.(); caveLamp = world.lights.follow(playerModel, { color: 0xffd6a0, intensity: 2.4, distance: 10 });
@@ -515,7 +533,7 @@ function enterCave(id, { fromSave = false } = {}) {
   setTimeout(() => { fade.style.opacity = '0'; }, 250);
   if (!fromSave) toast(`${cave.plan.name.toUpperCase()} · ${cave.plan.summary}`, 7000, 'lore');
 }
-function leaveCave({ teleport = true } = {}) {
+function leaveCave({ teleport = true, at = null } = {}) {
   const cave = inCave; if (!cave) return;
   saveCaveState(cave);
   goblins.despawn(g => g.cave === cave.id);
@@ -523,8 +541,8 @@ function leaveCave({ teleport = true } = {}) {
   world.setUnderground(0); caveLamp?.(); caveLamp = null;
   if (teleport) {
     fade.style.opacity = '1';
-    const m = caveMouthAt[cave.id], out = v3(m.exit.x, 0, m.exit.z);
-    player.position.set(out.x, world.heightAt(out.x, out.z), out.z); player.yaw = m.facing + Math.PI; snapPlayerView();
+    const m = caveMouthAt[cave.id], out = at === 'postern' ? v3(ZOLL_POSTERN.outX, 0, ZOLL_POSTERN.outZ) : v3(m.exit.x, 0, m.exit.z);
+    player.position.set(out.x, world.heightAt(out.x, out.z), out.z); player.yaw = at === 'postern' ? ZOLL_POSTERN.yaw : m.facing + Math.PI; snapPlayerView();
     setTimeout(() => { fade.style.opacity = '0'; }, 250);
   }
   saveGame(false);
@@ -560,7 +578,7 @@ function brainFor(e, i) {
   if (e.kind === 'wolf') return ai.attach(e, { group: `wolf_${i}`, id: `Wolf_${i}`, seed: 500 + i, archetype: 'wolf' });
   return ai.attach(e, { group: 'camp', id: e.storyId ? 'Rauk' : e.personName, seed: 300 + i * 17, archetype: e.storyId ? 'leader' : e.archer ? 'archer' : e.shield ? 'shieldbearer' : 'veteran',
     territorial: true, story: !!e.storyId, noSurrender: !!e.storyId, schedule: e.duty ? (_brain,ctx) => {
-      const daylight = ctx.hour >= 6 && ctx.hour < 20, [x,z] = daylight ? e.day : e.night;
+      const daylight = ctx.hour >= 6 && ctx.hour < 20, [x,z] = daylight ? (e.round ? e.round[Math.floor(performance.now() / 15000) % e.round.length] : e.day) : e.night;
       return { goal:v3(x,world.heightAt(x,z),z), label:daylight ? e.duty : 'hält Nachtwache', tolerance:.65 };
     } : campSchedule(SITES.camp, world.heightAt, campRole(e)) });
 }
@@ -884,7 +902,7 @@ function loadGame() {
     game.quest = data.quest; game.flags = data.flags; worldClock.hour = data.hour; life.skipTo(data.hour);
     horseLoad(game.flags.horse);
     if (inCave) leaveCave({ teleport: false });
-    if (game.flags.in_cave && caveMouthAt[game.flags.in_cave]) enterCave(game.flags.in_cave, { fromSave: true });
+    if (game.flags.in_cave && caveMouthAt[game.flags.in_cave]) enterCave(game.flags.in_cave, { fromSave: true, resume: v3(...data.position) });
     Object.assign(relationship, data.relationships);
     rpg.restore(data.rpg); rpg.state.level = player.level; rpg.state.xp = player.xp;
     data.enemies.forEach((state, i) => { const e = enemies[i]; if (!e) return; e.hp = Math.min(e.maxHp, state.hp); e.dead = state.dead || e.hp <= 0; e.loot = e.dead ? state.loot ?? corpseLoot(e) : null; if (state.ai) ai.restore(e, state.ai); });
@@ -951,6 +969,7 @@ function syncPresentation() {
 let touchHelpShown=false;
 let concealTimer = 0;
 function setModal(id, inventoryContext) {
+  graphics.setOutline([]);
   keys.clear();combat.setGuard(false);
   const closingInventory = game.modal === 'inventory' && id !== 'inventory', fromPack = closingInventory && access.phase === 'open';
   if (closingInventory) { inventoryUI.close(); if (access.phase === 'open') access.end(); }
@@ -1400,6 +1419,7 @@ function nearestInteraction() {
   const arrow = combat.archery?.nearestArrow(player.position, camera.position, camera.getWorldDirection(v3(0, 0, 0)));
   if (arrow) best = { type: 'arrow', arrow };
   // Cave mouths outside; inside, levers, chains, pillars, braziers, idols, chests, notes, cages and the way out.
+  if (!inCave) { const d = Math.hypot(player.position.x - ZOLL_POSTERN.x, player.position.z - ZOLL_POSTERN.z); if (d < Math.min(distance, 2.2)) { best = { type: 'postern' }; distance = d; } }
   if (!inCave) for (const [id, m] of Object.entries(caveMouthAt)) { const d = Math.hypot(player.position.x - m.door.x, player.position.z - m.door.z); if (d < Math.min(distance, m.hole + 1.5)) { best = { type: 'cave', id }; distance = d; } }
   else { const c = inCave.nearest(player.position); if (c && (!best || best.type === 'npc')) best = { type: 'cavething', choice: c }; }
   // Horses: with the reins in hand a rail or a tree in reach ties it up; otherwise E mounts whatever horse is near.
@@ -1452,11 +1472,18 @@ function interact() {
   }
   else if (target.type === 'horse') mountHorse(target.horse);
   else if (target.type === 'cave') enterCave(target.id);
+  else if (target.type === 'postern') { if (game.flags.zoll_pforte) enterCave('zollkeller', { at: 'postern' }); else toast('DIE PFORTE IST VON INNEN VERRIEGELT · EIN BALKEN, KEIN SCHLOSS', 3200); }
   else if (target.type === 'cavething') {
     const r = inCave.use(target.choice, player);
+    if (r.exit === 'postern') {
+      // The supply passage's postern: the bar lifts once, and from then on it is a way in from the ward too.
+      game.flags.zoll_pforte = true; leaveCave({ at: 'postern' });
+      if (r.first) toast('DER RIEGEL FÄLLT · DU STEHST IM HOF DER BRUCHWACHT', 4200);
+      return;
+    }
     if (r.exit) { leaveCave(); return; }
     if (r.sound) combat.effects.sound(r.sound === 'lever' || r.sound === 'stone' ? 'impact' : 'parry');
-    if (r.loot) toast(`TRUHE · ${caveLoot(r.loot)}`, 4200);
+    if (r.loot) { const extra = r.item && ITEMS[r.item] && inventory.add(r.item) ? ` · ${ITEMS[r.item].name}` : ''; if (extra) inventoryChanged(); toast(`TRUHE · ${caveLoot(r.loot)}${extra}`, 4200); }
     if (r.free) { toast(`BEFREIT · ${r.free}`, 7000, 'lore'); awardXP(30); }
     if (r.toast) toast(r.toast, r.lore ? 11000 : 2600, r.lore ? 'lore' : '');
     if (r.solved) awardXP(20);
@@ -1520,6 +1547,14 @@ function corpseLoot(enemy) {
   if (enemy.archer) add('pfeil', 3 + Math.floor(Math.random() * 6));
   else add('leder', roll < .5 ? 2 : 1);
   if (enemy.storyId) { add('aschenrüstung'); if (!game.flags.captain_spared) add('payment_order'); }
+  if (enemy.goblin && enemy.human) {
+    // The cellar band: what they wear (the helmet, the mail, the boots), and what a bandit carries.
+    for (const key of Object.keys(loot)) delete loot[key];
+    for (const id of Object.values(enemy.model.userData.look?.equipment || {})) if (ITEMS[id]) add(id);
+    add('leder'); if (roll > .6) add('heiltrank'); if (roll < .35) add('reisefladen');
+    if (enemy.chief) { add('aschenklinge'); add('bernstein', 2); }
+    return loot;
+  }
   if (enemy.goblin) {
     for (const key of Object.keys(loot)) delete loot[key];
     add('goblinohr', Math.random() < .2 ? 1 : 2);
@@ -1989,9 +2024,24 @@ function updateCameraBase(dt) {
   camera.position.copy(pivot).addScaledVector(boom, cameraRig.length);
   camera.lookAt(pivot.clone().add(forward.clone().multiplyScalar(3.2)));
 }
+// What gets the white outline: the thing itself, never a person or a horse (corpses yes, they are searched).
+function outlineOf(t) {
+  if (!t || game.paused || game.cinematic) return null;
+  if (t.type === 'pickup') return t.prop.object;
+  if (t.type === 'corpse') return t.enemy.model || t.enemy.group;
+  if (t.type === 'drop') return dropBagMeshes.get(t.bag.id);
+  if (t.type === 'door') return t.door.hinge;
+  if (t.type === 'stash') return world.stashChest;
+  if (t.type === 'furniture') return t.spot.piece;
+  if (t.type === 'arrow') return t.arrow.mesh || t.arrow.object;
+  if (t.type === 'cavething') return t.choice.it?.object || null;
+  return null;
+}
 function updateInteractions() {
   const target = nearestInteraction();
+  graphics.setOutline([outlineOf(target)]);
   show('interact', !!target && !game.paused);
+  if (target?.type === 'postern') { $('interact-text').textContent = game.flags.zoll_pforte ? 'Durch die Pforte in den Zollkeller' : 'Alte Pforte · von innen verriegelt'; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
   if (target?.type === 'cave' || target?.type === 'cavething') { $('interact-text').textContent = target.type === 'cave' ? `${SITES[CAVE_MOUTHS[target.id]].name}: ${caveMouthAt[target.id].walkIn ? 'eintreten' : 'hinabsteigen'}` : target.choice.label; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
   const horseLabel = h => `${h.name} · Aufsitzen  ${tip('[T]', '')} ${tip(h.mode === 'led' ? 'Zügel loslassen' : h.mode === 'tied' ? 'Losbinden und führen' : 'Am Zügel führen', '')}`.trim();
   if (target?.type === 'horse' || target?.type === 'tie' || target?.type === 'ride') { $('interact-text').textContent = target.type === 'horse' ? horseLabel(target.horse) : target.type === 'tie' ? `${target.horse.name} ${target.point.kind === 'tree' ? 'an den Baum binden' : 'anbinden'}` : 'Absitzen'; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
