@@ -54,7 +54,7 @@ export function createAtmosphere(scene, sun, ambient) {
       }`,
   }));
   const clouds = createClouds(scene);
-  sky.frustumCulled = false;
+  sky.frustumCulled = false; sky.renderOrder = -10;   // drawn first, so land beyond its radius draws over it
   sky.name = 'Living sky';
   scene.add(sky);
   scene.add(sun.target);
@@ -119,7 +119,7 @@ export function createAtmosphere(scene, sun, ambient) {
     ambient.color.setHex(0xb4d4f2);
     ambient.groundColor.setHex(0x6f7848);
     scene.fog.color.copy(nightFog).lerp(dayFog, daylight).lerp(duskFog, sunset * .6);
-    scene.fog.density = .0025 + (1 - daylight) * .0026;
+    scene.fog.density = .0021 + (1 - daylight) * .0028;
     if (underground > 0) {
       const u = underground;
       sun.intensity *= 1 - u; moon.intensity *= 1 - u;

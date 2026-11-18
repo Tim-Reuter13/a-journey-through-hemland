@@ -28,8 +28,9 @@ function AshenParts() {
     body: { tint: 'skin' }, underwear: {},
     hair_short: { tint: 'hair', slot: 'hair' }, hair_tousled: { tint: 'hair', slot: 'hair' }, hair_long: { tint: 'hair', slot: 'hair' },
     hair_braid: { tint: 'hair', slot: 'hair' }, hair_ponytail: { tint: 'hair', slot: 'hair' }, hair_bun: { tint: 'hair', slot: 'hair' },
-    hair_shaved: { tint: 'hair', slot: 'hair' },
+    hair_shaved: { tint: 'hair', slot: 'hair' }, hair_undercut: { tint: 'hair', slot: 'hair' }, hair_warrior: { tint: 'hair', slot: 'hair' }, hair_mane: { tint: 'hair', slot: 'hair' }, hair_bob: { tint: 'hair', slot: 'hair' },
     beard_stubble: { tint: 'hair', slot: 'beard' }, beard_short: { tint: 'hair', slot: 'beard' }, beard_full: { tint: 'hair', slot: 'beard' }, beard_moustache: { tint: 'hair', slot: 'beard' },
+    beard_braided: { tint: 'hair', slot: 'beard' }, beard_goatee: { tint: 'hair', slot: 'beard' }, beard_mutton: { tint: 'hair', slot: 'beard' },
     shirt: { tint: 'cloth', slot: 'body' }, tunic: { tint: 'cloth', slot: 'body' }, robe: { tint: 'cloth', slot: 'body' }, dress: { tint: 'cloth', slot: 'body' },
     chainmail: { slot: 'body' }, pants: { tint: 'cloth', slot: 'legs' }, boots: { slot: 'feet' }, shoes: { slot: 'feet' },
     belt: { slot: 'waist' }, vest: { slot: 'torso' }, leather_armor: { slot: 'torso' }, plate: { slot: 'torso' }, apron: { slot: 'torso' },
@@ -121,6 +122,25 @@ function AshenParts() {
       P('hair_bun', 'head', [-2, 38.5, 2.5], [2, 42, 6], 'hairTint', { n: 'bun', rotation: [-20, 0, 0], origin: [0, 39, 3] }),
       P('hair_bun', 'head', [-.4, 40, 2], [.4, 40.8, 6.8], 'wood' in MATERIALS ? 'wood' : 'leatherDark', { n: 'pin', rotation: [-20, 0, 35], origin: [0, 40.4, 4] }));
     add(P('hair_shaved', 'head', [-3.5, 35, -3.5], [3.5, 39, 3.5], 'hairTint', { inflate: .06, hide: ['north', 'down'] }));
+    // Character editor 2.0: four more styles. Undercut: shorn sides, a long crest swept back.
+    add(P('hair_undercut', 'head', [-3.5, 35, -3.5], [3.5, 39, 3.5], 'hairTint', { n: 'shorn', inflate: .06, hide: ['north', 'down'] }),
+      P('hair_undercut', 'head', [-2.2, 39, -4.2], [2.2, 41, 3.8], 'hairTint', { n: 'crest' }),
+      P('hair_undercut', 'head', [-2, 38.2, -4.6], [2, 40.4, -3.4], 'hairTint', { n: 'quiff', rotation: [-14, 0, 0], origin: [0, 40, -4] }),
+      P('hair_undercut', 'head', [-1.8, 35, 3.6], [1.8, 40.5, 5.2], 'hairTint', { n: 'swept', rotation: [16, 0, 0], origin: [0, 40, 4] }));
+    // Warrior braids: hair drawn back off the brow, a braid at each temple ending in a brass bead, a short tail.
+    add(cap('hair_warrior', { top: 1, back: 31, side: 36, fringe: false }),
+      P('hair_warrior', 'head', [-3, 38.6, -4.4], [3, 39.8, -3.4], 'hairTint', { n: 'hairline' }),
+      ...[0, 1, 2].flatMap(i => pair(P('hair_warrior', 'head', [3.7, 33.6 - i * 2.4, -2.6], [4.9, 36.2 - i * 2.4, -1.4], 'hairTint', { n: `temple_${i}_right`, rotation: [0, 0, i % 2 ? 5 : -5], origin: [4.3, 36.2 - i * 2.4, -2] }))),
+      ...pair(P('hair_warrior', 'head', [3.6, 27.8, -2.7], [5, 29, -1.3], 'brass', { n: 'bead_right' })),
+      P('hair_warrior', 'head', [-1.2, 27, 4.2], [1.2, 33, 5.6], 'hairTint', { n: 'tail', rotation: [-10, 0, 0], origin: [0, 33, 5] }));
+    // Wild mane: heavy locks over the brow, a shaggy fall to the shoulders.
+    add(cap('hair_mane', { top: 2, back: 30, side: 31, fringe: false }),
+      ...[-3, -1, 1, 3].map((x, i) => P('hair_mane', 'head', [x - 1.2, 38, -4.8], [x + 1.2, 40.8, -3.5], 'hairTint', { n: `lock_${i}`, rotation: [-6, 0, (x > 0 ? -1 : 1) * (6 + i * 2)], origin: [x, 40, -4] })),
+      ...[-3, 0, 3].map((x, i) => P('hair_mane', 'head', [x - 1.6, 28, 3.8], [x + 1.6, 34, 5.6], 'hairTint', { n: `back_${i}`, rotation: [14, 0, (i - 1) * -10], origin: [x, 34, 4.5] })),
+      ...pair(P('hair_mane', 'head', [3.8, 29, -3], [5, 36, 3], 'hairTint', { n: 'flank_right', rotation: [0, 0, 10], origin: [4.4, 36, 0] })));
+    // Chin-length bob with a straight fringe.
+    add(cap('hair_bob', { top: 1.5, back: 31, side: 32 }),
+      ...pair(P('hair_bob', 'head', [3.4, 31.5, -3.8], [4.7, 34, -1], 'hairTint', { n: 'tip_right', rotation: [0, 0, -8], origin: [4, 34, -2] })));
 
     // ── Beards: frame the mouth (x ±1.5, y 33–35) without covering it.
     add(P('beard_stubble', 'head', [-3.5, 32, -3.62], [3.5, 33, -3.45], 'hairTint', { n: 'chin' }),
@@ -134,6 +154,21 @@ function AshenParts() {
       P('beard_full', 'head', [-2.2, 35, -4.1], [2.2, 35.8, -3.4], 'hairTint', { n: 'moustache' }));
     add(P('beard_moustache', 'head', [-2.3, 35, -3.95], [2.3, 35.8, -3.4], 'hairTint', { n: 'moustache' }),
       ...pair(P('beard_moustache', 'head', [1.5, 33.6, -3.95], [2.3, 35, -3.45], 'hairTint', { n: 'droop_right' })));
+    // Braided: a full beard gathered into a two-part braid with a brass ring.
+    add(P('beard_braided', 'head', [-3.2, 30.5, -4.3], [3.2, 33, -3.2], 'hairTint', { n: 'chin' }),
+      ...pair(P('beard_braided', 'head', [1.5, 32, -4.1], [3.7, 35.5, -3.2], 'hairTint', { n: 'cheek_right' })),
+      ...pair(P('beard_braided', 'head', [3.3, 32, -3.2], [4, 36.5, 1], 'hairTint', { n: 'sideburn_right' })),
+      P('beard_braided', 'head', [-2.2, 35, -4.1], [2.2, 35.8, -3.4], 'hairTint', { n: 'moustache' }),
+      ...[0, 1].map(i => P('beard_braided', 'head', [-.9, 27.8 - i * 2.4, -4.6 + i * .3], [.9, 30.8 - i * 2.4, -3.2 + i * .3], 'hairTint', { n: `braid_${i}`, rotation: [6, 0, i ? 6 : -6], origin: [0, 30.8 - i * 2.4, -3.8] })),
+      P('beard_braided', 'head', [-1, 24.8, -4.5], [1, 26, -2.9], 'brass', { n: 'ring' }));
+    // Goatee: a chin tuft and a moustache.
+    add(P('beard_goatee', 'head', [-1.5, 30, -4.1], [1.5, 33, -3.3], 'hairTint', { n: 'tuft', rotation: [6, 0, 0], origin: [0, 33, -3.6] }),
+      P('beard_goatee', 'head', [-2.2, 35, -3.95], [2.2, 35.8, -3.4], 'hairTint', { n: 'moustache' }),
+      ...pair(P('beard_goatee', 'head', [1.5, 33, -3.95], [2.2, 35, -3.45], 'hairTint', { n: 'corner_right' })));
+    // Mutton chops: heavy sideburns into the moustache, a bare chin.
+    add(...pair(P('beard_mutton', 'head', [2, 32.5, -3.9], [3.7, 35.5, -3.3], 'hairTint', { n: 'chop_right' })),
+      ...pair(P('beard_mutton', 'head', [3.3, 32.5, -3.2], [3.9, 37, .5], 'hairTint', { n: 'sideburn_right' })),
+      P('beard_mutton', 'head', [-2.3, 35, -3.95], [2.3, 35.8, -3.4], 'hairTint', { n: 'moustache' }));
 
     // ── Clothing.
     const chest = (part, mat, inflate, extra = {}) => P(part, 'chest', [-D.cx, 24, -D.cz], [D.cx, 31, D.cz], mat, { inflate, n: 'chest', ...extra });

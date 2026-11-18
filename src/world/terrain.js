@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pixelTexture, textureSize } from '../art/pixelTextures.js';
-import { BOUNDS, CHUNK, WATER_LEVEL } from './hemland.js';
+import { BOUNDS, CHUNK, WATER_LEVEL, TREELINE, biomeWeights } from './hemland.js';
 import { cityGroundMap, CITY_MAP } from './streets.js';
 import { burnUniforms, BURN_GLSL } from './burnMap.js';
 import { groundTexture } from './groundLayers.js';
@@ -120,18 +120,41 @@ export function terrainMaterial() {
   return material;
 }
 
-function attributes(heightfield, sample, xs, zs, heights, slopeStep) {
+// Distant woods. Beyond the rings that carry trees the ground itself takes the colour of the canopy: dark green under the
+// taiga, rust under the autumn woods, a little shadow, the bare grounds giving way. So a forest still reads as a forest
+// where its trees are no longer drawn, and the edge of the drawn trees is not a line between wood and meadow.
+const CANOPY = { taiga: [[.5, .62, .5], 1], autumn: [[.98, .6, .38], .85], forest: [[.56, .7, .5], .85], pillars: [[.6, .74, .52], .5], marsh: [[.62, .66, .5], .2], highland: [[.82, .8, .62], .1] };
+function canopyAt(w, h, slope) {
+  if (h < WATER_LEVEL + .8 || h > TREELINE || slope > 1.1) return null;
+  let dense = 0; const tint = [0, 0, 0];
+  for (const [name, [c, d]] of Object.entries(CANOPY)) { const k = (w[name] || 0) * d; dense += k; for (let i = 0; i < 3; i++) tint[i] += c[i] * k; }
+  dense *= 1 - Math.max(w.badlands || 0, w.dunes || 0, w.volcanic || 0);
+  if (dense < .05) return null;
+  const sum = Object.entries(CANOPY).reduce((s, [name, [, d]]) => s + (w[name] || 0) * d, 0);
+  return { k: Math.min(.85, dense * .85), tint: tint.map(v => v / sum) };
+}
+
+function attributes(heightfield, sample, xs, zs, heights, slopeStep, canopy = false) {
   const n = heights.length, splatC = new Float32Array(n * 4), splatD = new Float32Array(n * 4), splatE = new Float32Array(n * 4), splatF = new Float32Array(n * 4), splatA = new Float32Array(n * 4), splatB = new Float32Array(n * 4), colors = new Float32Array(n * 3), rock = new Float32Array(n * 3), normals = new Float32Array(n * 3);
+  const shade = canopy ? new Float32Array(n) : null;
   for (let k = 0; k < n; k++) {
     const x = xs[k], z = zs[k], h = heights[k];
     const dx = sample(x + slopeStep, z) - sample(x - slopeStep, z);
     const dz = sample(x, z + slopeStep) - sample(x, z - slopeStep);
     const nx = -dx, ny = 2 * slopeStep, nz = -dz, len = Math.hypot(nx, ny, nz);
     normals.set([nx / len, ny / len, nz / len], k * 3);
-    const s = heightfield.surface(x, z, h, Math.hypot(dx, dz) / (2 * slopeStep));
+    const slope = Math.hypot(dx, dz) / (2 * slopeStep), s = heightfield.surface(x, z, h, slope);
     splatA.set(s.a, k * 4); splatB.set(s.b, k * 4); colors.set(s.tint, k * 3); rock.set(s.rock, k * 3); splatC.set(s.c, k * 4); splatD.set(s.d, k * 4); splatE.set(s.e, k * 4); splatF.set(s.f, k * 4);
+    const wood = canopy && canopyAt(biomeWeights(x, z), h, slope);
+    if (wood) {
+      const keep = 1 - wood.k;
+      for (let c = 0; c < 3; c++) colors[k * 3 + c] += (wood.tint[c] - colors[k * 3 + c]) * wood.k;
+      splatA[k * 4 + 1] *= keep; splatB[k * 4] *= keep; splatB[k * 4 + 1] *= keep; splatB[k * 4 + 2] *= keep;
+      for (const a of [splatC, splatD, splatE, splatF]) for (let c = 0; c < 4; c++) a[k * 4 + c] *= keep;
+      shade[k] = wood.k * .22;
+    }
   }
-  return { splatA, splatB, splatC, splatD, splatE, splatF, colors, rock, normals };
+  return { splatA, splatB, splatC, splatD, splatE, splatF, colors, rock, normals, shade };
 }
 
 // Goblin holes (heightfield.js burrows) are far narrower than the 2-unit grid. At full detail the cells round each
@@ -187,8 +210,46 @@ function pitPatch(heightfield, g, cells) {
   return out;
 }
 
-/** Terrain mesh for one chunk. lod 0/1/2 = 2/4/8 units per quad. Skirts hide cracks between LODs. */
+// The outermost ring (lod 3): 16 units per quad, straight from the height function (no 2-unit grid is built for it, that
+// costs a chunk's worth of time) and with the canopy colour of distant woods. Deeper skirts, since the coarse surface can lie
+// further from its finer neighbours.
+function buildCoarseChunk(heightfield, cx, cz) {
+  const step = 16, n = CHUNK / step, side = n + 1, count = side * side + 4 * side, x0 = cx * CHUNK, z0 = cz * CHUNK;
+  const pos = new Float32Array(count * 3), xs = new Float32Array(count), zs = new Float32Array(count), hs = new Float32Array(count);
+  const set = (k, x, y, z) => { pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z; xs[k] = x; zs[k] = z; hs[k] = y; };
+  for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) set(j * side + i, x0 + i * step, heightfield.computeHeight(x0 + i * step, z0 + j * step) - .4, z0 + j * step);
+  const index = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = j * side + i, b = a + 1, c = a + side, d = c + 1; index.push(a, c, b, b, c, d); }
+  const edges = [[...Array(side).keys()].map(i => i), [...Array(side).keys()].map(i => n * side + i), [...Array(side).keys()].map(j => j * side), [...Array(side).keys()].map(j => j * side + n)];
+  let k = side * side;
+  const source = new Int32Array(count);
+  for (let v = 0; v < side * side; v++) source[v] = v;
+  edges.forEach((edge, e) => {
+    const start = k;
+    for (const v of edge) { set(k, pos[v * 3], pos[v * 3 + 1] - 8, pos[v * 3 + 2]); source[k] = v; k++; }
+    for (let i = 0; i < edge.length - 1; i++) {
+      const a = edge[i], b = edge[i + 1], a2 = start + i, b2 = start + i + 1;
+      e === 0 || e === 3 ? index.push(a, b, a2, b, b2, a2) : index.push(a, a2, b, b, a2, b2);
+    }
+  });
+  const top = side * side, a = attributes(heightfield, heightfield.computeHeight, xs.subarray(0, top), zs.subarray(0, top), hs.subarray(0, top), step / 2, true);
+  const spread = (src, size) => { const out = new Float32Array(count * size); for (let v = 0; v < count; v++) for (let c = 0; c < size; c++) out[v * size + c] = src[source[v] * size + c]; return out; };
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(spread(a.normals, 3), 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(spread(a.colors, 3), 3));
+  geometry.setAttribute('rockTint', new THREE.BufferAttribute(spread(a.rock, 3), 3));
+  for (const key of ['splatA', 'splatB', 'splatC', 'splatD', 'splatE', 'splatF']) geometry.setAttribute(key, new THREE.BufferAttribute(spread(a[key], 4), 4));
+  geometry.setAttribute('shade', new THREE.BufferAttribute(spread(a.shade, 1), 1));
+  geometry.setIndex(index); geometry.computeBoundingSphere();
+  const mesh = new THREE.Mesh(geometry, terrainMaterial());
+  mesh.receiveShadow = false; mesh.name = `terrain ${cx},${cz} lod3`;
+  return mesh;
+}
+
+/** Terrain mesh for one chunk. lod 0/1/2 = 2/4/8 units per quad, lod 3 = 16 (buildCoarseChunk). Skirts hide cracks between LODs. */
 export function buildChunkMesh(heightfield, cx, cz, lod) {
+  if (lod >= 3) return buildCoarseChunk(heightfield, cx, cz);
   const g = heightfield.grid(cx, cz), stride = 1 << lod, n = heightfield.CELLS / stride, step = heightfield.STEP * stride;
   const side = n + 1, count = side * side + 4 * side;
   const pos = new Float32Array(count * 3);
@@ -290,7 +351,7 @@ export function buildFarTerrain(heightfield, step = 32, margin = 640) {
   }
   const index = [];
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; index.push(a, c, b, b, c, d); }
-  const attr = attributes(heightfield, heightfield.computeHeight, xs, zs, hs, step / 2);
+  const attr = attributes(heightfield, heightfield.computeHeight, xs, zs, hs, step / 2, true);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(attr.normals, 3));
@@ -299,7 +360,7 @@ export function buildFarTerrain(heightfield, step = 32, margin = 640) {
   geometry.setAttribute('splatA', new THREE.BufferAttribute(attr.splatA, 4));
   geometry.setAttribute('splatB', new THREE.BufferAttribute(attr.splatB, 4));
   for (const key of ['splatC', 'splatD', 'splatE', 'splatF']) geometry.setAttribute(key, new THREE.BufferAttribute(attr[key], 4));
-  geometry.setAttribute('shade', new THREE.BufferAttribute(new Float32Array(count), 1));
+  geometry.setAttribute('shade', new THREE.BufferAttribute(attr.shade, 1));
   geometry.setIndex(index); geometry.computeBoundingSphere();
   const mesh = new THREE.Mesh(geometry, farTerrainMaterial());
   mesh.name = 'far terrain'; mesh.receiveShadow = false;

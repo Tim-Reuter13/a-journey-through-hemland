@@ -280,7 +280,7 @@ export function createWorld(scene) {
     if (underground) { lights.update(camera.position); mark('rest'); return; }
     streamer.update(focus); mark('streamer');
     wind.value += dt; water.update(dt, focus); fires.update(dt, camera);
-    for (const g of siteGroups) { const s = g.userData.cull; if (s) g.visible = cullPoint.copy(s.center).distanceTo(focus) < s.radius + 520; }
+    for (const g of siteGroups) { const s = g.userData.cull; if (s) g.visible = cullPoint.copy(s.center).distanceTo(focus) < s.radius + 700; }
     for (const fn of updaters) fn(dt, hour, focus);
     mark('sites');
     const daylight = smoothstep(-.16, .3, Math.sin((hour - 6) / 24 * PI * 2));

@@ -47,6 +47,7 @@ import './ui/fonts.js';
 import { createMenu, loadSettings, saveSettings, setBarVisibility, SETTINGS_KEY } from './ui/menu.js';
 import { createTouchControls, prefersTouch, toggleFullscreen } from './ui/touchControls.js';
 import { createCharacterCreator, randomAppearance } from './ui/characterCreator.js';
+import { applyOrigin } from './data/origins.js';
 import { createWildlife } from './systems/wildlife.js';
 import { createHorses, RIDE_SPEEDS } from './systems/horses.js';
 import { createGoblins } from './systems/goblins.js';
@@ -75,7 +76,8 @@ import './ui/touch.css';
 // The scene, creatures, architecture and effects are constructed locally.
 const $ = (id) => document.getElementById(id);
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, .08, 320);
+// The far plane lies where the fog has swallowed everything (atmosphere.js): the land fades into the haze, it is never cut off.
+const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, .08, 1000);
 // Phones skip MSAA on the canvas: the scene renders into the low-resolution target, the canvas only shows it.
 const renderer = new THREE.WebGLRenderer({ antialias: !prefersTouch(), powerPreference: 'high-performance' });
 renderer.setSize(innerWidth, innerHeight);
@@ -175,7 +177,7 @@ function playerDamageBonus() {
 }
 
 function playerMagicBonus() {
-  return (player.attributes?.arcane || 1) * 5 + (player.perks?.includes('arkaner_fokus') ? 15 : 0) + (ITEMS[player.equipment.accessory]?.magic || 0);
+  return (player.attributes?.arcane || 1) * 4 + (player.perks?.includes('arkaner_fokus') ? 10 : 0) + (ITEMS[player.equipment.accessory]?.magic || 0);
 }
 
 function awardXP(amount) {
@@ -799,7 +801,7 @@ const combat=createCombat({scene,camera,player,enemies,world,prey,ai,onHit:damag
     // Crystal (earth on an element): a shield that takes blows for you for a while.
     shield:amount=>{player.shield=Math.min(60,(player.shield||0)+amount);player.shieldT=20;updateHUD();toast(`KRISTALLSCHILD · ${Math.round(player.shield)}`,1400);},
   },
-  weaponDamage:()=>itemStats().damage+playerDamageBonus(),magicDamage:()=>39+playerMagicBonus(),toast,
+  weaponDamage:()=>itemStats().damage+playerDamageBonus(),magicDamage:()=>26+playerMagicBonus(),toast,
   // The hunting bow (systems/archery.js): arrows from the satchel, damage by bow and draw.
   bow:{ammo:{count:()=>player.satchel.pfeil||0,use:()=>inventory.remove('pfeil'),add:n=>{inventory.add('pfeil',n);updateHUD();}},
     damage:power=>((ITEMS[player.equipment.ranged]?.damage||0)+playerDamageBonus()*.6+((player.skills.archery||1)-1)*1.2+(player.perks.includes('meisterschuetze')?12:0))*(.3+.7*power),
@@ -967,7 +969,12 @@ function setModal(id, inventoryContext) {
 }
 function startGame(continueExisting = false) {
   const loaded = continueExisting && loadGame();
-  if (!loaded) { resetGame(!continueExisting); if (pendingAppearance) player.appearance = { ...pendingAppearance }; pendingAppearance = null; }
+  if (!loaded) {
+    resetGame(!continueExisting);
+    // A new character from the editor: its look, and the head start of the origin it chose (data/origins.js).
+    if (pendingAppearance) { player.appearance = { ...pendingAppearance }; applyOrigin(player, pendingAppearance.origin, id => inventory.add(id)); inventoryChanged(); }
+    pendingAppearance = null;
+  }
   setModal(null);
   show('start-screen', false); show('hud', true);
   game.started = true; game.paused = false; game.modal = null;
@@ -2138,7 +2145,7 @@ function animate(now) {
     const panel = $('character-creator').querySelector('.cc-panel')?.getBoundingClientRect();
     const free = panel && panel.left > innerWidth * .3 ? panel.left : innerWidth;
     camera.setViewOffset(innerWidth, innerHeight, innerWidth / 2 - free / 2, 0, innerWidth, innerHeight);
-    const p = playerModel.position, f = creating.focus === 'face', s = playerModel.scale.y;
+    const p = playerModel.position, f = creating.focus === 'face', s = playerModel.scale.y * (1 + (creator.value.height || 0) * .03);
     playerModel.rotation.y = creatorSpot.yaw + creating.spin;
     // The camera stays in front of the spot; dragging turns the character, not the view.
     const yaw = creatorSpot.yaw + Math.sin(elapsed * .2) * .06, dist = (f ? 1.5 : 3.5) * creating.zoom, height = (f ? 2.0 : 1.12) * s;

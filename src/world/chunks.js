@@ -8,12 +8,13 @@ import { treeMeshes, showTreeDetail } from './trees.js';
 
 // Streams the region around the player in 128-unit chunks. Rings (Chebyshev
 // distance in chunks): 0–1 full detail + grass + colliders + physics terrain,
-// 2 medium terrain + trees, 3 coarse terrain only. Work is spread over frames
+// 2 medium terrain + trees, 3 coarse terrain + far trees, 4 the coarsest terrain
+// (straight from the height function, woods drawn as canopy colour). Work is spread over frames
 // with a time budget so walking never hitches; chunks far behind are freed.
 const seeded = seed => { let a = seed >>> 0; return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
 const inside = (cx, cz) => cx * CHUNK + CHUNK > BOUNDS.minX && cx * CHUNK < BOUNDS.maxX && cz * CHUNK + CHUNK > BOUNDS.minZ && cz * CHUNK < BOUNDS.maxZ;
 
-export function createChunkStreamer({ scene, field, collision, water = null, avoidTrees = () => false, avoidGround = () => false, radius = 3, onTerrain = null }) {
+export function createChunkStreamer({ scene, field, collision, water = null, avoidTrees = () => false, avoidGround = () => false, radius = 4, onTerrain = null }) {
   const chunks = new Map();
   let physics = null;
   const root = new THREE.Group(); root.name = 'streamed terrain'; scene.add(root);
@@ -98,15 +99,15 @@ export function createChunkStreamer({ scene, field, collision, water = null, avo
       const cx = fcx + dx, cz = fcz + dz;
       if (!inside(cx, cz)) continue;
       const ring = Math.max(Math.abs(dx), Math.abs(dz)), c = chunk(cx, cz);
-      const lod = ring <= 1 ? 0 : ring === 2 ? 1 : 2;
+      const lod = ring <= 1 ? 0 : ring === 2 ? 1 : ring === 3 ? 2 : 3;
       // The heights (about 18 ms for a chunk) are their own job, a frame before the mesh is built from them: no single job takes both.
-      if (c.lod !== lod) { todo.push([ring - .1, () => field.grid(c.cx, c.cz), 'heights']); todo.push([ring, () => jobs.terrain(c, lod), `terrain${lod}`]); }
+      if (c.lod !== lod) { if (lod < 3) todo.push([ring - .1, () => field.grid(c.cx, c.cz), 'heights']); todo.push([ring, () => jobs.terrain(c, lod), `terrain${lod}`]); }
       if (water && !c.water) todo.push([ring + .2, () => jobs.water(c), 'water']);
-      if (ring <= 2 && !c.scatter) todo.push([ring + .3, () => jobs.scatter(c), 'scatter']);
-      if (ring > 3 && c.scatter) dropScatter(c);
+      if (ring <= 3 && !c.scatter) todo.push([ring + .3, () => jobs.scatter(c), 'scatter']);
+      if (ring > 4 && c.scatter) dropScatter(c);
       if (ring <= 1 && c.scatter && !c.flora) todo.push([ring + .35, () => jobs.flora(c), 'flora']);
       if (ring > 1 && c.flora) dropFlora(c);
-      // Blockbench trees: full detail in the near rings, their far version two rings out.
+      // Blockbench trees: full detail in the near rings, their far version two and three rings out.
       if (c.trees && c.near !== (ring <= 1)) { c.near = ring <= 1; showTreeDetail(c.trees, c.near); }
       if (ring <= 1 && !c.ground) todo.push([ring + .5, () => jobs.ground(c), 'ground']);
       if (ring > 1 && c.ground) dropGround(c);

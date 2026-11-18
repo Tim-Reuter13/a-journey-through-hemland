@@ -48,7 +48,7 @@ export function buildWilds(ctx) {
     // A ring of red toadstools round the hollow trunk.
     if (p.id === 'hollow_log' && plantsLoaded()) for (let k = 0; k < 9; k++) {
       const a = k / 9 * Math.PI * 2 + .3, lx = Math.cos(a) * 4.6, lz = Math.sin(a) * 6.4, wx = site.x + lx * c + lz * s, wz = site.z - lx * s + lz * c;
-      placePlant(ctx.root, k % 3 ? 'mushroom_red_1' : 'mushroom_red_2', wx, ctx.heightAt(wx, wz), wz, 1.1, ctx.random, ctx.heightAt);
+      placePlant(ctx.root, k % 3 ? 'mushroom_red_1' : 'mushroom_red_2', wx, ctx.heightAt(wx, wz), wz, .6, ctx.random, ctx.heightAt);
     }
     // Reading spot: in front (-z) of everything solid, 1.6 units clear of it.
     const front = Math.max(0, ...p.solids.map(([, z, , d]) => -(z - d / 2))) / 16 * p.scale + 1.6, dist = Math.max(-p.read[1], front);

@@ -537,6 +537,6 @@ export function plantsChunk(parent, field, biomeWeights, waterLevel, x0, z0, siz
     if (h < waterLevel + .9 || h > TREELINE - 4 || field.roadClearance(x, z) < 2.5 || avoid(x, z)) continue;
     if (Math.abs(field.heightAt(x + 1.5, z) - h) + Math.abs(field.heightAt(x, z + 1.5) - h) > 2.6 || canopiesNear(x, z, 2.2).length) continue;
     const name = plantFor(biomeWeights(x, z), x, z, h, random(), random(), drifts(x, z));
-    if (name) placePlant(parent, name, x, h, z, .9 + random() * .5, random, field.heightAt);
+    if (name) placePlant(parent, name, x, h, z, (name.startsWith('mushroom') ? .42 + random() * .2 : .9 + random() * .5), random, field.heightAt);   // toadstools stay small: a hand high, not knee high
   }
 }

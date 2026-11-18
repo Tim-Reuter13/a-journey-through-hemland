@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cycleOption, randomAppearance } from '../src/ui/characterCreator.js';
+import { cycleOption, randomAppearance, randomName, describe, swatchOrder } from '../src/ui/characterCreator.js';
+import { ORIGINS, PRESETS, NAME_POOL, applyOrigin } from '../src/data/origins.js';
+import fs from 'node:fs';
 import { APPEARANCE_OPTIONS as o, DEFAULT_APPEARANCE, normalizeAppearance } from '../src/characters/appearance.js';
 
 test('cycleOption wraps both directions, arbitrary steps, and singleton lists', () => {
@@ -17,7 +19,7 @@ test('cycleOption uses appearance ids, including null and false, without mutatio
   assert.equal(cycleOption(options, 'short', 1), null);
   assert.equal(cycleOption(options, null, 1), false);
   assert.equal(cycleOption(options, false, -1), null);
-  assert.equal(cycleOption(o.beards, 'moustache', 1), null);
+  assert.equal(cycleOption(o.beards, o.beards.at(-1).id, 1), null);
   assert.equal(cycleOption(o.bodies, 'male', 1), 'female');
 });
 
@@ -57,11 +59,11 @@ test('every generated appearance obeys the normalizer and covers every supported
   for (const [key, list] of [['skin', o.skins], ['eyes', o.eyeColors], ['hairColor', o.hairColors]]) {
     assert.equal(seen[key].size, list.length);
   }
-  assert.deepEqual(seen.scar, new Set([false, true]));
+  for (const [key, list] of [['scar', o.scars], ['paint', o.paints], ['mark', o.marks], ['height', o.heights]]) assert.equal(seen[key].size, list.length, key);
 });
 
 test('injected random functions select the first/last options and clamp bad draws', () => {
-  const first = normalizeAppearance({ ...DEFAULT_APPEARANCE, body: o.bodies[0].id, build: o.builds[0].id, skin: 0, face: o.faces[0].id, eyes: 0, scar: false, hair: o.hairStyles[0].id, hairColor: 0, beard: o.beards[0].id });
+  const first = normalizeAppearance({ ...DEFAULT_APPEARANCE, body: o.bodies[0].id, build: o.builds[0].id, skin: 0, face: o.faces[0].id, eyes: 0, scar: false, hair: o.hairStyles[0].id, hairColor: 0, beard: o.beards[0].id, paint: null, mark: null, height: o.heights[0].id });
   assert.deepEqual(randomAppearance(() => 0), first);
   assert.deepEqual(randomAppearance(() => -1), first);
   assert.deepEqual(randomAppearance(() => NaN), first);
@@ -74,7 +76,8 @@ test('injected random functions select the first/last options and clamp bad draw
   assert.equal(last.hair, o.hairStyles.at(-1).id);
   assert.equal(last.face, o.faces.at(-1).id);
   assert.equal(last.beard, o.beards.at(-1).id);
-  assert.equal(last.scar, true);
+  assert.equal(last.scar, o.scars.at(-1).id);
+  assert.equal(last.paint, o.paints.at(-1).id);
   assert.deepEqual(randomAppearance(() => 10), last);
 });
 
@@ -84,4 +87,42 @@ test('randomAppearance validates seed types and leaves shared defaults and optio
   const sample = randomAppearance(() => .5);
   assert.deepEqual(sample, normalizeAppearance(sample), 'random appearances are already normalized');
   assert.equal(JSON.stringify({ o, DEFAULT_APPEARANCE }), before);
+});
+
+test('scars, paint and marks are the exception on random faces', () => {
+  const faces = Array.from({ length: 400 }, (_, seed) => randomAppearance(seed));
+  assert.ok(faces.filter(f => f.paint).length < 100, 'most townsfolk wear no war paint');
+  assert.ok(faces.filter(f => f.scar).length < 160);
+});
+
+test('old saves keep their scar, unknown fields fall back', () => {
+  assert.equal(normalizeAppearance({ scar: true }).scar, 'brow');
+  assert.equal(normalizeAppearance({ scar: 'nope', paint: 'neon', height: 7, origin: 'pirate' }).scar, false);
+  const n = normalizeAppearance({ paint: 'neon', height: 7, origin: 'pirate' });
+  assert.equal(n.paint, null); assert.equal(n.height, 0); assert.equal(n.origin, 'wanderer');
+  assert.ok(!o.eyeColors.includes('#6a4a7a'), 'no violet eyes');
+});
+
+test('origins give a small head start and every preset is a valid look', () => {
+  for (const origin of ORIGINS) {
+    const player = { hp: 100, maxHp: 100, stamina: 100, maxStamina: 100, magicka: 60, maxMagicka: 60, skills: { sword: 1, magic: 0 } }, given = [];
+    assert.equal(applyOrigin(player, origin.id, id => given.push(id)).id, origin.id);
+    const gained = player.maxHp - 100 + player.maxStamina - 100 + player.maxMagicka - 60;
+    assert.ok(gained <= 15, `${origin.id} gives too much`);
+    assert.ok(origin.lore.length > 40 && origin.bonus.length > 5);
+  }
+  const items = fs.readFileSync(new URL('../src/systems/items.js', import.meta.url), 'utf8');
+  for (const origin of ORIGINS) for (const id of Object.keys(origin.gift.items || {})) assert.ok(items.includes(`${id}:`), `${origin.id} gives unknown item ${id}`);
+  for (const preset of PRESETS) {
+    const look = { ...preset.look, origin: preset.origin };
+    assert.deepEqual(normalizeAppearance({ ...DEFAULT_APPEARANCE, ...look }), { ...DEFAULT_APPEARANCE, ...look }, preset.id);
+  }
+});
+
+test('names, the summary line and the swatch order', () => {
+  for (const body of ['male', 'female']) { const n = randomName(body, 'Edda'); assert.ok(NAME_POOL[body].includes(n) && n !== 'Edda'); }
+  assert.equal(describe({ ...DEFAULT_APPEARANCE, origin: 'soldier', body: 'female', build: 'strong', height: 1 }), 'Söldner · Weiblich · Kräftig · Groß');
+  const order = swatchOrder(o.skins);
+  assert.deepEqual([...order].sort((a, b) => a - b), o.skins.map((_, i) => i));
+  assert.equal(order[0], 0, 'the palest skin comes first');
 });

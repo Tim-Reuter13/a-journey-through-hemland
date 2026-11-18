@@ -12,6 +12,7 @@ const BODIES = ['male', 'female'];
 const libraries = {};
 const HIDES_HAIR = new Set(['hood', 'iron_helmet', 'great_helm', 'guard_helmet']);
 const FLATTENS_HAIR = new Set(['straw_hat', 'crown']);
+const TALL_HAIR = ['tousled', 'bun', 'long', 'mane', 'undercut', 'warrior'];
 const HIDES_BEARD = new Set(['great_helm', 'mask']);
 export const DEFAULT_TINTS = {
   shirt: '#8a7f6a', tunic: '#3a5066', robe: '#6a2a2a', dress: '#4a5a3a', pants: '#4a3f35', cloak: '#2f3d4a',
@@ -61,16 +62,56 @@ function paintFace(ctx, r, appearance) {
   MOUTH.forEach((name, i) => mouths[name].forEach((row, y) => [...row].forEach((ch, x) => {
     if (ch !== '.') px(i * 4 + x, 4 + y, ch === 'l' ? 'lip' : ch === 'd' ? (y ? 'inner' : 'dark') : 'teeth');
   })));
+  paintOverlay(ctx, r, appearance, skin);
 }
 
-function createFace(head, atlas, reserved) {
+// ── Face details (character editor 2.0): one 7×7 cell (reserved strip, from row 8) laid over the whole front of the head, in front
+// of the eye and mouth quads and transparent wherever nothing is painted. Rows run from the brow line down (0 forehead, 1 brows,
+// 2 eyes, 3 under the eyes, 4–5 mouth, 6 chin), columns from the viewer's left. The eye row is kept clear so the eyes still show.
+export const OVERLAY = { u: 0, v: 8, size: 7 };
+export const OVERLAYS = {
+  // Scars
+  brow: ['.s.....', '.s.....', '.......', '.s.....', '.......', '.......', '.......'],
+  cheek: ['.......', '.......', '.......', '......s', '.....s.', '.....s.', '.......'],
+  lip: ['.......', '.......', '.......', '...s...', '.......', '.......', '...s...'],
+  cross: ['.s.....', '.s.....', '.......', '.s....s', '.....s.', '.....s.', '.......'],
+  // War paint
+  ash: ['.......', '.......', 'a.....a', 'aaa.aaa', '.......', '.......', '.......'],
+  claw: ['....c.c', '......c', '.......', '....c.c', '.....c.', '......c', '.......'],
+  ochre: ['.......', '.......', '.......', '.......', '.......', '.o...o.', '.ooooo.'],
+  woad: ['bb.....', 'b......', '.......', 'bbb....', 'bb.....', 'b......', '.......'],
+  // Marks
+  freckles: ['.......', '.......', '.......', 'f.f.f.f', '.f...f.', '.......', '.......'],
+  mole: ['.......', '.......', '.......', '.......', '.....m.', '.......', '.......'],
+  flush: ['.......', '.......', '.......', 'rr...rr', 'r.....r', '.......', '.......'],
+  tired: ['.......', '.......', '.......', '.tt.tt.', '.......', '.......', '.......'],
+  // The weathered face: lines on the brow and at the eyes' corners.
+  weathered: ['.w.w.w.', '.......', '.......', 'w.....w', '.......', '.......', '.......'],
+};
+function paintOverlay(ctx, r, appearance, skin) {
+  const x0 = r.u + OVERLAY.u, y0 = r.v + OVERLAY.v, base = new THREE.Color(skin);
+  const mix = (hex, k) => '#' + base.clone().lerp(new THREE.Color(hex), k).getHexString();
+  const colours = { s: shadeHex(mix('#f2d2c4', .5), 1.06), a: '#211d1a', c: '#3a2420', o: '#7a3a22', b: '#43586a', w: shadeHex(skin, .8), f: shadeHex(skin, .74),
+    m: '#4a2e22', r: mix('#b0503c', .38), t: shadeHex(mix('#6a5a70', .25), .8) };
+  ctx.clearRect(x0, y0, OVERLAY.size, OVERLAY.size);
+  for (const id of [appearance.mark, appearance.face === 'weathered' ? 'weathered' : null, appearance.paint, appearance.scar || null]) {
+    const map = OVERLAYS[id]; if (!map) continue;
+    map.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { ctx.fillStyle = colours[ch]; ctx.fillRect(x0 + x, y0 + y, 1, 1); } }));
+  }
+}
+// The resting look of each face: the brows and mouth it falls back to when nothing else moves them.
+const REST = { calm: ['neutral', 'closed'], stern: ['angry', 'closed'], soft: ['neutral', 'smile'], weathered: ['sad', 'closed'] };
+
+function createFace(head, atlas, reserved, look = 'calm') {
+  const [restBrow, restMouth] = REST[look] || REST.calm;
   const S = 1 / 16, z = -3.5 * S - .004, y0 = -32.5;
   // [x from, x to] (u runs inner → outer for the eyes), y from/to in pixels.
-  const quads = [[.5, 2.5, 36, 38], [-.5, -2.5, 36, 38], [-1.5, 1.5, 33, 35]];
+  // The fourth quad is the details cell over the whole head front, a hair in front of the others.
+  const quads = [[.5, 2.5, 36, 38], [-.5, -2.5, 36, 38], [-1.5, 1.5, 33, 35], [3.5, -3.5, 32, 39, -.002]];
   const positions = [], uvs = [], index = [];
-  quads.forEach(([x0, x1, ya, yb]) => {
-    const s = positions.length / 3;
-    positions.push(x0 * S, (yb + y0) * S, z, x1 * S, (yb + y0) * S, z, x1 * S, (ya + y0) * S, z, x0 * S, (ya + y0) * S, z);
+  quads.forEach(([x0, x1, ya, yb, dz = 0]) => {
+    const s = positions.length / 3, zq = z + dz;
+    positions.push(x0 * S, (yb + y0) * S, zq, x1 * S, (yb + y0) * S, zq, x1 * S, (ya + y0) * S, zq, x0 * S, (ya + y0) * S, zq);
     uvs.push(0, 0, 0, 0, 0, 0, 0, 0);
     // Seen from the front (-Z) +X is on the viewer's left, so quads running toward
     // +X are counter-clockwise as written; the mirrored eye needs reversed winding.
@@ -79,21 +120,22 @@ function createFace(head, atlas, reserved) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Array(12).fill(0).flatMap(() => [0, 0, -1]), 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(Array(16).fill(0).flatMap(() => [0, 0, -1]), 3));
   geometry.setIndex(index);
-  const material = new THREE.MeshLambertMaterial({ map: atlas.map, emissive: 0xffffff, emissiveMap: atlas.map, emissiveIntensity: .2, polygonOffset: true, polygonOffsetFactor: -2 });
+  const material = new THREE.MeshLambertMaterial({ map: atlas.map, emissive: 0xffffff, emissiveMap: atlas.map, emissiveIntensity: .2, polygonOffset: true, polygonOffsetFactor: -2, alphaTest: .5 });
   const mesh = new THREE.Mesh(geometry, material); mesh.name = 'face'; head.add(mesh);
   const [W, H] = atlas.size, uv = geometry.attributes.uv;
   const setCell = (q, cellX, cellY, w, h) => {
     const u0 = (reserved.u + cellX) / W, u1 = (reserved.u + cellX + w) / W, v0 = (reserved.v + cellY) / H, v1 = (reserved.v + cellY + h) / H;
     const k = q * 4; uv.setXY(k, u0, v0); uv.setXY(k + 1, u1, v0); uv.setXY(k + 2, u1, v1); uv.setXY(k + 3, u0, v1);
   };
+  setCell(3, OVERLAY.u, OVERLAY.v, OVERLAY.size, OVERLAY.size);
   let blinkIn = 1 + Math.random() * 3, blinkT = 0, mouthT = 0, mouthFrame = 'closed', last = '';
   const state = { mouth: 'closed', eyes: 'open' };
   function update(dt, { speaking = 0, expression = 'neutral', look = 0 } = {}) {
     blinkIn -= dt; if (blinkIn <= 0) { blinkT = .12; blinkIn = 2 + Math.random() * 4.5; }
     blinkT = Math.max(0, blinkT - dt);
-    const brow = { angry: 'angry', sad: 'sad', surprised: 'raised', pain: 'angry' }[expression] || 'neutral';
+    const brow = { angry: 'angry', sad: 'sad', surprised: 'raised', pain: 'angry' }[expression] || restBrow;
     let eyes = expression === 'sleep' || expression === 'dead' ? 'closed' : expression === 'pain' ? 'squint' : 'open';
     if (blinkT > 0 && eyes === 'open') eyes = 'closed';
     mouthT -= dt;
@@ -101,7 +143,7 @@ function createFace(head, atlas, reserved) {
       // Three openings from the voice loudness, each held at least ~90 ms so the mouth never flickers.
       const next = speaking > .5 ? 'wide' : speaking > .2 ? 'small' : 'closed';
       if (next !== mouthFrame && mouthT <= 0) { mouthFrame = next; mouthT = .09; }
-    } else mouthFrame = { happy: 'smile', sad: 'frown', angry: 'grimace', surprised: 'o', pain: 'grimace', dead: 'small', smirk: 'smirk' }[expression] || 'closed';
+    } else mouthFrame = { happy: 'smile', sad: 'frown', angry: 'grimace', surprised: 'o', pain: 'grimace', dead: 'small', smirk: 'smirk' }[expression] || restMouth;
     // Gaze: looking toward the model's right moves the right iris outward and the left one inward.
     const rightEye = eyes === 'open' ? (look > .4 ? 'out' : 'open') : eyes, leftEye = eyes === 'open' ? (look < -.4 ? 'out' : 'open') : eyes;
     const key = `${brow}${rightEye}${leftEye}${mouthFrame}`;
@@ -140,7 +182,7 @@ function resolveParts(appearance, outfit) {
   const headgear = outfit.find(p => HIDES_HAIR.has(p) || FLATTENS_HAIR.has(p));
   let hair = `hair_${appearance.hair}`;
   if (HIDES_HAIR.has(headgear)) hair = null;
-  else if (FLATTENS_HAIR.has(headgear) && ['tousled', 'bun', 'long'].includes(appearance.hair)) hair = 'hair_short';
+  else if (FLATTENS_HAIR.has(headgear) && TALL_HAIR.includes(appearance.hair)) hair = 'hair_short';
   if (hair) parts.push(hair);
   if (appearance.beard && appearance.body === 'male' && !outfit.some(p => HIDES_BEARD.has(p))) parts.push(`beard_${appearance.beard}`);
   return [...new Set(parts)];
@@ -181,10 +223,11 @@ function build(root, def) {
   const material = new THREE.MeshLambertMaterial({ map: atlas.map, alphaTest: .5, emissive: 0xffffff, emissiveMap: atlas.map, emissiveIntensity: .2 });
   for (const bone of Object.values(rig)) mergeBone(bone, material);
   for (const bone of Object.values(rig)) bone.userData.rest = { position: bone.position.clone(), quaternion: bone.quaternion.clone() };
-  const face = createFace(rig.head, atlas, lib.meta.reserved);
+  const face = createFace(rig.head, atlas, lib.meta.reserved, appearance.face);
   root.add(body);
-  const build = { slim: [.93, 1, .93], normal: [1, 1, 1], strong: [1.08, 1.02, 1.08] }[appearance.build];
-  body.scale.set(...build);
+  // Build widens, height (editor 2.0) stretches: three per cent a step, a little width with it.
+  const build = { slim: [.93, 1, .93], normal: [1, 1, 1], strong: [1.08, 1.02, 1.08] }[appearance.build], tall = 1 + appearance.height * .03, wide = 1 + appearance.height * .015;
+  body.scale.set(build[0] * wide, build[1] * tall, build[2] * wide);
   Object.assign(root.userData, { body, rig, face, material, appearance, outfit: [...(def.outfit || [])], tints: { ...(def.tints || {}) }, parts: partIds, kind: 'humanoid' });
   // Held items follow the new grip bone; arrows stuck in the body (systems/archery.js) their bones.
   if (root.userData.weapon) rig.grip_right.add(root.userData.weapon);

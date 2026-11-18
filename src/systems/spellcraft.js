@@ -428,8 +428,9 @@ export function createSpellcraft({ scene, world, player, targets, enemies = [], 
         for (let k = 0; k < 2; k++) bolt(v3(c.x + rand(-.35, .35), c.y + rand(-.9, .6), c.z + rand(-.35, .35)), v3(c.x + rand(-.4, .4), c.y + rand(-.9, .6), c.z + rand(-.4, .4)), { life: .05, width: .35, branches: 1, color: streamCol() });
       }
       if (Math.random() < dt * 40) spawn(glow, c.x + rand(-.3, .3), c.y + rand(-.6, .5), c.z + rand(-.3, .3), rand(-3, 3), rand(-1, 3), rand(-3, 3), { life: rand(.1, .25), size: rand(.6, 1.2), c0: 0xffffff, c1: 0x7a8aff, stretch: .3, gravity: 6 });
-      // They jerk and cannot act.
-      e.stagger = Math.max(e.stagger || 0, .35); e.windup = 0; e.cooldown = Math.max(e.cooldown || 0, .5);
+      // The first one jerks now and then (a jolt every 1.4 s breaks his swing), but between jolts he can still fight back.
+      const now = performance.now() / 1000;
+      if (i === 0 && !(e.joltNext > now)) { e.stagger = Math.max(e.stagger || 0, .45); e.windup = 0; e.joltNext = now + 1.4; }
       e.model.rotation.y += rand(-.06, .06);
       last = c;
     });

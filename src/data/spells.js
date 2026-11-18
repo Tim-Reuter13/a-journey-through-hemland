@@ -28,31 +28,31 @@ export const ELEMENTS = {
  * 'self' works on the wanderer). world: what it does to the land round it, shown in the book.
  */
 export const SPELLS = {
-  funken: { name: 'Funken', element: 'feuer', chapter: 'elemente', use: 'Geschoss', sigil: 'flame', cost: 14, cast: 'ball', power: 1, range: 32,
+  funken: { name: 'Funken', element: 'feuer', chapter: 'elemente', use: 'Geschoss', sigil: 'flame', cost: 24, cast: 'ball', power: 1, range: 32,
     desc: 'Ein Ball aus Glut, der auf seinem Weg zischt und dort, wo er einschlägt, alles anzündet.',
     world: 'Setzt Gras, Büsche und Bäume in Brand, sprengt Schilde, lässt Seuchennebel explodieren und schmilzt Eis.' },
-  frostlanze: { name: 'Frostlanze', element: 'eis', chapter: 'elemente', use: 'Geschoss', sigil: 'frost', cost: 16, cast: 'lance', power: .72, range: 40,
+  frostlanze: { name: 'Frostlanze', element: 'eis', chapter: 'elemente', use: 'Geschoss', sigil: 'frost', cost: 24, cast: 'lance', power: .8, range: 40,
     desc: 'Ein Speer aus klarem Eis. Wen er trifft, dem gefriert das Blut, und er bewegt sich wie im tiefen Schnee.',
     world: 'Friert Wasser zu einer Scholle, die dich trägt. Löscht Brände und brennende Feinde. Lässt Reif auf dem Boden zurück.' },
-  kettenblitz: { name: 'Kettenblitz', element: 'blitz', chapter: 'elemente', use: 'Strom', sigil: 'bolt', cost: 8, drain: 17, cast: 'channel', power: .95, range: 18, jumps: 2,
+  kettenblitz: { name: 'Kettenblitz', element: 'blitz', chapter: 'elemente', use: 'Strom', sigil: 'bolt', cost: 14, drain: 30, cast: 'channel', power: .55, range: 18, jumps: 2,
     desc: 'Halte die Hand offen, und Blitze strömen aus deinen Fingern, so lange deine Magicka reicht. Sie springen vom Ersten auf bis zu zwei weitere; wer darin steht, zuckt und kann sich nicht wehren.',
     world: 'Im Wasser leitet er: alle, die darin stehen, werden getroffen, auch du. Er setzt Fäulniswolken in Brand, Gras fängt Feuer.' },
-  sturmstoss: { name: 'Sturmstoß', element: 'wind', chapter: 'elemente', use: 'Stoß', sigil: 'gust', cost: 18, cast: 'cone', power: .3, range: 10,
+  sturmstoss: { name: 'Sturmstoß', element: 'wind', chapter: 'elemente', use: 'Stoß', sigil: 'gust', cost: 26, cast: 'cone', power: .25, range: 10,
     desc: 'Eine Faust aus Wind vor dir her. Sie wirft Feinde von den Füßen und alles Lose durch die Luft.',
     world: 'Bläst Feuer aus, treibt Seuchennebel davon, wirbelt Laub und Staub auf, schleudert Kisten, Fässer und Leichen.' },
-  erdstachel: { name: 'Erdstachel', element: 'erde', chapter: 'elemente', use: 'Linie', sigil: 'spike', cost: 26, cast: 'line', power: .95, range: 14,
+  erdstachel: { name: 'Erdstachel', element: 'erde', chapter: 'elemente', use: 'Linie', sigil: 'spike', cost: 36, cast: 'line', power: .75, range: 14,
     desc: 'Der Boden bricht in einer Linie auf, Stachel aus Fels schießen empor und schleudern, wen sie treffen.',
     world: 'Folgt dem Gelände bergauf und bergab, endet an Mauern, wirft lose Dinge hoch und reißt den Boden auf.' },
-  irrlicht: { name: 'Irrlicht', element: 'licht', chapter: 'geist', use: 'Licht', sigil: 'wisp', cost: 12, cast: 'self', power: 90, range: 0,
+  irrlicht: { name: 'Irrlicht', element: 'licht', chapter: 'geist', use: 'Licht', sigil: 'wisp', cost: 15, cast: 'self', power: 90, range: 0,
     desc: 'Ein Licht, das dir über die Schulter folgt. Neunzig Herzschläge lang, oder bis du es entlässt.',
     world: 'Erhellt Nacht, Wald und Höhle. Goblins scheuen es wie Feuer, und sie sehen es von weit.' },
-  lebensquell: { name: 'Lebensquell', element: 'leben', chapter: 'geist', use: 'Heilung', sigil: 'leaf', cost: 30, cast: 'self', power: 48, range: 0,
+  lebensquell: { name: 'Lebensquell', element: 'leben', chapter: 'geist', use: 'Heilung', sigil: 'leaf', cost: 42, cast: 'self', power: 38, range: 0,
     desc: 'Grünes Licht steigt aus dem Boden in dich auf und schließt Wunden. Die Heilung kommt in Wellen.',
     world: 'Um deine Füße sprießen Blumen und Gras, auch auf verbrannter Erde.' },
-  schattenschritt: { name: 'Schattenschritt', element: 'schatten', chapter: 'hexenwerk', use: 'Bewegung', sigil: 'shade', cost: 20, cast: 'self', power: 9, range: 9,
+  schattenschritt: { name: 'Schattenschritt', element: 'schatten', chapter: 'hexenwerk', use: 'Bewegung', sigil: 'shade', cost: 28, cast: 'self', power: 9, range: 9,
     desc: 'Du trittst in deinen eigenen Schatten und kommst einige Schritte weiter wieder heraus.',
     world: 'Hält vor Mauern und Abgründen. Wer dich gerade sah, verliert dich aus den Augen. Bleibt beim Schleichen lautlos.' },
-  seuchennebel: { name: 'Seuchennebel', element: 'gift', chapter: 'hexenwerk', use: 'Wolke', sigil: 'miasma', cost: 22, cast: 'glob', power: .12, range: 22,
+  seuchennebel: { name: 'Seuchennebel', element: 'gift', chapter: 'hexenwerk', use: 'Wolke', sigil: 'miasma', cost: 30, cast: 'glob', power: .1, range: 22,
     desc: 'Ein Klumpen grüner Fäulnis, geworfen, nicht gezaubert. Wo er platzt, bleibt ein Nebel, der die Lunge frisst.',
     world: 'Feinde husten und fliehen aus ihm. Feuer bringt ihn zur Explosion, Wind treibt ihn fort.' },
 };
@@ -99,8 +99,8 @@ export const keepActive = (loadout, active) => normalizeLoadout(loadout).include
 
 // ── Magicka.
 export const BASE_MAGICKA = 100;
-/** Magicka per second: quick while the hand rests, slow right after a cast. */
-export const magickaRegen = (max, sinceCast) => max * (sinceCast < 1.6 ? .025 : .075);
+/** Magicka per second: slow right after a cast, steadier once the hand has rested a while (a full bar in about 25 s). */
+export const magickaRegen = (max, sinceCast) => max * (sinceCast < 3 ? .01 : .04);
 /** The spell's price in magicka, a little lower with skill in Glutmagie and the perk "Arkaner Fokus". */
 export function spellCost(id, { skill = 0, perks = [] } = {}) {
   const base = SPELLS[id]?.cost ?? 0;
