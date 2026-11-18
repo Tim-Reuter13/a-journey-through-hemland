@@ -65,6 +65,7 @@ import { SPELLS, ELEMENTS, spellCost, cycleSpell, magickaRegen, equipSpell, uneq
 import { sigilSvg } from './ui/sigils.js';
 import { createAIManager } from './systems/ai/manager.js';
 import { campSchedule } from './systems/ai/camp.js';
+import { WATCH, dial, useBruchSpot } from './data/hemland/bruchwacht.js';
 import { AI } from './systems/ai/config.js';
 import { createBarks } from './ui/barks.js';
 import './ui/characterCreator.css';
@@ -100,7 +101,13 @@ const rpg = createRPGSystems();
 const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 const clamp = THREE.MathUtils.clamp;
 const [physics] = await Promise.all([createPhysics({ water: (x, z) => world.water.at(x, z) }), loadCharacterModels(), loadModularLibrary(), loadBackpack().catch(() => false)]);
-physics.addStaticColliders(world.colliders.filter(c => c.kind !== 'door'));
+physics.addStaticColliders(world.colliders.filter(c => c.kind !== 'door' && c.kind !== 'bruchGate'));
+const bruchGates = world.colliders.filter(c => c.kind === 'bruchGate');
+const gateBodies = physics.addStaticColliders(bruchGates);
+bruchGates.forEach((gate,i) => { gate.syncPhysics=()=>{
+  gateBodies[i].setTranslation({x:gate.x,y:(gate.bottom+gate.top)/2,z:gate.z});
+  gateBodies[i].setEnabled(!gate.disabled);
+}; });
 // Terrain tiles and chunk scenery join the physics world as the streamer loads them.
 world.streamer.attachPhysics(physics);
 world.streamer.prime(new THREE.Vector3(3, 0, 0));
@@ -441,6 +448,7 @@ const enemies = [
   { kind: 'bandit', name: 'Plündererhauptmann', x: -328.8, z: 141.5, hp: 130, maxHp: 130 },
   { kind: 'wolf', name: 'Aschenwolf', x: -205, z: -62, hp: 55, maxHp: 55 },
   { kind: 'wolf', name: 'Aschenwolf', x: 150, z: -96, hp: 55, maxHp: 55 },
+  ...WATCH.map(post => ({ ...post, kind:'bandit', x:post.day[0], z:post.day[1], maxHp:post.hp })),
 ];
 for (const e of enemies) {
   e.home = v3(e.x, 0, e.z); e.calm = e.kind === 'bandit';
@@ -551,7 +559,10 @@ function brainFor(e, i) {
   if (e.kind !== 'wolf' && !e.storyId) e.personName ??= CAMP_NAMES[i];
   if (e.kind === 'wolf') return ai.attach(e, { group: `wolf_${i}`, id: `Wolf_${i}`, seed: 500 + i, archetype: 'wolf' });
   return ai.attach(e, { group: 'camp', id: e.storyId ? 'Rauk' : e.personName, seed: 300 + i * 17, archetype: e.storyId ? 'leader' : e.archer ? 'archer' : e.shield ? 'shieldbearer' : 'veteran',
-    territorial: true, story: !!e.storyId, noSurrender: !!e.storyId, schedule: campSchedule(SITES.camp, world.heightAt, campRole(e)) });
+    territorial: true, story: !!e.storyId, noSurrender: !!e.storyId, schedule: e.duty ? (_brain,ctx) => {
+      const daylight = ctx.hour >= 6 && ctx.hour < 20, [x,z] = daylight ? e.day : e.night;
+      return { goal:v3(x,world.heightAt(x,z),z), label:daylight ? e.duty : 'hält Nachtwache', tolerance:.65 };
+    } : campSchedule(SITES.camp, world.heightAt, campRole(e)) });
 }
 enemies.forEach(brainFor);
 /** A new game or a load: the same people again, fresh in mind (same seeds, same temperaments). */
@@ -865,6 +876,7 @@ function loadGame() {
     const data = normalizeSave(JSON.parse(localStorage.getItem(saveKey))); if (!data) return false;
     resetGame(false);
     Object.assign(player, data.player);
+    world.syncSites(data.flags);
     player.position.fromArray(data.position);
     if (world.blocked(player.position.x, player.position.z)) player.position.set(3, 0, 0);
     player.position.y = world.heightAt(player.position.x, player.position.z);
@@ -876,6 +888,9 @@ function loadGame() {
     Object.assign(relationship, data.relationships);
     rpg.restore(data.rpg); rpg.state.level = player.level; rpg.state.xp = player.xp;
     data.enemies.forEach((state, i) => { const e = enemies[i]; if (!e) return; e.hp = Math.min(e.maxHp, state.hp); e.dead = state.dead || e.hp <= 0; e.loot = e.dead ? state.loot ?? corpseLoot(e) : null; if (state.ai) ai.restore(e, state.ai); });
+    // Old saves can already have an empty or resettled camp.
+    if (data.enemies.length <= 5 && ['abandoned','resettled'].includes(game.flags.camp_state)) game.flags.bruch_deserted=true;
+    if (game.flags.bruch_deserted) for (const e of enemies) if (e.duty) { e.gone=true; e.calm=true; e.model.visible=false; }
     syncCorpses();
     for (const e of enemies) if (e.dead && !e.ragdoll) { e.animator.update(.016, {}); e.ragdoll = e.kind === 'bandit' ? createRagdoll(physics, e.model, { impulse: v3(0, 0, 8) }) : createCreatureRagdoll(physics, e.model); }
     combat.restore();
@@ -907,6 +922,7 @@ function resetGame(clearSave = true) {
   player.position.set(3, world.heightAt(3, 0), 0); player.yaw = 2.55; player.pitch = -.09; snapPlayerView();
   Object.assign(player, { velocityY: 0, grounded: true, attack: 0, invuln: 0, magicCd: 0, tool: 0, stride: 0, mode: 'third' });
   game.quest = 'm_elira'; game.flags = {}; game.lastSave = performance.now(); worldClock.hour = 8; life.skipTo(8);
+  world.syncSites(game.flags);
   for (const e of enemies) e.calm = e.kind === 'bandit';
   rebrain(); restoreSettlers();
   enemies.forEach(e => { e.hp = e.maxHp; e.dead = false; e.buried = false; e.model.visible = true; e.cooldown = 1.5; e.stride = 0; e.model.position.set(e.home.x, world.heightAt(e.home.x, e.home.z), e.home.z); });
@@ -1248,6 +1264,17 @@ function updateStory(dt) {
   if ((storyClock += dt) < .5) return;
   storyClock = 0;
   discoverPlaces();
+  const {x,z}=player.position;
+  if (!inCave) {
+    const west=world.field.roadAt(x,z);
+    const name=x<-346 && world.indoorAt(x,z) && world.field.siteDistance('westmagazin',x,z)<1 ? 'Zollgewölbe'
+      : world.field.siteDistance('camp',x,z)<10 ? 'Bruchwacht'
+      : west?.line.id==='camp' && west.distance<12 ? 'Alter Zollweg'
+      : west?.line.id==='westsattel' && west.distance<10 ? 'Sackträgersteig' : null;
+    const region=$('region');
+    if(name) {region.dataset.west='1'; region.textContent='DIE ASCHMARK · '+name.toUpperCase();}
+    else if(region.dataset.west) {delete region.dataset.west; region.textContent='DIE ASCHMARK · DÄMMERWALD';}
+  }
   for (const [site, s] of Object.entries(SITES)) {
     const reach = (s.radius ?? Math.max(s.halfX || 0, s.halfZ || 0)) + 12;
     if (Math.hypot(player.position.x - s.x, player.position.z - s.z) > reach) continue;
@@ -1341,6 +1368,14 @@ function nearestInteraction() {
     if (d < Math.min(distance, 2.2)) { best = { type: 'corpse', enemy: animal }; distance = d; }
   }
   const at = new THREE.Vector3();
+  if (!inCave) for (const spot of world.siteActions) {
+    const dx=spot.x-player.position.x, dz=spot.z-player.position.z, d=Math.hypot(dx,dz);
+    if (d >= Math.min(distance,2.15) || Math.abs(spot.y-player.position.y)>1.55) continue;
+    const eye=player.position.clone(); eye.y+=1.55;
+    const point=v3(spot.x,spot.y+1.45,spot.z);
+    point.lerp(eye,Math.min(1,.45/Math.max(.01,d)));
+    if (!world.segmentBlocked(eye,point,.04)) { best={type:'bruch',spot}; distance=d; }
+  }
   for (const door of world.doors) {
     const d = Math.hypot(player.position.x - door.position.x, player.position.z - door.position.z);
     if (d < Math.min(distance, 2.2)) { best = { type: 'door', door }; distance = d; }
@@ -1393,6 +1428,22 @@ function interact() {
     toast(`${ITEMS[target.prop.item].name} genommen`, 1600); inventoryChanged();
   }
   else if (target.type === 'lore') { toast(`${target.marker.label} — ${target.marker.lore}`, 11000, 'lore'); if (!discovered(target.marker)) discoverPlaces(); }
+  else if (target.type === 'bruch') {
+    const {id}=target.spot;
+    let pickedUp=false;
+    const message=useBruchSpot(target.spot.id,game.flags,({item,count,gold=0})=>{
+      if (inventory.weight()+ITEMS[item].weight*count>inventory.capacity() || !inventory.add(item,count)) return false;
+      player.gold+=gold; pickedUp=true; return true;
+    });
+    world.syncSites(game.flags,true);
+    if (pickedUp) inventoryChanged();
+    if (['grain','iron','scale','postern'].includes(id)) {
+      const heavy=id==='scale' || id==='postern';
+      ambience.goblin('chain',heavy ? .9 : .45,0);
+      saveGame(false);
+    }
+    toast(message,8500,'lore');
+  }
   else if (target.type === 'yielded') spareOrRob(target.enemy);
   else if (target.type === 'toll') payToll(target.enemy);
   else if (target.type === 'arrow') { const whole = combat.archery.pull(target.arrow); if (whole !== null) toast(whole ? 'PFEIL GEZOGEN · +1' : 'DER PFEIL IST GEBROCHEN', 1300); updateHUD(); }
@@ -1946,6 +1997,10 @@ function updateInteractions() {
   if (target?.type === 'horse' || target?.type === 'tie' || target?.type === 'ride') { $('interact-text').textContent = target.type === 'horse' ? horseLabel(target.horse) : target.type === 'tie' ? `${target.horse.name} ${target.point.kind === 'tree' ? 'an den Baum binden' : 'anbinden'}` : 'Absitzen'; show('interact', !game.paused); touch?.setInteract(!game.paused ? $('interact-text').textContent : null); return; }
   if (target) $('interact-text').textContent = target.type === 'npc' ? `Mit ${target.npc.name} sprechen` : target.type === 'stash' ? 'Reisetruhe öffnen' : target.type === 'drop' ? 'Beutel durchsuchen' : target.type === 'corpse' ? (target.enemy.prey ? `${target.enemy.name} ausnehmen` : `${target.enemy.name} durchsuchen · ${tip('[E halten]', '[Nutzen halten]')} Ziehen`) : target.type === 'pickup' ? `${ITEMS[target.prop.item].name} nehmen` : target.type === 'door' ? (target.door.target > .5 ? 'Tür schließen' : 'Tür öffnen') : target.type === 'furniture' ? (target.spot.kind === 'sleep' ? 'Schlafen bis zum Morgen' : 'Truhe öffnen') : target.type === 'story' ? target.pickup.label : target.type === 'lore' ? target.marker.readLabel : target.type === 'arrow' ? 'Pfeil ziehen' : target.type === 'yielded' ? (target.enemy.ai.robbed ? `${target.enemy.name} ziehen lassen` : 'Wertsachen fordern') : target.type === 'toll' ? `Wegzoll zahlen (${AI.toll} Gold)` : '';
   // The thief's labels: pockets while sneaking, locks on chests and doors.
+  if (target?.type === 'bruch') {
+    const {id,label}=target.spot;
+    $('interact-text').textContent = id==='grain' || id==='iron' ? label+' · '+dial(game.flags,id)+'/3' : label;
+  }
   if (target?.type === 'pickpocket') $('interact-text').textContent = `${target.npc.name} · Taschen durchsuchen`;
   const lock = target && lockOf(target);
   if (lock) $('interact-text').textContent = `${target.type === 'door' ? 'Tür' : 'Truhe'} knacken · ${LOCKS[lock].name}`;
@@ -2663,11 +2718,10 @@ function compassMarkers() {
   const markers = [
     { id: 'village', x: L.village.x, z: L.village.z, kind: 'village', label: 'Dämmerwald' },
     { id: 'shrine', x: L.shrine.x, z: L.shrine.z, kind: 'shrine', label: 'Glutschrein' },
-    { id: 'camp', x: L.camp.x, z: L.camp.z, kind: 'camp', label: 'Westlager' },
     { id: 'tower', x: L.tower.x, z: L.tower.z, kind: 'tower', label: 'Alter Wachturm' },
     { id: 'kronwacht', x: L.city.x, z: L.city.z, kind: 'village', label: 'Kronwacht' },
     { id: 'burg', x: L.castle.x, z: L.castle.z, kind: 'tower', label: 'Burg Kronwacht' },
-    ...world.markers.filter(m => !m.discover || discovered(m) || Math.hypot(player.position.x - m.x, player.position.z - m.z) < 120).map(m => ({ ...m, kind: ['quest', 'village', 'shrine', 'camp', 'tower', 'npc'].includes(m.kind) ? m.kind : 'village' })),
+    ...world.markers.filter(m => m.id === 'bruchwacht' || !m.discover || discovered(m) || Math.hypot(player.position.x - m.x, player.position.z - m.z) < 120).map(m => ({ ...m, kind: ['quest', 'village', 'shrine', 'camp', 'tower', 'npc'].includes(m.kind) ? m.kind : 'village' })),
   ];
   if (quest && game.quest) markers.push({ id: 'quest', x: quest.x, z: quest.z, kind: 'quest', label: stageOf(game.quest).objective });
   return markers;

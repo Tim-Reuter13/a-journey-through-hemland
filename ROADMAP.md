@@ -1,5 +1,9 @@
 # A Journey through Hemland — Roadmap
 
+Der alte Zollweg führt von Dämmerwald an Bänderstein, Frachtwagen und Holzbrücke vorbei zur Bruchwacht.
+Rauks Westlager bewohnt jetzt Hof und Zollgewölbe. Korn- und Eisenrad, Soldkammer und die von innen
+entriegelte Sackpforte gehören zum selben begehbaren Bau. Fünf zusätzliche Posten halten Tag- und Nachtwache.
+
 The game is being renamed from "Ashen Realms" to **A Journey through Hemland**. Hemland is the continent;
 it grows region by region. The first region is the Aschmark around the village of Dämmerwald.
 

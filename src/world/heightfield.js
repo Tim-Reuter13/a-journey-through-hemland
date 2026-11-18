@@ -1,5 +1,6 @@
 import { BOUNDS, CHUNK, WATER_LEVEL, SITES, ROADS, RIVERS, LAKES, TREELINE, SNOWLINE, biomeWeights, kronwachtLevel, kronwachtPaving, castleWardPaving } from './hemland.js';
 import { GROUND, GROUND_INDEX } from './groundNames.js';
+import { BRIDGE } from '../data/hemland/bruchwacht.js';
 import { pn, relief, ravines, crags, alpine, mountains, edgeWall, badlands, dunes, volcano, highland, pillars, groundLook } from './landforms.js';
 
 // The Aschmark heightfield: noise hills shaped by authored features (mountains,
@@ -122,6 +123,12 @@ export function createHeightfield() {
     const marshD = Math.hypot(x - 300, z - 430);
     h = lerp(h, WATER_LEVEL + .5 + fbm(x * .04, z * .04, 3, 77) * 1.6, ss(250, 110, marshD) * .9);
     for (const lake of LAKES) h = lerp(h, WATER_LEVEL - 7, ss(lake.radius + 45, lake.radius - 25, Math.hypot(x - lake.x, z - lake.z) + fbm(x * .02, z * .02, 2, 3) * 20));
+    // The last switchback winds between two shoulders of the old customs rock.
+    if (x < -210 && x > -445 && z > 75 && z < 218) {
+      const shoulder = (cx, cz, rx, rz) => Math.max(0, 1 - ((x - cx) / rx) ** 2 - ((z - cz) / rz) ** 2) ** 2;
+      h += 15 * shoulder(-287, 127, 30, 19) + 23 * shoulder(-398, 121, 43, 23)
+        + 10 * shoulder(-348, 193, 51, 19) - 3 * shoulder(-307, 174, 22, 9);
+    }
     return h;
   }
   const siteCentres = new Map();
@@ -230,6 +237,11 @@ export function createHeightfield() {
       const w = (1 - ss(road.line.width / 2, road.line.width / 2 + 6, road.distance)) * (1 - keepRiver);
       h = lerp(h, roadTarget(road), w);
     }
+    // A dry wash cuts through the road itself. The timber span supplies its walkable deck.
+    if (Math.abs(x - BRIDGE.x) < 17 && Math.abs(z - BRIDGE.z) < 38) {
+      const dz = z - BRIDGE.z, axis = BRIDGE.x + .12 * dz + Math.sin(dz * .13) * 1.4;
+      h -= 4.3 * (1 - ss(1, 10.5, Math.abs(x - axis))) * (1 - ss(20, 35, Math.abs(dz)));
+    }
     return h;
   }
 
@@ -270,9 +282,14 @@ export function createHeightfield() {
   /** Per-vertex surface data for the terrain shader. */
   function surface(x, z, h, slope) {
     const road = nearest(roadBuckets, x, z), river = nearest(riverBuckets, x, z), w = biomeWeights(x, z);
-    const roadW = road ? ss(road.line.width / 2 + 1.3, road.line.width / 2 - .9, road.distance) : 0;
+    // Cart wheels have bitten through the old stone in the hollows. On the last climb
+    // mossy crown paving reappears in islands, with leaf mould along the ragged verge.
+    const west = road?.line.id === 'camp';
+    const edgeWear = west ? .46 * Math.sin(road.along * .19) + .33 * Math.sin(z * .7 + x * .32) : 0;
+    const roadW = road ? ss(road.line.width / 2 + 1.3, road.line.width / 2 - .9, road.distance - edgeWear) : 0;
     const city = SITES.city, nearCity = Math.hypot(Math.max(0, Math.abs(x - city.x) - city.halfX), Math.max(0, Math.abs(z - city.z) - city.halfZ));
-    const paved = road && road.line.type === 'king' ? ss(260, 120, nearCity) : 0;
+    const paved = west ? ss(-188,-300,x) * (.37 + .55 * ss(-.45,.45,Math.sin(road.along*.16) + Math.cos(z*.7)*.5))
+      : road && road.line.type === 'king' ? ss(260, 120, nearCity) : 0;
     // Inside Kronwacht: cobbled streets and squares, trodden earth and grass in the yards.
     const streets = Math.max(nearCity < 1 ? kronwachtPaving(x, z) : 0, castleWardPaving(x, z));
     const shore = ss(WATER_LEVEL + 2.2, WATER_LEVEL + .3, h);

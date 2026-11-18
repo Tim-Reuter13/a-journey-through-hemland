@@ -97,6 +97,7 @@ export function createWorld(scene) {
 
   // Building registry shared by the village and the site modules.
   const doors = [], interiors = [], loose = [], markers = [], pois = [], extraColliders = [], updaters = [], ties = [];
+  const siteActions = [], siteStateViews = [];
   function registerBuilding(home, kind = home.root.userData.siteBuilding?.kind ?? 'home') {
     const { root } = home, index = doors.length;
     root.updateMatrixWorld(true);
@@ -176,11 +177,12 @@ export function createWorld(scene) {
         root, heightAt, random, site: id => SITES[id], road: id => ROADS.find(r => r.id === id), roadAt: roadNear,
         registerBuilding: (home, kind) => registerBuilding(home, kind), registerFloor: addFloor,
         addCollider: c => extraColliders.push(c), addLight: light => { const at = light.getWorldPosition(new THREE.Vector3()); root.add(light); light.position.copy(root.worldToLocal(at)); },
-        marker: m => markers.push(m), poi: p => pois.push(p), tie: p => ties.push(p),
+        marker: m => markers.push(m), poi: p => pois.push(p), tie: p => ties.push(p), action: a => siteActions.push(a),
       };
       try {
         const result = build(ctx);
         if (result?.update) updaters.push(result.update);
+        if (result?.sync) siteStateViews.push(result.sync);
         // Distance culling uses the site's bounding sphere.
         const sphere = new THREE.Box3().setFromObject(root).getBoundingSphere(new THREE.Sphere());
         root.userData.cull = sphere;
@@ -204,7 +206,7 @@ export function createWorld(scene) {
     const skip = new Set();
     for (const door of doors) door.hinge.traverse(o => skip.add(o));
     for (const item of loose) item.traverse(o => skip.add(o));
-    scene.traverse(o => { if (o.userData.barrier) o.traverse(m => skip.add(m)); });
+    scene.traverse(o => { if (o.userData.barrier || o.userData.siteMoving) o.traverse(m => skip.add(m)); });
     const box = new THREE.Box3(), size = new THREE.Vector3(), mid = new THREE.Vector3(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), up = new THREE.Vector3(), ax = new THREE.Vector3();
     for (const g of [village, ...siteGroups]) g.traverse(o => {
       if (!o.isMesh || o.isInstancedMesh || skip.has(o) || o.userData.solid || o.userData.noCollide) return;
@@ -225,7 +227,7 @@ export function createWorld(scene) {
   // NPC path planning treats doors as open; walking still bumps into closed ones.
   function navBlocked(x, z, radius = .34, y = walkHeightAt(x, z)) {
     // Steep ground is no path either (cliffs, terrace walls without stairs).
-    const steep = Math.max(Math.abs(heightAt(x + .5, z) - heightAt(x - .5, z)), Math.abs(heightAt(x, z + .5) - heightAt(x, z - .5))) > 1.1;
+    const steep = floorAt(x,z) < y-.05 && Math.max(Math.abs(heightAt(x + .5, z) - heightAt(x - .5, z)), Math.abs(heightAt(x, z + .5) - heightAt(x, z - .5))) > 1.1;
     return steep || collision.blocked(x, z, radius, y, 2.65, 'door');
   }
 
@@ -238,7 +240,7 @@ export function createWorld(scene) {
   for (const door of doors) door.hinge.traverse(o => o.isMesh && keep.add(o));
   for (const item of loose) item.traverse(o => o.isMesh && keep.add(o));
   // Road barrier poles swing (main.js updateBarriers), so they stay separate meshes.
-  scene.traverse(o => { if (o.userData.barrier) o.traverse(m => m.isMesh && keep.add(m)); });
+  scene.traverse(o => { if (o.userData.barrier || o.userData.siteMoving) o.traverse(m => m.isMesh && keep.add(m)); });
   // The dense city merges into bigger cells: far fewer draw calls, still culled by district.
   const batching = [village, ...siteGroups].map(g => batchScenery(g, keep, /kronwacht/.test(g.name) ? 176 : 64));
   scene.updateMatrixWorld(true);
@@ -304,6 +306,7 @@ export function createWorld(scene) {
   const routePoints = ROADS.filter(r => ['village_east', 'village_west', 'king', 'camp', 'tower', 'shrine'].includes(r.id))
     .map(r => r.points.filter(([x, z]) => Math.hypot(x, z) < 140).map(([x, z]) => at(x, z))).filter(r => r.length > 1);
   return {
+    siteActions, syncSites: (flags,animate=false) => siteStateViews.forEach(apply => apply(flags,animate)),
     lights, fires, profile, navBlocked, water: waters, supportAt: (x, z, radius, y) => collision.supportAt(x, z, radius, y), heightAt: walkHeightAt, terrainHeightAt: heightAt, groundAt, field, routePoints, colliders: collision.colliders, segmentBlocked: collision.segmentBlocked,
     // What a struck point is made of: 'stone', 'wood', 'soft', or 'earth' for open ground.
     surfaceAt: point => collision.colliderAt(point.x, point.z, point.y)?.surface ?? 'earth',
