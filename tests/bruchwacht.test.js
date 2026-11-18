@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createCollisionWorld, collidersFrom } from '../src/world/navigation.js';
 import { bayAt, WATCH, useBruchSpot } from '../src/data/hemland/bruchwacht.js';
+import { ROADS } from '../src/world/hemland.js';
+import { createHeightfield } from '../src/world/heightfield.js';
 import { normalizeSave } from '../src/systems/saveState.js';
 
 globalThis.ImageData ??= class { constructor(data,width,height){Object.assign(this,{data,width,height});} };
@@ -13,6 +15,7 @@ globalThis.document ??= {
 const root=new THREE.Group(), actions=[], floors=[];
 const collision=createCollisionWorld({bounds:{minX:-410,maxX:-250,minZ:110,maxZ:190}});
 const {buildBruchwacht}=await import('../src/world/sites/bruchwacht.js');
+const {buildWestRoad}=await import('../src/world/sites/westroad.js');
 const vault=buildBruchwacht({root,heightAt:()=>19,registerFloor:f=>floors.push(f),
   action:a=>actions.push(a),addCollider:c=>collision.add(c),marker(){}});
 for(const c of collidersFrom(root)) collision.add(c);
@@ -65,4 +68,21 @@ test('toll settings, full packs and one-time loot survive a save',()=>{
   assert.equal(paid,38);assert.equal(flags.bruch_postern,true);
   assert.equal(loaded.enemies.length,5+WATCH.length);
   assert.equal(normalizeSave({...save,version:6}).enemies.length,5,'old road encounters must not overwrite new residents');
+});
+
+test('a cart can follow the west road across the wash and past the timber pile',()=>{
+  const field=createHeightfield(), road=ROADS.find(r=>r.id==='camp');
+  const scenery=new THREE.Group(), deck=[];
+  buildWestRoad({root:scenery,heightAt:field.heightAt,road:()=>road,roadAt:field.roadAt,
+    registerFloor:f=>deck.push(f),action(){},marker(){},random:()=>.45});
+  const obstacles=createCollisionWorld({bounds:{minX:-410,maxX:0,minZ:0,maxZ:200}});
+  for(const c of collidersFrom(scenery)) obstacles.add(c);
+  for(let i=1;i<road.points.length;i++){
+    const [ax,az]=road.points[i-1], [bx,bz]=road.points[i], len=Math.hypot(bx-ax,bz-az);
+    for(let s=0;s<len;s+=.5){
+      const x=ax+(bx-ax)*s/len,z=az+(bz-az)*s/len;
+      const y=deck.reduce((h,f)=>Math.abs(x-f.x)<f.halfWidth+.45 && Math.abs(z-f.z)<f.halfDepth+.45 ? Math.max(h,f.y) : h,field.heightAt(x,z));
+      assert.equal(obstacles.blocked(x,z,.65,y,2.65),false,'road blocked at '+x+','+z);
+    }
+  }
 });

@@ -94,7 +94,7 @@ export function buildWestRoad(ctx) {
   // A surviving bow stand above the hairpin can be seen between the trees.
   hunterStand(root,-273,heightAt(-273,134),134,.65,random);
   pennon(root,-268,heightAt(-268,132),132,.45,.8);
-  F.firewoodStack(root,-276,heightAt(-276,134),134,.32);
+  F.firewoodStack(root,-269.5,heightAt(-269.5,136.5),136.5,.32);
   ctx.marker({id:'kraehenkanzel',kind:'tower',label:'Krähenkanzel',x:-273,z:134,discover:true,radius:12,xp:12});
 
   // Different silhouettes along the road: small field markers, a rock cutting,
