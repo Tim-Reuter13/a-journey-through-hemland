@@ -1,0 +1,14 @@
+/* The film overlay: titles, loading line and the skip hint over the letterboxed picture. */
+#film-ui { position:fixed; inset:0; z-index:40; pointer-events:none; color:#e9dfc8; font:400 16px/1.4 'Pixelify Sans',monospace; }
+#film-ui.hidden { display:none; }
+#film-ui .film-loading { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); letter-spacing:.2em; font-size:14px; color:#b9ad95; text-transform:uppercase; }
+#film-ui .film-title { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; opacity:0; text-shadow:0 2px 14px rgba(0,0,0,.85); }
+#film-ui .film-title .kicker { font:400 clamp(14px,1.3vw,22px)/1 'Pixelify Sans',monospace; letter-spacing:.38em; text-transform:uppercase; color:#d9a441; }
+#film-ui .film-title h2 { margin:.12em 0 .05em; font:400 clamp(64px,7.5vw,140px)/1 'Jacquarda Bastarda 9',serif; color:#efe6d2; }
+#film-ui .film-title .line { font:400 clamp(13px,1.1vw,18px)/1.6 'Pixelify Sans',monospace; letter-spacing:.18em; color:#c8bca6; }
+#film-ui .film-credits { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; opacity:0; }
+#film-ui .film-credits h2 { margin:0 0 .4em; font:400 clamp(46px,5vw,92px)/1 'Jacquarda Bastarda 9',serif; color:#efe6d2; }
+#film-ui .film-credits p { margin:.35em 0; letter-spacing:.14em; color:#b9ad95; font-size:clamp(12px,1vw,16px); }
+#film-ui .film-credits p b { color:#d9a441; font-weight:400; }
+#film-ui .film-skip { position:absolute; right:clamp(16px,3vw,48px); bottom:clamp(14px,2.4vh,30px); font-size:12px; letter-spacing:.2em; color:#8f846f; opacity:0; transition:opacity .6s; text-transform:uppercase; }
+#film-ui .film-skip.on { opacity:.85; }

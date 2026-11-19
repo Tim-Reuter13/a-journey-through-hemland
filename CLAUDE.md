@@ -100,6 +100,14 @@ Asset URLs must go through `import.meta.env.BASE_URL`, never a leading `/`. Mobi
   (water.js: surface on the terrain grid, mirrors the atmosphere's sky uniforms, and all shore content — reeds,
   lily colonies, stones, driftwood, leaping fish), sky (atmosphere.js, clouds.js), ambient effects (ambientFx.js:
   leaves from crowns, light shafts, fireflies), footprints (tracks.js, world.groundAt), Funken-style fires (fire.js).
+- src/cutscene/ — the live short film "Die letzte Wacht" (main menu → Animationstest): film.js (loads
+  public/cutscenes/letzte_wacht.{json,bin}, poses the Blockbench rigs from baked motion capture, cape, own post pass
+  with sky, sun shafts, grade, 15-bit dither, letterbox), stage.js (stone circle set), shots.js (the cut), fx.js
+  (time-pure particles), score.js (WebAudio score and sounds). main.js hands the loop to film.frame() while it runs.
+  The .bin is baked on the owner's PC (Animation Studio: Wan 2.2 video → RGB MoCap GEM-X → Blender retarget), so cloud
+  sessions can change set, cameras, light and sound but not the motion. `__FILM__.seek(t)/pause()/debug()` for checks.
+  How the Animation Studio works (text → Wan 2.2 video → RGB MoCap → FBX/GLB, and the bake onto Hemland rigs):
+  docs/ANIMATION_STUDIO.md; copies of its scripts in tools/animation-studio/ (the running copy lives on the owner's PC).
 - art/blockbench/ — models and characters built in Blockbench via MCP (needs the local Blockbench app; not available
   in cloud sessions). Exports land in public/models.
 

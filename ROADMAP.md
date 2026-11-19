@@ -557,3 +557,15 @@ Plan, audit and status: docs/COMBAT_2.md.
 - [x] Debug view F7 with the simulated blades; tests: tests/combat2.test.js, tests/combatAi.test.js (243 total).
 - [ ] Open (Phase 5–7): group roles on the new tactics and not swinging through comrades; wolves and goblins on blade
   tracks (bites, lunging thrusts); punch and staff tracks for archers and hedge-witches in melee; tuning by play.
+
+## Phase 14 — Animationstest: "Die letzte Wacht" (2026-11-19, Claude)
+
+- [x] Two-minute live cutscene in the engine, main menu → Animationstest: a Kronwacht captain meets a masked bandit at
+  his fire in a stone circle at dusk; the duel, the death, the kneeling, the walk into the low sun. Real motion capture
+  (Wan 2.2 TI2V 5B videos → RGB MoCap GEM-X → Blender retarget onto the Blockbench rigs), baked to public/cutscenes.
+- [x] Light: low sun through a gap in the forest, sun shafts from the sky mask, fire light, ground mist, cinematic grade
+  on the game's 15-bit dither; VFX: embers, sparks on clashes, blood, leaves, ash, motes; slow motion on the key blows.
+- [x] Sound: WebAudio score in D minor (drone, pads, ostinato, war drums, lament) and scene sounds (wind, fire, crows,
+  steps, blades, falls), loudness by camera distance.
+- [ ] Owner's verdict on look, cut and sound.
+

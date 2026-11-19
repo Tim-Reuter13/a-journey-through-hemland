@@ -4,6 +4,7 @@ import { loadPropModels } from './world/props.js';
 import { loadTreeModels } from './world/trees.js';
 import { loadGroundLayers } from './world/groundLayers.js';
 import { loadCharacterModels, createCharacter, equipItem, WEAPON_MODELS, heldItem, weaponStyle } from './characters/models.js';
+import { createFilm } from './cutscene/film.js';
 import { buildSpear } from './characters/spear.js';
 import { createAnimator, solveArm } from './characters/animator.js';
 import { createHeldBow, aimObject } from './characters/bow.js';
@@ -2137,6 +2138,9 @@ renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
 renderer.domElement.addEventListener('wheel',e=>{if(!game.started||game.paused)return;cameraRig.zoom=clamp(cameraRig.zoom+Math.sign(e.deltaY)*.6,2,7.5);},{passive:true});
 window.addEventListener('mouseup',e=>{if(e.button===2)secondaryUp();if(e.button===0)primaryUp();});
 $('new-game').addEventListener('click', () => { if (touchMode) toggleFullscreen(true); openCreator(); });
+// Main menu → Animationstest: the live cutscene "Die letzte Wacht" takes over the loop until it ends or ESC.
+const film = createFilm({ renderer, onExit: () => { show('start-screen', true); graphics.resize(); $('menu-film').focus({ preventScroll: true }); } });
+$('menu-film').addEventListener('click', () => { if (touchMode) toggleFullscreen(true); show('start-screen', false); film.start(); });
 // ── Character creation: the real player model stands in the village square while you edit it.
 const creatorSpot = { x: -6.2, z: 13.6, yaw: -2.5 };
 let creating = null, pendingAppearance = null;
@@ -2213,6 +2217,7 @@ function animate(now) {
   const rawDt = (now - prev) / 1000;
   const dt = Math.min(rawDt, .1); prev = now;
   if (document.hidden) { accumulator = 0; return; }
+  if (film.active) { film.frame(dt); return; }
   elapsed += dt;
   if (game.modal === 'inventory') inventoryUI.update(now);
   if (game.cinematic) {

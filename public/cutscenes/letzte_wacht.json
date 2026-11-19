@@ -1,0 +1,1406 @@
+{
+ "name": "Die letzte Wacht",
+ "hz": 30,
+ "frames": 3601,
+ "duration": 120.0,
+ "pivots": [
+  "hips",
+  "torso",
+  "chest",
+  "neck",
+  "head",
+  "arm_upper_right",
+  "arm_lower_right",
+  "hand_right",
+  "arm_upper_left",
+  "arm_lower_left",
+  "hand_left",
+  "leg_upper_right",
+  "leg_lower_right",
+  "foot_right",
+  "leg_upper_left",
+  "leg_lower_left",
+  "foot_left"
+ ],
+ "actors": {
+  "captain": {
+   "model": "captain",
+   "offset": 0,
+   "visible": [
+    [
+     16.5,
+     120.0
+    ]
+   ],
+   "segments": [
+    {
+     "clip": "f_walk_toward",
+     "t": 0.0,
+     "end": 33.0
+    },
+    {
+     "clip": "f_breathe_guard",
+     "t": 33.0,
+     "end": 36.0
+    },
+    {
+     "clip": "f_draw_guard",
+     "t": 36.0,
+     "end": 41.0
+    },
+    {
+     "clip": "f_circle_guard",
+     "t": 41.0,
+     "end": 47.0
+    },
+    {
+     "clip": "f_block_high",
+     "t": 47.0,
+     "end": 51.0
+    },
+    {
+     "clip": "f_slash_side",
+     "t": 51.0,
+     "end": 55.0
+    },
+    {
+     "clip": "f_block_high",
+     "t": 55.0,
+     "end": 61.0
+    },
+    {
+     "clip": "f_hit_stagger",
+     "t": 61.0,
+     "end": 66.0
+    },
+    {
+     "clip": "f_thrust_lunge",
+     "t": 66.0,
+     "end": 71.0
+    },
+    {
+     "clip": "f_breathe_guard",
+     "t": 71.0,
+     "end": 86.0
+    },
+    {
+     "clip": "f_kneel_mourn",
+     "t": 86.0,
+     "end": 94.0
+    },
+    {
+     "clip": "f_kneel_mourn",
+     "t": 94.0,
+     "end": 100.0
+    },
+    {
+     "clip": "f_kneel_mourn",
+     "t": 100.0,
+     "end": 104.0
+    },
+    {
+     "clip": "f_walk_toward",
+     "t": 104.0,
+     "end": 120.0
+    }
+   ]
+  },
+  "bandit": {
+   "model": "bandit",
+   "offset": 532948,
+   "visible": [
+    [
+     0.0,
+     120.0
+    ]
+   ],
+   "segments": [
+    {
+     "clip": "f_sit_fire",
+     "t": 0.0,
+     "end": 25.5
+    },
+    {
+     "clip": "f_sit_fire",
+     "t": 25.5,
+     "end": 30.0
+    },
+    {
+     "clip": "f_standup_draw",
+     "t": 30.0,
+     "end": 36.0
+    },
+    {
+     "clip": "f_breathe_guard",
+     "t": 36.0,
+     "end": 41.0
+    },
+    {
+     "clip": "f_circle_guard",
+     "t": 41.0,
+     "end": 47.0
+    },
+    {
+     "clip": "sword_overhead",
+     "t": 47.0,
+     "end": 51.0
+    },
+    {
+     "clip": "f_dodge_back",
+     "t": 51.0,
+     "end": 55.0
+    },
+    {
+     "clip": "f_thrust_lunge",
+     "t": 55.0,
+     "end": 61.0
+    },
+    {
+     "clip": "f_slash_side",
+     "t": 61.0,
+     "end": 66.0
+    },
+    {
+     "clip": "sword_overhead",
+     "t": 66.0,
+     "end": 71.0
+    },
+    {
+     "clip": "f_death_fall",
+     "t": 71.0,
+     "end": 80.0
+    },
+    {
+     "clip": "f_death_fall",
+     "t": 80.0,
+     "end": 120.0
+    }
+   ]
+  }
+ },
+ "events": [
+  {
+   "t": 0.167,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -23.499,
+    0.191,
+    0.858
+   ]
+  },
+  {
+   "t": 0.9,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -23.073,
+    0.178,
+    1.039
+   ]
+  },
+  {
+   "t": 1.467,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -22.726,
+    0.19,
+    0.805
+   ]
+  },
+  {
+   "t": 2.2,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -22.291,
+    0.178,
+    0.983
+   ]
+  },
+  {
+   "t": 2.767,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -21.953,
+    0.189,
+    0.752
+   ]
+  },
+  {
+   "t": 2.9,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -21.881,
+    0.183,
+    0.769
+   ]
+  },
+  {
+   "t": 3.5,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -21.509,
+    0.178,
+    0.928
+   ]
+  },
+  {
+   "t": 4.067,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -21.18,
+    0.189,
+    0.699
+   ]
+  },
+  {
+   "t": 4.2,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -21.1,
+    0.183,
+    0.715
+   ]
+  },
+  {
+   "t": 4.8,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -20.728,
+    0.178,
+    0.874
+   ]
+  },
+  {
+   "t": 5.367,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -20.407,
+    0.189,
+    0.647
+   ]
+  },
+  {
+   "t": 6.1,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -19.947,
+    0.178,
+    0.821
+   ]
+  },
+  {
+   "t": 6.7,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -19.58,
+    0.191,
+    0.583
+   ]
+  },
+  {
+   "t": 7.4,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -19.166,
+    0.178,
+    0.767
+   ]
+  },
+  {
+   "t": 8.0,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -18.806,
+    0.191,
+    0.529
+   ]
+  },
+  {
+   "t": 8.733,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -18.381,
+    0.178,
+    0.711
+   ]
+  },
+  {
+   "t": 9.3,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -18.033,
+    0.19,
+    0.477
+   ]
+  },
+  {
+   "t": 10.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -17.599,
+    0.178,
+    0.655
+   ]
+  },
+  {
+   "t": 10.6,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -17.26,
+    0.189,
+    0.424
+   ]
+  },
+  {
+   "t": 10.733,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -17.189,
+    0.183,
+    0.441
+   ]
+  },
+  {
+   "t": 11.333,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -16.816,
+    0.178,
+    0.6
+   ]
+  },
+  {
+   "t": 11.9,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -16.487,
+    0.189,
+    0.371
+   ]
+  },
+  {
+   "t": 12.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -16.408,
+    0.183,
+    0.387
+   ]
+  },
+  {
+   "t": 12.633,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -16.035,
+    0.178,
+    0.546
+   ]
+  },
+  {
+   "t": 13.2,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -15.714,
+    0.189,
+    0.318
+   ]
+  },
+  {
+   "t": 13.933,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -15.254,
+    0.178,
+    0.493
+   ]
+  },
+  {
+   "t": 14.533,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -14.887,
+    0.191,
+    0.255
+   ]
+  },
+  {
+   "t": 15.233,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -14.473,
+    0.178,
+    0.439
+   ]
+  },
+  {
+   "t": 15.833,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -14.114,
+    0.191,
+    0.201
+   ]
+  },
+  {
+   "t": 16.567,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -13.689,
+    0.178,
+    0.383
+   ]
+  },
+  {
+   "t": 17.133,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -13.341,
+    0.19,
+    0.149
+   ]
+  },
+  {
+   "t": 17.867,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -12.906,
+    0.178,
+    0.327
+   ]
+  },
+  {
+   "t": 18.433,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -12.568,
+    0.189,
+    0.096
+   ]
+  },
+  {
+   "t": 18.567,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -12.496,
+    0.183,
+    0.113
+   ]
+  },
+  {
+   "t": 19.167,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -12.124,
+    0.178,
+    0.272
+   ]
+  },
+  {
+   "t": 19.733,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -11.795,
+    0.189,
+    0.043
+   ]
+  },
+  {
+   "t": 19.867,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -11.715,
+    0.183,
+    0.059
+   ]
+  },
+  {
+   "t": 20.467,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -11.343,
+    0.178,
+    0.218
+   ]
+  },
+  {
+   "t": 21.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -11.022,
+    0.189,
+    -0.01
+   ]
+  },
+  {
+   "t": 21.767,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -10.562,
+    0.178,
+    0.164
+   ]
+  },
+  {
+   "t": 22.367,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -10.195,
+    0.191,
+    -0.074
+   ]
+  },
+  {
+   "t": 23.067,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -9.781,
+    0.178,
+    0.111
+   ]
+  },
+  {
+   "t": 23.667,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -9.422,
+    0.191,
+    -0.127
+   ]
+  },
+  {
+   "t": 24.4,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -8.996,
+    0.178,
+    0.055
+   ]
+  },
+  {
+   "t": 24.967,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -8.649,
+    0.19,
+    -0.18
+   ]
+  },
+  {
+   "t": 25.7,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -8.214,
+    0.178,
+    -0.001
+   ]
+  },
+  {
+   "t": 26.267,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.876,
+    0.189,
+    -0.232
+   ]
+  },
+  {
+   "t": 26.4,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.804,
+    0.183,
+    -0.215
+   ]
+  },
+  {
+   "t": 27.0,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.431,
+    0.178,
+    -0.056
+   ]
+  },
+  {
+   "t": 27.567,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.103,
+    0.189,
+    -0.285
+   ]
+  },
+  {
+   "t": 27.7,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.023,
+    0.183,
+    -0.27
+   ]
+  },
+  {
+   "t": 28.3,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -6.65,
+    0.178,
+    -0.11
+   ]
+  },
+  {
+   "t": 28.867,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -6.33,
+    0.189,
+    -0.338
+   ]
+  },
+  {
+   "t": 29.6,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -5.87,
+    0.178,
+    -0.164
+   ]
+  },
+  {
+   "t": 30.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    3.609,
+    0.132,
+    0.191
+   ]
+  },
+  {
+   "t": 30.2,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -5.503,
+    0.191,
+    -0.402
+   ]
+  },
+  {
+   "t": 30.9,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -5.089,
+    0.178,
+    -0.217
+   ]
+  },
+  {
+   "t": 31.5,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -4.729,
+    0.191,
+    -0.455
+   ]
+  },
+  {
+   "t": 31.6,
+   "type": "draw"
+  },
+  {
+   "t": 32.233,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -4.304,
+    0.178,
+    -0.273
+   ]
+  },
+  {
+   "t": 32.7,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    3.399,
+    0.203,
+    0.478
+   ]
+  },
+  {
+   "t": 32.733,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    4.014,
+    0.202,
+    0.573
+   ]
+  },
+  {
+   "t": 32.8,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -3.956,
+    0.19,
+    -0.508
+   ]
+  },
+  {
+   "t": 33.067,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    3.805,
+    0.208,
+    0.683
+   ]
+  },
+  {
+   "t": 33.4,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -3.884,
+    0.204,
+    -0.127
+   ]
+  },
+  {
+   "t": 34.733,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    3.353,
+    0.22,
+    0.575
+   ]
+  },
+  {
+   "t": 35.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    3.47,
+    0.179,
+    0.844
+   ]
+  },
+  {
+   "t": 37.4,
+   "type": "draw"
+  },
+  {
+   "t": 41.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -1.483,
+    0.186,
+    -3.115
+   ]
+  },
+  {
+   "t": 41.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    1.896,
+    0.185,
+    -3.648
+   ]
+  },
+  {
+   "t": 41.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    1.483,
+    0.186,
+    -2.885
+   ]
+  },
+  {
+   "t": 47.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -1.005,
+    0.167,
+    -2.89
+   ]
+  },
+  {
+   "t": 48.55,
+   "type": "whoosh"
+  },
+  {
+   "t": 49.0,
+   "type": "clash",
+   "pos": [
+    0.327,
+    0.931,
+    -3.425
+   ]
+  },
+  {
+   "t": 51.167,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -1.727,
+    0.159,
+    -3.398
+   ]
+  },
+  {
+   "t": 52.9,
+   "type": "whoosh",
+   "pos": [
+    -0.877,
+    1.532,
+    -2.345
+   ]
+  },
+  {
+   "t": 55.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.955,
+    0.167,
+    -2.89
+   ]
+  },
+  {
+   "t": 55.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    1.926,
+    0.22,
+    -3.277
+   ]
+  },
+  {
+   "t": 55.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    0.937,
+    0.194,
+    -2.912
+   ]
+  },
+  {
+   "t": 57.300000000000004,
+   "type": "whoosh"
+  },
+  {
+   "t": 57.6,
+   "type": "clash",
+   "pos": [
+    0.935,
+    1.175,
+    -3.411
+   ]
+  },
+  {
+   "t": 61.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    0.807,
+    0.189,
+    -3.334
+   ]
+  },
+  {
+   "t": 61.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    1.288,
+    0.156,
+    -2.564
+   ]
+  },
+  {
+   "t": 62.300000000000004,
+   "type": "whoosh"
+  },
+  {
+   "t": 62.6,
+   "type": "hit",
+   "who": "captain",
+   "pos": [
+    -1.145,
+    1.272,
+    -3.394
+   ]
+  },
+  {
+   "t": 63.433,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.645,
+    0.22,
+    -3.241
+   ]
+  },
+  {
+   "t": 66.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    0.163,
+    0.194,
+    -3.088
+   ]
+  },
+  {
+   "t": 66.033,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    1.296,
+    0.174,
+    -3.293
+   ]
+  },
+  {
+   "t": 68.4,
+   "type": "whoosh"
+  },
+  {
+   "t": 69.0,
+   "type": "kill",
+   "who": "bandit",
+   "pos": [
+    1.547,
+    1.159,
+    -3.108
+   ]
+  },
+  {
+   "t": 71.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -1.695,
+    0.201,
+    -2.78
+   ]
+  },
+  {
+   "t": 71.267,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    1.287,
+    0.215,
+    -2.313
+   ]
+  },
+  {
+   "t": 74.5,
+   "type": "drop"
+  },
+  {
+   "t": 75.667,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    0.851,
+    0.214,
+    -2.08
+   ]
+  },
+  {
+   "t": 75.7,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    0.68,
+    0.029,
+    -2.052
+   ]
+  },
+  {
+   "t": 75.767,
+   "type": "step",
+   "who": "bandit",
+   "pos": [
+    0.851,
+    0.178,
+    -2.084
+   ]
+  },
+  {
+   "t": 76.6,
+   "type": "fall"
+  },
+  {
+   "t": 86.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.813,
+    0.183,
+    -2.02
+   ]
+  },
+  {
+   "t": 86.033,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.561,
+    0.174,
+    -2.01
+   ]
+  },
+  {
+   "t": 87.633,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.298,
+    0.219,
+    -1.841
+   ]
+  },
+  {
+   "t": 87.767,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.234,
+    0.189,
+    -1.804
+   ]
+  },
+  {
+   "t": 93.0,
+   "type": "kneel"
+  },
+  {
+   "t": 101.5,
+   "type": "rise"
+  },
+  {
+   "t": 101.767,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.333,
+    0.193,
+    -1.614
+   ]
+  },
+  {
+   "t": 101.833,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    0.111,
+    0.182,
+    -1.623
+   ]
+  },
+  {
+   "t": 103.933,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.56,
+    0.173,
+    -1.996
+   ]
+  },
+  {
+   "t": 105.133,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -1.275,
+    0.178,
+    -2.035
+   ]
+  },
+  {
+   "t": 105.9,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -1.648,
+    0.189,
+    -1.87
+   ]
+  },
+  {
+   "t": 106.833,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -2.052,
+    0.178,
+    -2.13
+   ]
+  },
+  {
+   "t": 107.6,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -2.421,
+    0.189,
+    -1.965
+   ]
+  },
+  {
+   "t": 107.767,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -2.498,
+    0.184,
+    -1.995
+   ]
+  },
+  {
+   "t": 108.533,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -2.829,
+    0.178,
+    -2.226
+   ]
+  },
+  {
+   "t": 109.3,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -3.195,
+    0.189,
+    -2.061
+   ]
+  },
+  {
+   "t": 109.467,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -3.275,
+    0.184,
+    -2.091
+   ]
+  },
+  {
+   "t": 110.233,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -3.606,
+    0.178,
+    -2.322
+   ]
+  },
+  {
+   "t": 111.0,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -3.969,
+    0.189,
+    -2.156
+   ]
+  },
+  {
+   "t": 111.167,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -4.052,
+    0.184,
+    -2.186
+   ]
+  },
+  {
+   "t": 111.967,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -4.388,
+    0.178,
+    -2.414
+   ]
+  },
+  {
+   "t": 112.7,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -4.742,
+    0.189,
+    -2.252
+   ]
+  },
+  {
+   "t": 113.667,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -5.165,
+    0.178,
+    -2.51
+   ]
+  },
+  {
+   "t": 114.4,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -5.516,
+    0.188,
+    -2.347
+   ]
+  },
+  {
+   "t": 115.367,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -5.942,
+    0.178,
+    -2.606
+   ]
+  },
+  {
+   "t": 116.1,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -6.29,
+    0.188,
+    -2.443
+   ]
+  },
+  {
+   "t": 117.067,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -6.719,
+    0.178,
+    -2.701
+   ]
+  },
+  {
+   "t": 117.833,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.105,
+    0.19,
+    -2.538
+   ]
+  },
+  {
+   "t": 118.767,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.495,
+    0.178,
+    -2.797
+   ]
+  },
+  {
+   "t": 119.533,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -7.879,
+    0.19,
+    -2.633
+   ]
+  }
+ ],
+ "clips": {
+  "f_slash_side": "f_slash_side",
+  "sword_overhead": "sword_overhead",
+  "f_death_fall": "f_death_fall",
+  "f_block_high": "f_block_high",
+  "f_hit_stagger": "f_hit_stagger",
+  "f_standup_draw": "f_standup_draw",
+  "f_sit_fire": "f_sit_fire",
+  "f_dodge_back": "f_dodge_back",
+  "f_draw_guard": "f_draw_guard",
+  "f_walk_toward": "f_walk_toward",
+  "f_breathe_guard": "f_breathe_guard",
+  "f_thrust_lunge": "f_thrust_lunge",
+  "f_kneel_mourn": "f_kneel_mourn",
+  "f_circle_guard": "f_circle_guard"
+ }
+}
