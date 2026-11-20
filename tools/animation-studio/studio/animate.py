@@ -35,7 +35,12 @@ WORK = STUDIO / "work"
 LOGS = STUDIO / "logs"
 
 # The subject template keeps videos mocap-friendly: one person, full body, locked camera, plain set.
-SUBJECT = ("A single adult man in a fitted plain grey t-shirt, dark trousers and simple shoes, "
+BUILDS = {
+    "average": "A single adult man",
+    "heavy": "A single stocky, broad-shouldered, heavily built adult man with a thick neck and strong arms, moving with heavy weight,",
+    "lean": "A single lean, wiry, agile adult man",
+}
+SUBJECT = ("{build} in a fitted plain grey t-shirt, dark trousers and simple shoes, "
            "his whole body visible from head to feet the entire time, {action} "
            "Fixed static camera at waist height, wide full-body shot, the camera never moves. "
            "Completely empty bright light-grey room with a seamless backdrop and a flat floor, nothing else in the room, soft even lighting. "
@@ -97,10 +102,12 @@ def main():
     p.add_argument("--from-project", help="reuse an existing GEM-X result folder")
     p.add_argument("--image", help="optional start frame for Wan image-to-video")
     p.add_argument("--raw-prompt", action="store_true", help="send the action text to Wan unchanged")
-    p.add_argument("--seconds", type=float, default=5.0)
-    p.add_argument("--width", type=int, default=1280)
-    p.add_argument("--height", type=int, default=704)
-    p.add_argument("--steps", type=int, default=30)
+    p.add_argument("--build", choices=sorted(BUILDS), default="average", help="body type of the generated actor")
+    p.add_argument("--normal", action="store_true", help="regular Wan 2.2 with --steps instead of FastWan (3 steps)")
+    p.add_argument("--seconds", type=float, default=4.0)
+    p.add_argument("--width", type=int, default=None, help="default 1280 (FastWan) / 832 (--normal)")
+    p.add_argument("--height", type=int, default=None, help="default 704 (FastWan) / 480 (--normal)")
+    p.add_argument("--steps", type=int, default=20)
     p.add_argument("--cfg", type=float, default=5.0)
     p.add_argument("--seed", type=int)
     p.add_argument("--in-place", action="store_true", help="remove horizontal root travel (loops, locomotion)")
@@ -108,7 +115,12 @@ def main():
     p.add_argument("--trim", default="", help="keep only START:END seconds of the solved motion")
     p.add_argument("--no-correct", action="store_true", help="skip foot-contact correction")
     p.add_argument("--no-preview", action="store_true")
+    p.add_argument("--meta", default="", help="JSON merged into meta.json (used by batch.py)")
     a = p.parse_args()
+    from comfy_client import COMFY, FAST_UNET
+    a.fast = not a.normal and (COMFY / "models" / "diffusion_models" / FAST_UNET).exists()
+    a.width = a.width or (1280 if a.fast else 832)
+    a.height = a.height or (704 if a.fast else 480)
     if not (a.action or a.video or a.from_project):
         p.error("give an action prompt, --video or --from-project")
 
@@ -135,16 +147,16 @@ def main():
             meta["source"] = str(src)
         else:
             from comfy_client import generate
-            prompt = a.action if a.raw_prompt else SUBJECT.format(action=a.action.strip().rstrip(".") + ".")
+            prompt = a.action if a.raw_prompt else SUBJECT.format(build=BUILDS[a.build], action=a.action.strip().rstrip(".") + ".")
             frames = max(5, int(round(a.seconds * 24 / 4)) * 4 + 1)
             frames_dir = WORK / name / "frames"
             shutil.rmtree(frames_dir, ignore_errors=True)
             pngs, seed = generate(prompt, frames_dir, width=a.width, height=a.height, frames=frames,
                                   steps=a.steps, cfg=a.cfg, seed=a.seed,
-                                  image=Path(a.image) if a.image else None, log=log)
+                                  image=Path(a.image) if a.image else None, log=log, fast=a.fast)
             run([tool("ffmpeg"), "-y", "-v", "error", "-framerate", "24", "-i", frames_dir / "frame_%04d.png",
                  "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", video])
-            meta.update(action=a.action, prompt=prompt, seed=seed, frames=len(pngs), fps=24,
+            meta.update(action=a.action, prompt=prompt, seed=seed, frames=len(pngs), fps=24, build=a.build,
                         size=[a.width, a.height], steps=a.steps, cfg=a.cfg)
         meta["timings"]["video_s"] = round(time.time() - t0)
         # QC contact sheet: 8 frames spread over the clip
@@ -184,6 +196,8 @@ def main():
         run([tool("ffmpeg"), "-y", "-v", "error", "-i", video, "-i", job["preview"], "-filter_complex",
              "[0:v]scale=-2:540,fps=30[a];[1:v]scale=-2:540,fps=30[b];[a][b]hstack=inputs=2:shortest=1",
              "-c:v", "libx264", "-crf", "20", "-pix_fmt", "yuv420p", out / "preview.mp4"])
+    if a.meta:
+        meta.update(json.loads(a.meta))
     meta["files"] = sorted(f.name for f in out.iterdir())
     meta["timings"]["total_s"] = round(time.time() - t0)
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")

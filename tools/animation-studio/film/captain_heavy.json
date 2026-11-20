@@ -1,0 +1,98 @@
+[
+ {
+  "name": "c_draw_guard",
+  "build": "heavy",
+  "seed": 31,
+  "tags": [
+   "captain",
+   "draw",
+   "guard"
+  ],
+  "action": "stands still facing the camera, slowly draws a long sword from a scabbard at his left hip with his right hand and raises it with both hands into a high guard stance.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_circle_guard",
+  "build": "heavy",
+  "seed": 32,
+  "tags": [
+   "captain",
+   "guard",
+   "circle"
+  ],
+  "action": "holds a long sword with both hands in a low guard stance, knees bent, and slowly sidesteps to his left in a half circle, watching an opponent in front of him.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_block_high",
+  "build": "heavy",
+  "seed": 33,
+  "tags": [
+   "captain",
+   "block",
+   "parry"
+  ],
+  "action": "holds a long sword with both hands and quickly raises it horizontally above his head to block a heavy blow, the impact pushes him back one step, then he lowers the sword again.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_slash_side",
+  "build": "heavy",
+  "seed": 34,
+  "tags": [
+   "captain",
+   "slash",
+   "attack"
+  ],
+  "action": "steps forward and swings a long sword with both hands in a fast wide horizontal slash from right to left at chest height, then recovers into a guard stance.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_hit_stagger",
+  "build": "heavy",
+  "seed": 35,
+  "tags": [
+   "captain",
+   "hit",
+   "stagger"
+  ],
+  "action": "is struck hard in the chest, staggers backwards two steps clutching his side, almost falls down on one knee, then pushes himself up again.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_thrust_lunge",
+  "build": "heavy",
+  "seed": 36,
+  "tags": [
+   "captain",
+   "thrust",
+   "attack"
+  ],
+  "action": "lunges far forward and thrusts a long sword straight ahead with both hands, then pulls back to his guard stance.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_breathe_guard",
+  "build": "heavy",
+  "seed": 37,
+  "tags": [
+   "captain",
+   "idle",
+   "breathe"
+  ],
+  "action": "stands exhausted after a fight, breathing heavily with his shoulders rising and falling, a sword hanging from his right hand, then straightens up proudly.",
+  "seconds": 5.0
+ },
+ {
+  "name": "c_kneel_mourn",
+  "build": "heavy",
+  "seed": 38,
+  "tags": [
+   "captain",
+   "kneel",
+   "mourn"
+  ],
+  "action": "takes two slow steps forward, then slowly kneels down on one knee and bows his head deeply, resting both hands on the hilt of a sword planted in the floor in front of him.",
+  "seconds": 5.0
+ }
+]

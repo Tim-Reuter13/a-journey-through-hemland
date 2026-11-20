@@ -78,6 +78,8 @@ function ground(base) {
 
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
+// Tree trunks as cylinders (for the camera checks in check.js): every placed tree adds one.
+export const trunks = [];
 function forest(group) {
   const random = rng(7);
   const kinds = [['spruce_1', 14], ['spruce_2', 14], ['spruce_3', 10], ['pine_1', 8], ['pine_2', 8], ['pine_3', 6], ['oak_1', 5], ['oak_2', 5],
@@ -94,7 +96,9 @@ function forest(group) {
     const gap = r < 30 ? 3.2 : 3.9;
     if (placed.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < gap * gap)) continue;
     placed.push([x, z]);
-    placeTree(group, pool[Math.floor(random() * pool.length)], x, heightAt(x, z), z, .85 + random() * .45, random, { solid: false });
+    const scale = .85 + random() * .45;
+    placeTree(group, pool[Math.floor(random() * pool.length)], x, heightAt(x, z), z, scale, random, { solid: false });
+    trunks.push({ x, z, y: heightAt(x, z), r: .38 * scale, h: 5.5 * scale });
   }
   const plants = ['fern_big_1', 'fern_big_2', 'fern_big_1', 'heather_1', 'heather_2', 'dry_shrub_1', 'mushroom_brown_1', 'mushroom_red_1', 'fern_big_2', 'pampas_1'];
   for (let i = 0; i < 520; i++) {
@@ -194,7 +198,7 @@ export function buildStage(base) {
   prop(group, 'hollow_log', 9.5, -6.5, -.6, .8);
   prop(group, 'burned_hut', -24, -13, .35);
   prop(group, 'woodpile', 1.5, 3.9, .3);
-  prop(group, 'sacks', 4.0, -1.6, -1.9);
+  prop(group, 'sacks', 2.4, 2.3, -1.9);
   const fire = campfire(group);
   const fog = mist(group);
   const sun = new THREE.DirectionalLight(0xffb070, 3.4);

@@ -1,0 +1,15 @@
+[
+ {
+  "name": "b_overhead",
+  "build": "lean",
+  "seed": 41,
+  "seconds": 5.0,
+  "tags": [
+   "bandit",
+   "overhead",
+   "strike",
+   "attack"
+  ],
+  "action": "stands in a guard stance holding a long sword with both hands, raises it high above his head and strikes down hard and fast in front of him at head height, then steps back into his guard stance."
+ }
+]

@@ -106,40 +106,91 @@ def workflow(prompt: str, *, width: int, height: int, frames: int, steps: int, c
     return wf
 
 
-def generate(prompt: str, out_dir: Path, *, width=1280, height=704, frames=121, steps=30, cfg=5.0,
-             seed: int | None = None, image: Path | None = None, log=print) -> tuple[list[Path], int]:
+def queue(prompt: str, *, width=832, height=480, frames=97, steps=20, cfg=5.0, seed: int | None = None,
+          image: Path | None = None, log=print, fast=False) -> dict:
+    """Submit one Wan job without waiting. Returns {pid, seed, prefix}."""
     ensure_server(log)
     seed = random.randrange(2**31) if seed is None else seed
     image_name = upload_image(image) if image else None
     prefix = f"anim/{uuid.uuid4().hex[:10]}"
-    wf = workflow(prompt, width=width, height=height, frames=frames, steps=steps, cfg=cfg,
-                  seed=seed, prefix=prefix, image_name=image_name)
+    if fast:
+        wf = workflow_fast(prompt, width=width, height=height, frames=frames, seed=seed, prefix=prefix, image_name=image_name)
+    else:
+        wf = workflow(prompt, width=width, height=height, frames=frames, steps=steps, cfg=cfg,
+                      seed=seed, prefix=prefix, image_name=image_name)
     pid = _post("/prompt", {"prompt": wf, "client_id": "animstudio"})["prompt_id"]
-    log(f"Wan 2.2 rendert {frames} Frames {width}x{height}, seed {seed} ...")
-    started = time.time()
-    while True:
-        hist = _get(f"/history/{pid}")
-        if pid in hist:
-            entry = hist[pid]
-            status = entry.get("status", {})
-            if status.get("status_str") == "error":
-                raise RuntimeError("ComfyUI error: " + json.dumps(status.get("messages", []))[-2000:])
-            if status.get("completed"):
-                break
-        time.sleep(3)
-        if time.time() - started > 3 * 3600:
-            raise TimeoutError("Wan generation exceeded 3 h")
-    images = entry["outputs"]["10"]["images"]
+    return {"pid": pid, "seed": seed, "prefix": prefix, "queued": time.time()}
+
+
+def done(job: dict) -> dict | None:
+    """The finished history entry of a queued job, None while it still runs (raises on error)."""
+    hist = _get(f"/history/{job['pid']}")
+    entry = hist.get(job["pid"])
+    if not entry:
+        return None
+    status = entry.get("status", {})
+    if status.get("status_str") == "error":
+        raise RuntimeError("ComfyUI error: " + json.dumps(status.get("messages", []))[-2000:])
+    return entry if status.get("completed") else None
+
+
+def collect(entry: dict, out_dir: Path) -> list[Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     paths = []
-    for i, im in enumerate(images):
+    for i, im in enumerate(entry["outputs"]["10"]["images"]):
         src = COMFY / "output" / im.get("subfolder", "") / im["filename"]
         dst = out_dir / f"frame_{i:04d}.png"
         os.replace(src, dst)
         paths.append(dst)
-    log(f"Wan fertig in {time.time() - started:.0f} s")
-    try:  # hand the VRAM back for the mocap step
+    return paths
+
+
+def free():
+    try:
         _post("/free", {"unload_models": True, "free_memory": True})
     except (urllib.error.URLError, OSError, ValueError):
         pass
-    return paths, seed
+
+
+FAST_UNET = "fastwan2.2_ti2v_5b.safetensors"   # FastWan 2.2 5B (3-step DMD distillation), converted by convert_fastwan.py
+
+
+def workflow_fast(prompt: str, *, width: int, height: int, frames: int, seed: int, prefix: str,
+                  image_name: str | None = None) -> dict:
+    """FastWan: 3 denoising steps at the distilled timesteps 1000/757/522, x0-prediction re-noised (LCM), no CFG."""
+    wf = {
+        "1": {"class_type": "UNETLoader", "inputs": {"unet_name": FAST_UNET, "weight_dtype": "default"}},
+        "2": {"class_type": "CLIPLoader",
+              "inputs": {"clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors", "type": "wan", "device": "default"}},
+        "3": {"class_type": "VAELoader", "inputs": {"vae_name": "wan2.2_vae.safetensors"}},
+        "5": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["2", 0], "text": prompt}},
+        "7": {"class_type": "Wan22ImageToVideoLatent",
+              "inputs": {"vae": ["3", 0], "width": width, "height": height, "length": frames, "batch_size": 1}},
+        "12": {"class_type": "BasicGuider", "inputs": {"model": ["1", 0], "conditioning": ["5", 0]}},
+        "13": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "lcm"}},
+        "14": {"class_type": "ManualSigmas", "inputs": {"sigmas": "1.0, 0.757, 0.522, 0.0"}},
+        "15": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
+        "8": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["15", 0], "guider": ["12", 0], "sampler": ["13", 0],
+                                                                "sigmas": ["14", 0], "latent_image": ["7", 0]}},
+        "9": {"class_type": "VAEDecode", "inputs": {"samples": ["8", 0], "vae": ["3", 0]}},
+        "10": {"class_type": "SaveImage", "inputs": {"images": ["9", 0], "filename_prefix": prefix}},
+    }
+    if image_name:
+        wf["11"] = {"class_type": "LoadImage", "inputs": {"image": image_name}}
+        wf["7"]["inputs"]["start_image"] = ["11", 0]
+    return wf
+
+
+def generate(prompt: str, out_dir: Path, *, width=832, height=480, frames=97, steps=20, cfg=5.0,
+             seed: int | None = None, image: Path | None = None, log=print, keep_loaded=False, fast=False) -> tuple[list[Path], int]:
+    job = queue(prompt, width=width, height=height, frames=frames, steps=steps, cfg=cfg, seed=seed, image=image, log=log, fast=fast)
+    log(f"Wan 2.2 rendert {frames} Frames {width}x{height}, {steps} Schritte, seed {job['seed']} ...")
+    while (entry := done(job)) is None:
+        time.sleep(2)
+        if time.time() - job["queued"] > 3 * 3600:
+            raise TimeoutError("Wan generation exceeded 3 h")
+    paths = collect(entry, out_dir)
+    log(f"Wan fertig in {time.time() - job['queued']:.0f} s")
+    if not keep_loaded:
+        free()   # hand the VRAM back for the mocap step
+    return paths, job["seed"]

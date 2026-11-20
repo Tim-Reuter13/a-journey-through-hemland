@@ -1,0 +1,205 @@
+{
+ "step_knight_1": {
+  "title": "Knight Left Footstep Forest/Grass 4 (With Chainmail)",
+  "creator": "Ali_6868",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Ali_6868/sounds/384902",
+  "seconds": 1.0
+ },
+ "step_knight_2": {
+  "title": "Knight Right Footstep Forest/Grass 1 (With Chainmail)",
+  "creator": "Ali_6868",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Ali_6868/sounds/384894",
+  "seconds": 0.88
+ },
+ "step_knight_3": {
+  "title": "Knight Right Footstep Forest/Grass 2 (With Chainmail)",
+  "creator": "Ali_6868",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Ali_6868/sounds/384891",
+  "seconds": 0.88
+ },
+ "step_knight_4": {
+  "title": "Knight Left Footstep Forest/Grass 1 (With Chainmail)",
+  "creator": "Ali_6868",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Ali_6868/sounds/384900",
+  "seconds": 1.0
+ },
+ "step_knight_5": {
+  "title": "Knight Left Footstep Forest/Grass 6 (With Chainmail)",
+  "creator": "Ali_6868",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Ali_6868/sounds/384893",
+  "seconds": 0.88
+ },
+ "step_dirt": {
+  "title": "Footsteps Dirt Road 1.wav",
+  "creator": "HenKonen",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/HenKonen/sounds/682127",
+  "seconds": 3.53
+ },
+ "clash_1": {
+  "title": "Swords Clash - High Quality #1",
+  "creator": "Christopherderp",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Christopherderp/sounds/364529",
+  "seconds": 1.87
+ },
+ "clash_2": {
+  "title": "Swords Clash - High Quality #2",
+  "creator": "Christopherderp",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Christopherderp/sounds/364530",
+  "seconds": 1.87
+ },
+ "impact_1": {
+  "title": "Hit Impact Sword 3",
+  "creator": "CogFireStudios",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/CogFireStudios/sounds/547042",
+  "seconds": 1.3
+ },
+ "impact_2": {
+  "title": "Sword Impact",
+  "creator": "TheBuilder15",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/TheBuilder15/sounds/434896",
+  "seconds": 0.73
+ },
+ "draw_1": {
+  "title": "Sword Unsheath",
+  "creator": "lucabia",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/lucabia/sounds/276872",
+  "seconds": 2.8
+ },
+ "draw_2": {
+  "title": "unsheath_sword.wav",
+  "creator": "Qat",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Qat/sounds/107589",
+  "seconds": 1.01
+ },
+ "swing_1": {
+  "title": "Fast Sword Swing Sound",
+  "creator": "qubodup",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/qubodup/sounds/60004",
+  "seconds": 0.38
+ },
+ "swing_2": {
+  "title": "Swing.mp3",
+  "creator": "XxChr0nosxX",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/XxChr0nosxX/sounds/268227",
+  "seconds": 1.1
+ },
+ "swing_3": {
+  "title": "13th Whoosh Swing Sound",
+  "creator": "qubodup",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/qubodup/sounds/60000",
+  "seconds": 0.52
+ },
+ "stab_1": {
+  "title": "Sword stab 4",
+  "creator": "ihitokage",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/ihitokage/sounds/395365",
+  "seconds": 1.37
+ },
+ "stab_2": {
+  "title": "Knife Stab Pull.wav",
+  "creator": "neilsher",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/neilsher/sounds/411742",
+  "seconds": 2.65
+ },
+ "fall_1": {
+  "title": "Body falling on the ground 1",
+  "creator": "ihitokage",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/ihitokage/sounds/395331",
+  "seconds": 0.83
+ },
+ "fall_2": {
+  "title": "Body Fall Over.wav",
+  "creator": "raubana",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/raubana/sounds/82027",
+  "seconds": 0.35
+ },
+ "drop_1": {
+  "title": "Dropping Sword",
+  "creator": "Christopherderp",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Christopherderp/sounds/342452",
+  "seconds": 0.55
+ },
+ "drop_2": {
+  "title": "weapon drop.wav",
+  "creator": "Empiremonkey",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Empiremonkey/sounds/616504",
+  "seconds": 1.28
+ },
+ "cloth": {
+  "title": "Jacket/Cloth Rustle 4",
+  "creator": "brandondelehoy",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/brandondelehoy/sounds/494788",
+  "seconds": 0.94
+ },
+ "heartbeat": {
+  "title": "Single Heartbeat Clean HQ_BeatSmith.wav",
+  "creator": "Lunardrive",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Lunardrive/sounds/22440",
+  "seconds": 0.66
+ },
+ "crows": {
+  "title": "Crows",
+  "creator": "blimp66",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/blimp66/sounds/353432",
+  "seconds": 30
+ },
+ "fire_bed": {
+  "title": "campfire in a forest at night.wav",
+  "creator": "Duophonic",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Duophonic/sounds/248303",
+  "seconds": 125
+ },
+ "wind_bed": {
+  "title": "Wind Through Trees",
+  "creator": "Yoyodaman234",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Yoyodaman234/sounds/335889",
+  "seconds": 125
+ },
+ "music_wait": {
+  "title": "Dark Scandinavian Orchestra Slow Chill Relax Mood Sad Cinematic Atmo Amb Soundscape Surround.wav",
+  "creator": "szegvari",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/szegvari/sounds/639733",
+  "seconds": 50
+ },
+ "music_duel": {
+  "title": "Battle - Cinematic soundtrack music atmo background.wav",
+  "creator": "szegvari",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/szegvari/sounds/594223",
+  "seconds": 34.0
+ },
+ "music_end": {
+  "title": "Autumn leaf_with violins",
+  "creator": "lizziam",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/lizziam/sounds/214310",
+  "seconds": 56.54
+ }
+}

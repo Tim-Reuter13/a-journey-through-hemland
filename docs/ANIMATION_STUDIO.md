@@ -18,6 +18,41 @@ dem PC (RTX 5080). Damit ist auch die Cutscene „Die letzte Wacht“ (Hauptmen�
    preview.mp4, contact.jpg  (zur Kontrolle)
 ```
 
+## Version 2 (2026-11-20): schneller, passend, geprüft
+
+Nach der ersten Fassung des Films (Figuren schauten falsch, steckten in Steinen, Schläge trafen nicht, der Gang
+wirkte zu schlank, 2 Stunden Wartezeit) wurde die Pipeline umgebaut:
+
+| Bereich | Was jetzt passiert | Datei |
+| --- | --- | --- |
+| Tempo | Wan mit 832×480 und 20 Schritten (4× schneller), `batch.py` stellt alle Videos auf einmal in die Warteschlange und löst jedes fertige Video sofort per Mocap, während Wan schon das nächste rendert | `studio/batch.py`, `studio/comfy_client.py` |
+| Bibliothek | jeder Clip wird nur einmal erzeugt; `batch.py` überspringt vorhandene, `library.py` sucht nach Wörtern | `studio/library.py` |
+| Darsteller | `--build heavy` (stämmig, breitschultrig) für den Hauptmann, `lean` für den Banditen | `studio/animate.py` |
+| Retarget 2.0 | Arme bleiben außerhalb des breiten Blockbench-Torsos, schwere Rüstung trägt die Arme weiter, Kopf rollt nicht, kein Einsinken/Schweben | `film/solver.py` |
+| Schwert | wie `aimSword` im Spiel: Ruhe vorwärts-unten, Schwung verlängert den Unterarm, im Treffmoment auf das Ziel, Parade quer, Klingen treffen sich an einem gemeinsamen Punkt; linke Hand per IK an den Griff | `film/solver.py` |
+| Choreografie-Löser | Brust zeigt im Schlagmoment zum Gegner, Suche über Abstand und Winkel bis die Klinge trifft, niemand steht in Steinen/Altar/Feuer, Rückstoß nach Körpertreffern | `film/bake_film.py` |
+| Prüfer | Bake-Bericht (`letzte_wacht_report.json`: Treffer, Blickrichtung, Clipping) + Browser-Prüfer (Kamera in Geometrie, Figur verdeckt – auch durch den Gegner –, abgeschnitten, zu nah an der Linse) | `film/bake_film.py`, `src/cutscene/check.js` |
+| Kamera-Löser | ein Shot, der durchfällt, wird automatisch umkreist/angehoben/herangezogen, bis er besteht | `src/cutscene/check.js` |
+| KI-Review | Kontaktbögen pro Shot → Review-Agent (Claude, Codex als Zweitmeinung) mit festen Kriterien → JSON-Mängelliste → Korrektur → erneut prüfen | `film/review_prompt.md` |
+| Live-Editor | `?film=edit` oder F2 im Film: Zeitleiste mit Shots und Prüfer-Markern, freie Kamera, Figuren pro Segment schieben/drehen, „Speichern“ → `letzte_wacht_edits.json`, die der nächste Bake übernimmt | `src/cutscene/editor.js` |
+| Ton | echte CC0-Aufnahmen über Openverse/Freesound statt Synthese (3 Musikstücke, Wind, Feuer, Schritte mit Kettenhemd, Klingen, Treffer, Stürze), Nachweise in `public/audio/film/CREDITS.json` | `src/cutscene/score.js` |
+
+### Gemessen am 2026-11-20 (Version 2)
+
+| Schritt | vorher (v1) | jetzt (v2) |
+| --- | --- | --- |
+| Wan pro Clip | ~369 s (1280×704, 30 Schritte, 5 s) | ~110 s (832×480, 20 Schritte, 5 s) · 91 s bei 4 s · 4,5 s pro Schritt statt 10,7 |
+| GEM-X pro Clip | ~110 s | 119–203 s, Median ~150 s (läuft jetzt parallel zu Wan; ist damit der Engpass) |
+| 8 Clips (Batch) | ~67 min nacheinander | **22 min** (`BATCH_OK 8/8 clips in 1317 s`) |
+| Bake mit Löser | ~30 s | ~1–1,5 min (Suche über Abstand × seitlich × Winkel pro Treffer) |
+| Kamera-Löser beim Laden im Browser | – | ~0,9 s für 17 Shots |
+| Restfehler laut Prüfer | ungeprüft | Bake: 1 (5 cm, 0,7 s) · Browser: 1 (0,25 s verdeckt) |
+
+Erfahrungen v2: Wan liefert bei manchen Seeds Fehlclips (Person fehlt die halbe Zeit, oder kaum Bewegung) –
+Kontaktbogen ansehen und in `bake_film.py` den besseren Clip wählen (`pick(...)`). Für die Schlag-Ausrichtung kann
+statt der schnellsten Hand der höchste Punkt des Schwerts gewählt werden (`align=("block", t)`), wenn ein Clip
+vorher noch einen anderen Schwung enthält.
+
 ## Wo liegt was (auf dem PC)
 
 | Ort | Inhalt |
@@ -167,3 +202,9 @@ Last während Wan: GPU 99 %, ~10,9 GB VRAM, ~315 W, ~71 °C. GEM-X braucht laut 
 - Wan 2.2 5B erzeugt nicht immer physikalisch sinnvolle Bewegung; Gehen auf die Kamera zu wird in der Tiefe leicht
   unterschätzt (die Fußgleit-Korrektur im Bake gleicht das aus).
 - Finger werden gelöst, aber Hemland-Rigs haben keine Finger.
+
+## FastWan (Stand 2026-11-20 abends)
+- `studio/convert_fastwan.py` wandelt FastWan2.2-TI2V-5B (diffusers) ins Wan-Format um (mit dem ComfyUI-venv-Python ausführen) → `ComfyUI/models/diffusion_models/fastwan2.2_ti2v_5b.safetensors`.
+- Wenn die Datei da ist, ist FastWan der Standard: 3 Schritte (Sigmas 1.0/0.757/0.522, Sampler lcm), 1280×704, **~60 s pro 4-s-Clip** (vorher ~110 s bei 832×480/20 Schritten, v1 ~369 s). `--normal` schaltet zurück.
+- Flaschenhals ist jetzt GEM-X (~120–200 s pro Clip); batch.py lässt es parallel zu Wan laufen.
+- Review-Runde 3: Bake mit 1 Rest-Issue (Banditen-Oberarm 5 cm in stone19 bei 43,7 s), Browser-Check 1 kurzes Verdecken in Shot 5. Shot 12 hat eine höhere Kamera bekommen, weil der Solver sie zu nah gezogen hatte.

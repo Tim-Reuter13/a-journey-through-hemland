@@ -4,7 +4,9 @@ import { wind } from '../world/trees.js';
 import { buildStage, SUN_DIR, HAZE, FIRE } from './stage.js';
 import { createFx } from './fx.js';
 import { frameCamera } from './shots.js';
-import { createScore } from './score.js';
+import { createScore, preloadScore } from './score.js';
+import { createChecker } from './check.js';
+import { createEditor } from './editor.js';
 import './film.css';
 
 // "Die letzte Wacht" – a two-minute live cutscene (main menu → Animationstest). The motion is real
@@ -67,13 +69,15 @@ export function createFilm({ renderer, onExit }) {
   const ui = document.createElement('div'); ui.id = 'film-ui'; ui.className = 'hidden';
   ui.innerHTML = `<div class="film-loading">Die Szene wird aufgebaut …</div>
     <div class="film-title"><div class="kicker">A Journey through Hemland</div><h2>Die letzte Wacht</h2><div class="line">Ein Animationstest</div></div>
-    <div class="film-credits"><h2>Die letzte Wacht</h2><p><b>Bewegung</b> · Wan 2.2 TI2V 5B · RGB MoCap (GEM-X)</p><p><b>Figuren, Wald und Steine</b> · Hemland</p><p><b>Regie, Kamera, Licht und Ton</b> · Claude</p><p>Live in der Engine · ESC zurück zum Menü</p></div>
+    <div class="film-credits"><h2>Die letzte Wacht</h2><p><b>Bewegung</b> · Wan 2.2 TI2V 5B · RGB MoCap (GEM-X)</p><p><b>Figuren, Wald und Steine</b> · Hemland</p><p><b>Musik und Klänge</b> · szegvari, lizziam, Ali_6868, Christopherderp, qubodup u. a. · CC0 über Openverse/Freesound</p><p><b>Regie, Kamera, Licht und Schnitt</b> · Claude</p><p>Live in der Engine · ESC zurück zum Menü</p></div>
     <div class="film-skip">ESC · Überspringen &nbsp; Leertaste · Pause</div>`;
   document.body.append(ui);
   const $ = sel => ui.querySelector(sel);
 
   async function load() {
-    const [header, bin] = await Promise.all([fetch(`${base}cutscenes/letzte_wacht.json`).then(r => r.json()), fetch(`${base}cutscenes/letzte_wacht.bin`).then(r => r.arrayBuffer())]);
+    const [header, bin, set] = await Promise.all([fetch(`${base}cutscenes/letzte_wacht.json`).then(r => r.json()), fetch(`${base}cutscenes/letzte_wacht.bin`).then(r => r.arrayBuffer()),
+      fetch(`${base}cutscenes/letzte_wacht_set.json`).then(r => r.json())]);
+    const sounds = preloadScore(base);   // encoded audio arrives while the set is built
     const stage = buildStage(base);
     const view = new DataView(bin), P = header.pivots.length, stride = 12 + 8 * P;
     const actors = {};
@@ -84,9 +88,10 @@ export function createFilm({ renderer, onExit }) {
       rig.root.quaternion.set(0, 1, 0, 0);   // the bake faces the rigs like the mocap humanoid
       root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       stage.scene.add(root);
-      actors[key] = { key, root, rig, weapon, grip: weapon?.parent, weaponLocal: weapon ? weapon.matrix.clone() : null, offset: a.offset, visible: a.visible };
+      actors[key] = { key, root, rig, weapon, grip: weapon?.parent, weaponLocal: weapon ? weapon.matrix.clone() : null, offset: a.offset, visible: a.visible, weaponWindows: a.weapon };
     }
-    const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+    const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), _up = new THREE.Vector3(0, 1, 0), _nudge = new THREE.Vector3();
+    const edits = { actors: { captain: {}, bandit: {} }, cameras: {} };
     const frameOf = t => { const x = Math.min(Math.max(t * header.hz, 0), header.frames - 1.001); const i = Math.floor(x); return [i, x - i]; };
     const q16 = (o, out) => out.set(view.getInt16(o, true) / 32767, view.getInt16(o + 2, true) / 32767, view.getInt16(o + 4, true) / 32767, view.getInt16(o + 6, true) / 32767).normalize();
     /** Hips in world space at film time t, straight from the data (for the camera). */
@@ -98,10 +103,24 @@ export function createFilm({ renderer, onExit }) {
     function pose(a, t) {
       const [i, f] = frameOf(t), o1 = a.offset + i * stride, o2 = o1 + stride;
       a.rig.hips.position.set(view.getFloat32(o1, true) * (1 - f) + view.getFloat32(o2, true) * f, view.getFloat32(o1 + 4, true) * (1 - f) + view.getFloat32(o2 + 4, true) * f, view.getFloat32(o1 + 8, true) * (1 - f) + view.getFloat32(o2 + 8, true) * f);
-      header.pivots.forEach((name, k) => { q16(o1 + 12 + k * 8, qa); q16(o2 + 12 + k * 8, qb); a.rig[name].quaternion.copy(qa).slerp(qb, f); });
+      header.pivots.forEach((name, k) => { q16(o1 + 12 + k * 8, qa); q16(o2 + 12 + k * 8, qb); a.rig[name]?.quaternion.copy(qa).slerp(qb, f); });
+      // the live editor's nudges for the segment playing now (not baked yet)
+      const segs = header.actors[a.key].segments;
+      let si = 0; for (let k = 0; k < segs.length; k++) if (segs[k].t <= t) si = k;
+      const e = edits.actors[a.key]?.[si];
+      a.root.position.set(0, 0, 0); a.root.quaternion.identity();
+      if (e) {
+        const c = at(a.key, segs[si].t);
+        a.root.quaternion.setFromAxisAngle(_up, e.yaw);
+        a.root.position.copy(c).sub(c.clone().applyQuaternion(a.root.quaternion)).add(_nudge.set(e.dx, 0, e.dz)).setY(0);
+      }
       a.root.visible = a.visible.some(([s, e]) => t >= s && t < e);
+      if (a.weapon) a.weapon.visible = !a.weaponWindows || a.weaponWindows.some(([s, e]) => t >= s && t < e);
     }
     const camera = new THREE.PerspectiveCamera(40, FILM_ASPECT, .1, 400);
+    // a soft fill from the camera's side (film lighting): faces turned from the low sun read instead of going black
+    const fill = new THREE.DirectionalLight(0xc9d2e0, .9); fill.castShadow = false;
+    stage.scene.add(fill, fill.target);
     const fx = createFx(stage.scene, { fire: FIRE, events: header.events });
     const target = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
     const uniforms = { tScene: { value: target.texture }, uSize: { value: new THREE.Vector2(4, 4) }, uSun: { value: new THREE.Vector2() }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
@@ -126,7 +145,7 @@ export function createFilm({ renderer, onExit }) {
     const hit = ray.intersectObject(stage.circle, true)[0]; if (hit) perch.copy(hit.point);
     // warm every shader up front, so the first cuts never stall
     renderer.setRenderTarget(target); renderer.compile(stage.scene, camera); renderer.setRenderTarget(null);
-    return { header, stage, actors, at, pose, camera, fx, target, uniforms, postScene, postCamera, dropFrom, crows, perch, camAt: t => { frameCamera(camera, t, ctxFor(t)); return camera.position.clone(); } };
+    return { header, set, edits, fill, sounds: await sounds, stage, actors, at, pose, camera, fx, target, uniforms, postScene, postCamera, dropFrom, crows, perch, camAt: t => { frameCamera(camera, t, ctxFor(t)); return camera.position.clone(); } };
     function ctxFor() { return { at: (k, tt) => at(k, tt), events: header.events }; }
   }
 
@@ -191,7 +210,11 @@ export function createFilm({ renderer, onExit }) {
     });
   }
   let t = 0, paused = false, score = null, hint = 0;
-  const _sun = new THREE.Vector3(), _view = new THREE.Vector3();
+  function startSound() {
+    try { score = createScore({ events: film.header.events, camAt: film.camAt, fire: FIRE.clone(), files: film.sounds }); score.start(() => t); }
+    catch (error) { console.warn('Film sound unavailable', error); score = null; }
+  }
+  const _sun = new THREE.Vector3(), _view = new THREE.Vector3(), _lift = new THREE.Vector3();
   function render(dt) {
     const { stage, camera, uniforms, target } = film;
     const canvas = renderer.domElement, W = canvas.width, H = canvas.height;
@@ -204,6 +227,12 @@ export function createFilm({ renderer, onExit }) {
     for (const a of Object.values(film.actors)) film.pose(a, t);
     cape(film.actors.captain, t); sword(t); flyCrows(t);
     const shot = frameCamera(camera, t, { at: film.at, events: film.header.events });
+    film.editor?.apply(t);
+    // fill light: from above-behind the camera onto what it looks at
+    camera.getWorldDirection(_view);
+    film.fill.position.copy(camera.position).addScaledVector(_view, -4).add(_lift.set(0, 3, 0));
+    film.fill.target.position.copy(camera.position).addScaledVector(_view, 6);
+    film.fill.intensity = .9 * (1 - THREE.MathUtils.smoothstep(t, 110, 119) * .6);
     if (api.override) { camera.position.fromArray(api.override.pos); camera.fov = api.override.fov ?? 40; camera.updateProjectionMatrix(); camera.lookAt(new THREE.Vector3().fromArray(api.override.look)); }
     stage.fire.update(t); stage.fire.setLevel(t < 79 ? 1 : Math.max(.35, 1 - (t - 79) / 30));
     stage.fog.material.uniforms.uTime.value = t;
@@ -246,6 +275,8 @@ export function createFilm({ renderer, onExit }) {
 
   function onKey(e) {
     if (!active) return;
+    if (e.code === 'F2' && film?.editor) { e.preventDefault(); e.stopImmediatePropagation(); film.editor.toggle(); return; }
+    if (film?.editor?.open && film.editor.key(e)) { e.stopImmediatePropagation(); return; }
     if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); stop(); }
     else if (e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); paused = !paused; hint = 3; }
     else { hint = 3; }
@@ -259,16 +290,20 @@ export function createFilm({ renderer, onExit }) {
     window.addEventListener('keydown', onKey, true); window.addEventListener('pointermove', onMove);
     try {
       film ??= await load();
+      // every shot is checked against stones, altar, props and trees; a blocked shot moves its camera (check.js)
+      if (!film.checker) { film.checker = createChecker(film, film.set); film.camLog = film.checker.solveCameras(); }
+      film.editor ??= createEditor(film, api);
+      if (new URLSearchParams(location.search).get('film') === 'edit') { film.editor.toggle(true); paused = true; }
     } catch (error) {
       console.error('Film could not be loaded', error); $('.film-loading').textContent = 'Die Szene konnte nicht geladen werden.'; setTimeout(stop, 2500); return;
     }
     if (!active) return;
     $('.film-loading').style.display = 'none';
-    try { score = createScore({ events: film.header.events, camAt: film.camAt, fire: FIRE.clone() }); score.start(t); } catch (error) { console.warn('Film sound unavailable', error); score = null; }
+    startSound();
   }
   function stop() {
     if (!active) return;
-    active = false; ui.classList.add('hidden');
+    active = false; ui.classList.add('hidden'); film?.editor?.toggle(false);
     window.removeEventListener('keydown', onKey, true); window.removeEventListener('pointermove', onMove);
     score?.stop(); score = null;
     const pr = renderer.getPixelRatio(); renderer.setRenderTarget(null); renderer.setViewport(0, 0, renderer.domElement.width / pr, renderer.domElement.height / pr);
@@ -287,10 +322,15 @@ export function createFilm({ renderer, onExit }) {
       render(dt);
     },
     // test hooks: jump, freeze, read the clock
-    seek(time) { t = time; if (score) { score.stop(); score = createScore({ events: film.header.events, camAt: film.camAt, fire: FIRE.clone() }); score.start(t); } },
+    seek(time) { t = time; if (score) { score.stop(); startSound(); } },
     pause(on = true) { paused = on; },
+    paused: () => paused,
     time: () => t,
     audio: () => score?.state ?? 'none',
+    /** Automatic review: camera and framing problems of the whole cut, plus the bake's own report. */
+    validate: (step) => film?.checker.validate(step),
+    cameraLog: () => film?.camLog,
+    report: () => fetch(`${base}cutscenes/letzte_wacht_report.json`).then(r => r.json()),
     debug: () => film && ({ cam: film.camera.position.toArray().map(v => +v.toFixed(2)), captain: film.at('captain', t).toArray().map(v => +v.toFixed(2)), bandit: film.at('bandit', t).toArray().map(v => +v.toFixed(2)),
       capHead: film.actors.captain.rig.head.getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2)), banHead: film.actors.bandit.rig.head.getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2)),
       capHand: film.actors.captain.rig.hand_right.getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2)), banHand: film.actors.bandit.rig.hand_right.getWorldPosition(new THREE.Vector3()).toArray().map(v => +v.toFixed(2)) }),
