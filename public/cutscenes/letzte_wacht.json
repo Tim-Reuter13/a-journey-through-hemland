@@ -98,11 +98,11 @@
     {
      "clip": "c_kneel_mourn",
      "t": 94.0,
-     "end": 100.0
+     "end": 98.6
     },
     {
      "clip": "c_kneel_mourn",
-     "t": 100.0,
+     "t": 98.6,
      "end": 102.2
     },
     {
@@ -181,11 +181,11 @@
     {
      "clip": "f_death_fall",
      "t": 71.0,
-     "end": 74.6
+     "end": 76.0
     },
     {
      "clip": "f_death_fall",
-     "t": 74.6,
+     "t": 76.0,
      "end": 120.0
     }
    ]
@@ -805,9 +805,9 @@
    "type": "step",
    "who": "bandit",
    "pos": [
-    1.601,
+    1.516,
     0.126,
-    -3.226
+    -3.147
    ]
   },
   {
@@ -1085,9 +1085,9 @@
    "type": "step",
    "who": "bandit",
    "pos": [
-    0.167,
+    0.455,
     0.125,
-    -2.78
+    -2.934
    ]
   },
   {
@@ -1099,29 +1099,29 @@
    "type": "hit",
    "who": "captain",
    "pos": [
-    -1.323,
-    1.272,
-    -3.526
+    -1.103,
+    1.43,
+    -3.462
    ]
   },
   {
-   "t": 63.4,
+   "t": 63.6,
    "type": "step",
    "who": "captain",
    "pos": [
-    -1.238,
+    -1.03,
     0.125,
-    -3.012
+    -2.969
    ]
   },
   {
-   "t": 63.4,
+   "t": 63.6,
    "type": "step",
    "who": "captain",
    "pos": [
-    -1.355,
+    -1.243,
     0.2,
-    -3.84
+    -3.779
    ]
   },
   {
@@ -1173,19 +1173,19 @@
    "type": "step",
    "who": "captain",
    "pos": [
-    -1.827,
+    -1.816,
     0.125,
-    -3.289
+    -3.285
    ]
   },
   {
-   "t": 71.333,
+   "t": 71.367,
    "type": "step",
    "who": "bandit",
    "pos": [
-    1.567,
+    1.856,
     0.125,
-    -2.854
+    -2.487
    ]
   },
   {
@@ -1193,9 +1193,9 @@
    "type": "step",
    "who": "bandit",
    "pos": [
-    1.669,
-    0.166,
-    -3.502
+    2.136,
+    0.161,
+    -3.081
    ]
   },
   {
@@ -1207,53 +1207,13 @@
    "type": "fall"
   },
   {
-   "t": 86.467,
+   "t": 86.133,
    "type": "step",
    "who": "captain",
    "pos": [
-    1.258,
-    0.149,
-    -2.455
-   ]
-  },
-  {
-   "t": 86.733,
-   "type": "step",
-   "who": "captain",
-   "pos": [
-    1.316,
+    -0.496,
     0.125,
-    -2.536
-   ]
-  },
-  {
-   "t": 87.333,
-   "type": "step",
-   "who": "captain",
-   "pos": [
-    1.445,
-    0.213,
-    -2.106
-   ]
-  },
-  {
-   "t": 87.6,
-   "type": "step",
-   "who": "captain",
-   "pos": [
-    0.864,
-    0.189,
-    -2.338
-   ]
-  },
-  {
-   "t": 87.8,
-   "type": "step",
-   "who": "captain",
-   "pos": [
-    0.836,
-    0.125,
-    -2.286
+    -2.748
    ]
   },
   {
@@ -1261,27 +1221,47 @@
    "type": "kneel"
   },
   {
-   "t": 100.4,
+   "t": 98.8,
    "type": "rise"
   },
   {
-   "t": 102.267,
+   "t": 101.3,
    "type": "step",
    "who": "captain",
    "pos": [
-    -2.276,
-    0.158,
-    -2.692
+    -0.458,
+    0.125,
+    -2.665
    ]
   },
   {
-   "t": 102.367,
+   "t": 102.1,
    "type": "step",
    "who": "captain",
    "pos": [
-    -2.482,
+    -0.881,
     0.125,
-    -2.41
+    -3.108
+   ]
+  },
+  {
+   "t": 102.1,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -0.352,
+    0.203,
+    -3.286
+   ]
+  },
+  {
+   "t": 102.233,
+   "type": "step",
+   "who": "captain",
+   "pos": [
+    -2.42,
+    0.127,
+    -2.437
    ]
   },
   {
@@ -1556,22 +1536,22 @@
   }
  ],
  "clips": {
-  "b_overhead": "b_overhead",
+  "f_death_fall": "f_death_fall",
+  "f_standup_draw": "f_standup_draw",
+  "c_kneel_mourn": "c_kneel_mourn",
   "f_dodge_back": "f_dodge_back",
-  "f_hit_stagger": "f_hit_stagger",
-  "c_breathe_guard": "c_breathe_guard",
   "f_breathe_guard": "f_breathe_guard",
   "f_slash_side": "f_slash_side",
-  "c_kneel_mourn": "c_kneel_mourn",
-  "f_standup_draw": "f_standup_draw",
-  "f_walk_heavy": "f_walk_heavy",
-  "c_slash_side": "c_slash_side",
-  "f_circle_guard": "f_circle_guard",
-  "c_draw_guard": "c_draw_guard",
-  "f_death_fall": "f_death_fall",
-  "f_thrust_lunge": "f_thrust_lunge",
   "c_circle_guard": "c_circle_guard",
+  "c_draw_guard": "c_draw_guard",
+  "c_block_high": "c_block_high",
+  "f_thrust_lunge": "f_thrust_lunge",
+  "f_circle_guard": "f_circle_guard",
+  "b_overhead": "b_overhead",
   "f_sit_fire": "f_sit_fire",
-  "c_block_high": "c_block_high"
+  "f_walk_heavy": "f_walk_heavy",
+  "c_breathe_guard": "c_breathe_guard",
+  "f_hit_stagger": "f_hit_stagger",
+  "c_slash_side": "c_slash_side"
  }
 }

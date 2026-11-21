@@ -32,19 +32,19 @@ export const SHOTS = [
   // 10 · Thrust and parry, low between two stones (slow motion inside).
   { t0: 55, t1: 61, cam: (u, c) => { const m = c.at('captain', c.t).lerp(c.at('bandit', c.t), .5); return { pos: v(m.x - .6 + u * .3, 1.6, m.z + 3.4), look: up(m, .95), fov: 38 }; } },
   // 11 · The captain takes the cut.
-  { t0: 61, t1: 66, who: ['captain', 'bandit'], cam: (u, c) => { const m = c.at('captain', c.t).lerp(c.at('bandit', c.t), .5); return { pos: v(m.x - 1.6, 1.7, m.z + 3.6), look: up(m, .85), fov: 38 }; } },
+  { t0: 61, t1: 66, who: ['captain', 'bandit'], cam: (u, c) => { const m = c.at('captain', c.t).lerp(c.at('bandit', c.t), .5); return { pos: v(m.x - .5, 1.95, m.z + 3.9), look: up(m, .95), fov: 36 }; } },
   // 12 · The answer: low, side on, against the sun – slow motion.
   { t0: 66, t1: 71, cam: (u, c) => { const m = c.at('captain', c.t).lerp(c.at('bandit', c.t), .5); return { pos: v(m.x + 1.2, 2.15, m.z + 3.8 - u * .3), look: up(m, .85), fov: 36 }; } },
   // 13 · He goes down.
   { t0: 71, t1: 79, who: ['bandit'], cam: (u, c) => { const b = c.at('bandit', c.t); return { pos: mix(v(4.3, 2.7, -1.2), v(3.9, 2.4, -1.5), easeOut(u)), look: up(b, .55 - u * .2), fov: 46 }; } },
   // 14 · From above: the stones, the fire burning low, one man standing.
-  { t0: 79, t1: 86, wide: true, cam: (u) => ({ pos: mix(v(5.2, 8.6, 3.6), v(4.6, 8.0, 3.1), u), look: v(.6, .2, -1.6), fov: 38 }) },
+  { t0: 79, t1: 86, wide: true, cam: (u) => ({ pos: mix(v(5.6, 10.6, 3.4), v(5.0, 10.0, 2.9), u), look: v(.5, .3, -1.9), fov: 44 }) },
   // 15 · He kneels by the dead: a slow half orbit, the sun breaking through behind him.
-  { t0: 86, t1: 102.2, who: ['captain', 'bandit'], cam: (u, c) => { const p = c.at('captain', c.t), m = p.clone().lerp(c.at('bandit', c.t), .4); return { pos: mix(v(-3.9, 3.1, -4.7), v(-3.4, 2.6, -4.3), ease(u)), look: up(m, .1), fov: 38 }; } },
-  // 16 · He walks out through the gap into the light; the camera stays.
-  { t0: 102.2, t1: 112, who: ['captain'], cam: (u, c) => { const p = c.at('captain', c.t); return { pos: v(3.2, 1.5, -1.0), look: mix(up(p, .7), v(-14, 2.2, -1.5), u * .5), fov: 32 - u * 5 }; } },
+  { t0: 86, t1: 102.2, who: ['captain', 'bandit'], cam: (u, c) => { const p = c.at('captain', c.t), m = p.clone().lerp(c.at('bandit', c.t), .4); return { pos: mix(v(-3.9, 3.1, -4.7), v(-3.4, 2.6, -4.3), ease(u)), look: up(m, .1 + .7 * THREE.MathUtils.smoothstep(c.t, 98.6, 101.2)), fov: 38 + 4 * THREE.MathUtils.smoothstep(c.t, 98.6, 101.2) }; } },
+  // 16 · He walks out through the gap into the light; the camera stays north of the altar so his boots stay in view.
+  { t0: 102.2, t1: 112, who: ['captain'], cam: (u, c) => { const p = c.at('captain', c.t); return { pos: v(3.0, 1.9, -3.9), look: mix(up(p, .6), v(-14, 1.8, -2.0), u * .5), fov: 34 - u * 5 }; } },
   // 17 · The crane rises over the circle while the light goes.
-  { t0: 112, t1: 120, wide: true, cam: (u) => ({ pos: mix(v(3.2, 1.7, -1.0), v(7.5, 11, 5.5), ease(u)), look: mix(v(-8, 1.6, -1.2), v(-2, 0, -1), ease(u)), fov: 32 + u * 12 }) },
+  { t0: 112, t1: 120, wide: true, cam: (u) => ({ pos: mix(v(3.0, 2.0, -3.9), v(7.5, 11, 5.5), ease(u)), look: mix(v(-8, 1.5, -1.8), v(-2, 0, -1), ease(u)), fov: 32 + u * 12 }) },
 ];
 
 export function shotAt(t) {

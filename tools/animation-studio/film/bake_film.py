@@ -55,14 +55,14 @@ BANDIT = [
     dict(clip="f_sit_fire", t=25.5, end=30.0, in_=2.4, speed=0.55, place="chain", blend=20),
     dict(clip="f_standup_draw", t=30.0, end=36.0, in_=0.0, speed=0.95, place=(4.2, 0.65, -38.6), blend=0, face="opp", face_t=35.0),
     dict(clip="f_breathe_guard", t=36.0, end=41.0, in_=0.0, speed=0.8, place="chain", blend=10),
-    dict(clip="f_circle_guard", t=41.0, end=47.0, in_=0.0, speed=0.85, place=(1.9, DUEL_Y + 0.2, -90), blend=0, face="opp"),
+    dict(clip="f_circle_guard", t=41.0, end=47.0, in_=0.0, speed=0.85, place=(1.9, DUEL_Y, -90), blend=0, face="opp"),
     dict(clip=pick("b_overhead", "sword_overhead"), t=47.0, end=51.0, align=("block", 48.7), place=(1.3, DUEL_Y, -90), blend=0, face="opp", hit=("blade", 49.0)),
     dict(clip="f_dodge_back", t=51.0, end=55.0, align=("dodge", 52.9), place=(1.3, DUEL_Y, -90), blend=0, face="opp"),
     dict(clip="f_thrust_lunge", t=55.0, end=61.0, align=("strike", 57.6), slowmo=(57.0, 58.6, 0.3), place=(1.35, DUEL_Y, -90), blend=0, face="opp", hit=("blade", 57.6)),
     dict(clip="f_slash_side", t=61.0, end=66.0, align=("strike", 62.6), place=(1.25, DUEL_Y, -90), blend=0, face="opp", hit=("chest", 62.6)),
     dict(clip=pick("b_overhead", "sword_overhead"), t=66.0, end=71.0, in_=1.6, speed=0.5, place=(1.45, DUEL_Y, -90), blend=0, face="opp"),
-    dict(clip="f_death_fall", t=71.0, end=74.6, in_=0.0, speed=0.65, place=(1.35, DUEL_Y, -90), blend=0, free=True),
-    dict(clip="f_death_fall", t=74.6, end=DURATION, in_=2.35, speed=0.0, place="chain", blend=14),   # lies face down, before the clip rolls him over
+    dict(clip="f_death_fall", t=71.0, end=76.0, in_=0.0, speed=0.6, place=(1.35, DUEL_Y, -90), blend=0, free=True),
+    dict(clip="f_death_fall", t=76.0, end=DURATION, in_=3.0, speed=0.0, place="chain", blend=14),   # lies flat face down, before the clip rolls him over
 ]
 CAPTAIN = [
     dict(clip=WALK, t=0.0, end=33.0, cycle=True, speed=1.0, walk_to=(32.6, -4.3, 0.3, 94)),
@@ -72,19 +72,19 @@ CAPTAIN = [
     dict(clip=pick("c_block_high", "f_block_high"), t=47.0, end=51.0, align=("block", 49.0), place=(-1.2, DUEL_Y, 90), blend=0, face="opp"),
     dict(clip=pick("c_slash_side", "f_slash_side"), t=51.0, end=55.0, align=("strike", 52.9), place=(-1.6, DUEL_Y, 90), blend=0, face="opp", aim=("miss", 52.9)),
     dict(clip=pick("c_circle_guard", "f_circle_guard"), t=55.0, end=61.0, align=("block", 57.6), slowmo=(57.0, 58.6, 0.3), place=(-1.15, DUEL_Y, 90), blend=0, face="opp"),
-    dict(clip="f_hit_stagger", t=61.0, end=66.0, align=("hit", 62.6), place=(-1.15, DUEL_Y, 90), blend=0, face="opp"),
+    dict(clip="f_hit_stagger", t=61.0, end=66.0, align=("hit", 62.8), place=(-1.15, DUEL_Y, 90), blend=0, face="opp"),
     dict(clip="f_thrust_lunge", t=66.0, end=71.0, align=("strike", 69.0), slowmo=(68.3, 70.0, 0.35), place=(-0.25, DUEL_Y, 90), blend=0, face="opp", hit=("torso", 69.0)),
     dict(clip=pick("c_breathe_guard", "f_breathe_guard"), t=71.0, end=86.0, in_=0.0, speed=0.34, place=(-1.8, DUEL_Y, 90), blend=0, face="opp"),
-    dict(clip=pick("c_kneel_mourn", "f_kneel_mourn"), t=86.0, end=94.0, in_=0.0, speed=0.75, place=(0.2, 3.7, 0), blend=0, face="opp", clear=.2, free=True, near=1.0),
-    dict(clip=pick("c_kneel_mourn", "f_kneel_mourn"), t=94.0, end=100.0, in_=99.0, speed=0.0, place="chain", blend=20),
-    dict(clip=pick("c_kneel_mourn", "f_kneel_mourn"), t=100.0, end=102.2, in_=99.0, speed=-.8, place="chain", blend=10),
+    dict(clip=pick("c_kneel_mourn", "f_kneel_mourn"), t=86.0, end=94.0, in_=1.3, speed=0.6, place=(0.2, 3.7, 0), blend=0, face="opp", clear=.2, free=True, near=1.0),
+    dict(clip=pick("c_kneel_mourn", "f_kneel_mourn"), t=94.0, end=98.6, in_=99.0, speed=0.0, place="chain", blend=20),
+    dict(clip=pick("c_kneel_mourn", "f_kneel_mourn"), t=98.6, end=102.2, in_=2.9, speed=-.55, place="chain", blend=10),   # back up through the kneel-down, upright (~0.9 s clip) before the cut
     # cut at 102.2 s (shot 16 starts): he walks off from a free spot west of the altar towards the gap and the sun
     dict(clip=WALK, t=102.2, end=DURATION, cycle=True, speed=0.92, walk_start=(-2.4, 2.6), walk_from=(-7.5, 0.6), blend=0),
 ]
 VISIBLE = {"captain": [(16.5, DURATION)], "bandit": [(0.0, DURATION)]}
 # the swords appear when they are drawn / picked up (the captain walks in with his blade sheathed)
 WEAPONS = {"captain": [(37.3, DURATION + 10)], "bandit": [(31.4, DURATION + 10)]}
-PLANTED = {"captain": [(88.0, 100.6)]}   # blade point-down in the ground while he kneels
+PLANTED = {"captain": [(88.0, 98.9)]}   # blade point-down in the ground while he kneels
 STYLE = {"captain": {"abduct": math.radians(2)}, "bandit": {"abduct": 0.0}}   # heavy armour carries the arms wider
 
 
@@ -402,15 +402,16 @@ def pass_free(actors, tls, boxes, log):
             if not s.get("free"):
                 continue
             group = followers(tl, s)
-            frames = [f for t in group for f in seg_frames(t, 12)][:16]
+            frames = [f for t in group for f in seg_frames(t, 12)]   # every chained segment, the rise too
+            settle = int(s["end"]) - 1                              # the pose he settles in (kneeling)
             opp = {f: world_at(actors[other], tls[other], f) for f in frames}
             mid = frames[len(frames) // 2]
             T0 = s["T"].copy()
-            h0 = tl.pose(s["start"])[1]
+            h0 = tl.pose(settle if s.get("face") == "opp" else s["start"])[1]   # a mourner turns on the spot where he kneels
             best = None
             for dx in (0, -.45, .45, -.9, .9):
                 for dy in (0, -.45, .45, -.9, .9):
-                    for deg in (0, -15, 15, -30, 30, -45, 45):
+                    for deg in (range(-180, 180, 15) if s.get("face") == "opp" else (0, -15, 15, -30, 30, -45, 45)):
                         s["T"] = Matrix.Translation((dx, dy, 0)) @ Matrix.Translation((h0.x, h0.y, 0)) @ Matrix.Rotation(math.radians(deg), 4, "Z") @ Matrix.Translation((-h0.x, -h0.y, 0)) @ T0
                         tl.refresh()
                         cost = .12 * math.hypot(dx, dy) + .002 * abs(deg)
@@ -421,6 +422,13 @@ def pass_free(actors, tls, boxes, log):
                                 cost += 3 * S.body_push(wa, opp[f], s.get("clear", 0.0))[0] / len(frames) * 4
                             if best is not None and cost >= best[0]:
                                 break
+                        if s.get("face") == "opp" and (best is None or cost < best[0]):
+                            wm = world_at(actor, tl, settle)          # settled pose: head leans towards the dead
+                            fwd = wm["head"].translation - wm["hips"].translation
+                            to = world_at(actors[other], tls[other], settle)["chest"].translation - wm["hips"].translation
+                            fwd.z = to.z = 0
+                            if fwd.length > .05 and to.length > .05:
+                                cost += 1.2 * abs(S.yaw_delta(fwd.normalized(), to.normalized()))
                         if s.get("near") and (best is None or cost < best[0]):
                             d = (tl.pose(mid)[1] - opp[mid]["hips"].translation)
                             d.z = 0
@@ -742,7 +750,7 @@ def events(worlds, tls):
                 tgt = worlds[other][i]["chest" if kind == "chest" else "torso"].translation
                 ev.append({"t": at, "type": "hit" if kind == "chest" else "kill", "who": other, "pos": three(tgt)})
     for t, kind in ((49.0 - 0.45, "whoosh"), (52.9, "whoosh"), (57.6 - 0.3, "whoosh"), (62.6 - 0.3, "whoosh"), (69.0 - 0.6, "whoosh"),
-                    (37.4, "draw"), (31.6, "draw"), (72.0, "drop"), (72.9, "fall"), (93.0, "kneel"), (100.4, "rise")):
+                    (37.4, "draw"), (31.6, "draw"), (72.0, "drop"), (72.9, "fall"), (93.0, "kneel"), (98.8, "rise")):
         ev.append({"t": t, "type": kind})
     for who, ws in worlds.items():
         for side in ("right", "left"):

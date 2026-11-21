@@ -9,7 +9,8 @@ figures, characters looking the wrong way, bodies stuck in stones/altar/each oth
   bottom-right 90 % of the shot), letterboxed 2.39:1, the game's pixel look (low resolution + dither) is intended.
 - Exception: the fight sheets show the beats instead: shot 8 = 48.4 s / 48.85 s / 49.0 s (blades meet) / 50.0 s,
   shot 10 = 56.6 / 57.4 / 57.6 s (blades meet) / 59.5 s, shot 11 = 61.8 / 62.45 / 62.6 s (hit) / 64.5 s,
-  shot 12 = 67.5 / 68.8 / 69.0 s (thrust lands) / 70.4 s (order: top-left, top-right, bottom-left, bottom-right).
+  shot 12 = 67.5 / 68.8 / 69.0 s (thrust lands) / 70.4 s, shot 15 = 88 / 95 / 100.6 s (starts to rise) / 101.9 s
+  (order: top-left, top-right, bottom-left, bottom-right).
 - `qc/review_auto.json`: the automatic checks (camera inside geometry, figures hidden or cut off, the bake's
   measurements of hits, facing, set and body overlaps). Use it, but judge the pictures yourself.
 
