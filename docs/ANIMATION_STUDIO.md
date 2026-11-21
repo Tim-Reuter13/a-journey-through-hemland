@@ -208,3 +208,27 @@ Last während Wan: GPU 99 %, ~10,9 GB VRAM, ~315 W, ~71 °C. GEM-X braucht laut 
 - Wenn die Datei da ist, ist FastWan der Standard: 3 Schritte (Sigmas 1.0/0.757/0.522, Sampler lcm), 1280×704, **~60 s pro 4-s-Clip** (vorher ~110 s bei 832×480/20 Schritten, v1 ~369 s). `--normal` schaltet zurück.
 - Flaschenhals ist jetzt GEM-X (~120–200 s pro Clip); batch.py lässt es parallel zu Wan laufen.
 - Review-Runde 3: Bake mit 1 Rest-Issue (Banditen-Oberarm 5 cm in stone19 bei 43,7 s), Browser-Check 1 kurzes Verdecken in Shot 5. Shot 12 hat eine höhere Kamera bekommen, weil der Solver sie zu nah gezogen hatte.
+
+## 3D-Modelle mit Pixal3D (seit 2026-11-21)
+Bild (oder Text) → texturiertes 3D-Modell (GLB), im selben ComfyUI des Studios. Pixal3D ist dort schon eingebaut
+(ComfyUI 0.46, eigene Nodes), es mussten nur die Modelle (~20,8 GB) geladen werden.
+
+```
+python studio\make3d.py bild.png --name axt                         # → library3d\axt\axt.glb + meta.json
+python studio\make3d.py --prompt "rusty iron lantern" --name lat    # Wan malt erst ein Bild (~25 s)
+  --faces 30000  --tex 1024  --seed N  --trellis (TRELLIS.2 zum Vergleich)  --keep-bg
+blender -b -P studio\view3d.py -- modell.glb ansicht.png            # 4 Ansichten zum Prüfen
+```
+
+| Schritt | Zeit (RTX 5080) |
+|---|---|
+| Bild aus Text (FastWan, 1 Frame) | ~25 s |
+| Bild → GLB (Freistellen, Kamera, Form, Textur, Remesh, UV, Baken) | ~150 s |
+| Ergebnis Testlaterne | 30 000 Flächen, 1024er-Textur, 4,3 MB |
+
+Ablauf in der Vorlage: BiRefNet stellt frei → MoGe schätzt den Bildwinkel → Pixal3D baut Struktur, Form (1536er
+Raster) und PBR-Textur → Remesh, Reduktion auf `--faces`, UV, Basisfarbe/Normal/AO baken → GLB.
+Das Bild entscheidet: ein Objekt, ganz im Bild, scharf, schlichter Hintergrund. Unscharfe oder doppelte dünne Teile
+(Henkel) werden zu Platten. Für Hemlands Blockbench-Look sind die Modelle zu detailliert – gut für Vorlagen,
+Requisiten-Ideen und spätere Spiele; für Hemland selbst müsste man sie stark reduzieren oder als Referenz nachbauen.
+Skripte in `tools/animation-studio/studio/` (make3d.py, view3d.py, workflows/pixal3d_api.json).
