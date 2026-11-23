@@ -232,3 +232,25 @@ Das Bild entscheidet: ein Objekt, ganz im Bild, scharf, schlichter Hintergrund. 
 (Henkel) werden zu Platten. Für Hemlands Blockbench-Look sind die Modelle zu detailliert – gut für Vorlagen,
 Requisiten-Ideen und spätere Spiele; für Hemland selbst müsste man sie stark reduzieren oder als Referenz nachbauen.
 Skripte in `tools/animation-studio/studio/` (make3d.py, view3d.py, workflows/pixal3d_api.json).
+
+## Keyframe-Modus (Test 2026-11-23)
+Statt eines Videomodells: Schlüsselposen als Bilder (z. B. von Codex) → eine GEM-X-Runde über ein „Halte-Video“
+(jedes Bild 14 Frames) → Pose aus der Mitte jedes Bildes → Bezier-Kurven dazwischen → Fuß-IK → FBX/GLB.
+
+```
+python studio\keyframes.py work\x\keys --name x --times 0,0.9,1.8,2.5,2.95,3.4 --move "0,0;...;2.8,0" --air "0,0,0,0,0.5,0"
+blender -b -P studio\view_anim.py -- clip.glb bild.png 60 three     # Strichmännchen-Bilder zum Prüfen
+```
+
+Was die Kurven-Stufe automatisch macht: Standfuß bleibt im Raum stehen, Schwungfuß läuft im Bogen von Abdruck zu
+Abdruck, Füße nahe am Boden werden bei Bodenposen auf den Boden gesetzt (GEM-X schätzt die Fußhöhe auf Einzelbildern
+bis ~20 cm falsch), die Hüfte wandert so weit wie die Schritte in den Bildern; nur Sprünge nutzen `--move`/`--air`.
+
+| Test „Pirschen + Sprung“ | Keyframes (Codex) | Video (FastWan) |
+|---|---|---|
+| Bilder bzw. Video | 6 Bilder in ~5 min (Codex, läuft nicht auf der GPU) | 82 s |
+| Mocap + Retarget + Kurven | 88 s | 159 s |
+| Ergebnis | alle Posen wie bestellt, Sprung 44 cm hoch, 3,6 m weit | Sprung fehlt, steht auf, Arme seitlich |
+
+Schwächen: seitliches Abdriften, wenn die Bilder unterschiedliche Fußstellungen zeigen; die Zwischenbewegung ist
+nur so gut wie die Kurven (noch kein Nachschwingen von Armen/Kopf); Timing muss man selbst vorgeben.
