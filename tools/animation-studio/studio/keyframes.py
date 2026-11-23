@@ -34,6 +34,8 @@ def main():
     ap.add_argument("--times", default="")
     ap.add_argument("--move", default="")
     ap.add_argument("--air", default="")
+    ap.add_argument("--in-place", action="store_true", help="cycle for the game: hips stay, feet slide back")
+    ap.add_argument("--reuse", action="store_true", help="keep an existing GEM-X result of the same pictures")
     a = ap.parse_args()
     pics = sorted(p for p in Path(a.pictures).iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"))
     n = len(pics)
@@ -60,8 +62,9 @@ def main():
 
     # 2) GEM-X + humanoid retarget on the hold video (the normal studio path)
     raw = f"{a.name}_raw"
-    subprocess.run([sys.executable, "-u", str(HERE / "animate.py"), "--video", str(holds), "--name", raw,
-                    "--no-preview", "--no-correct"], check=True, cwd=STUDIO)
+    if not (a.reuse and (LIB / raw / f"{raw}.glb").exists()):
+        subprocess.run([sys.executable, "-u", str(HERE / "animate.py"), "--video", str(holds), "--name", raw,
+                        "--no-preview", "--no-correct"], check=True, cwd=STUDIO)
     t_mocap = time.time() - t0
 
     # 3) poses from the hold centres -> curves
@@ -69,7 +72,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     job = {"raw_glb": str(LIB / raw / f"{raw}.glb"), "glb": str(out / f"{a.name}.glb"), "fbx": str(out / f"{a.name}.fbx"),
            "name": a.name, "hold_s": [(i * HOLD + HOLD / 2) / 24 for i in range(n)], "times": times, "move": move,
-           "air": air, "fps": 30}
+           "air": air, "fps": 30, "in_place": a.in_place}
     jp = work / "keyframes_job.json"
     jp.write_text(json.dumps(job), encoding="utf-8")
     r = subprocess.run([str(blender()), "-b", "--factory-startup", "-noaudio", "--python", str(HERE / "blender_keyframes.py"),

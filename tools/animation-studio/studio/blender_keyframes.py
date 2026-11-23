@@ -202,6 +202,15 @@ for e, _, r, _ in targets.values():
 shift = [0]
 lifted = steps
 print("FOOT_IK swing segments", lifted)
+if job.get("in_place"):            # cycles for the game: the hips stay, the planted feet slide back under the body
+    for f in frames:
+        sc.frame_set(f)
+        bpy.context.view_layer.update()
+        hw = arm.matrix_world @ hips.matrix
+        hw.translation.x, hw.translation.y = origin.x, origin.y
+        hips.matrix = arm.matrix_world.inverted() @ hw
+        hips.keyframe_insert("location", frame=f)
+    print("IN_PLACE", len(frames))
 bpy.ops.object.mode_set(mode="OBJECT")
 bpy.data.actions.remove(raw_action)
 

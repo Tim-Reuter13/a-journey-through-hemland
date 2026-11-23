@@ -254,3 +254,9 @@ bis ~20 cm falsch), die Hüfte wandert so weit wie die Schritte in den Bildern; 
 
 Schwächen: seitliches Abdriften, wenn die Bilder unterschiedliche Fußstellungen zeigen; die Zwischenbewegung ist
 nur so gut wie die Kurven (noch kein Nachschwingen von Armen/Kopf); Timing muss man selbst vorgeben.
+
+Erste echte Clips im Keyframe-Modus (Falkengrat-Kannibale, 2026-11-23): stalk, watch, perch, leap, scream, peek.
+Codex malte 31 Bilder in drei parallelen Jobs in 2–6 min. Waffe auf den Betrachter lehnt Codex ab, also ohne Waffe
+bestellen. Pro Clip 66–85 s. `--in-place` für Spiel-Zyklen, `--reuse` überspringt GEM-X. Prüfen am echten
+Modell: `blender -b -P studio\view_on_model.py -- figur.glb clip.glb bild.png 6 three` (gibt auch die
+Ruhepose-Abweichung aus; Blender 4.5 braucht den Action-Slot).
